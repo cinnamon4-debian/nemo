@@ -44,11 +44,9 @@
 #include <stdlib.h>
 
 #define NEMO_USER_DIRECTORY_NAME "nemo"
-#define DEFAULT_NEMO_DIRECTORY_MODE (0755)
 
 #define DESKTOP_DIRECTORY_NAME "Desktop"
 #define LEGACY_DESKTOP_DIRECTORY_NAME ".gnome-desktop"
-#define DEFAULT_DESKTOP_DIRECTORY_MODE (0755)
 
 static void update_xdg_dir_cache (void);
 static void schedule_user_dirs_changed (void);
@@ -118,7 +116,7 @@ nemo_get_user_directory (void)
 					   NULL);
 	
 	if (!g_file_test (user_directory, G_FILE_TEST_EXISTS)) {
-		g_mkdir (user_directory, DEFAULT_NEMO_DIRECTORY_MODE);
+		g_mkdir_with_parents (user_directory, DEFAULT_NEMO_DIRECTORY_MODE);
 		/* FIXME bugzilla.gnome.org 41286: 
 		 * How should we handle the case where this mkdir fails? 
 		 * Note that nemo_application_startup will refuse to launch if this 

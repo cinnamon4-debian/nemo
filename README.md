@@ -1,4 +1,5 @@
-nemo
+Nemo
 ====
+File Manager for Cinnamon
 
-File manager for cinnamon
+Nemo is the file manager for the Cinnamon desktop environment. 

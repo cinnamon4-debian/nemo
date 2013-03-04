@@ -59,8 +59,12 @@ libnemo_private_la_LIBADD =		\
 	$(NULL)
 
 libnemo_private_la_SOURCES = \
+    nemo-action.c \
+    nemo-action.h \
 	nemo-bookmark.c \
 	nemo-bookmark.h \
+    nemo-cell-renderer-disk.c \
+    nemo-cell-renderer-disk.h \
 	nemo-cell-renderer-text-ellipsized.c \
 	nemo-cell-renderer-text-ellipsized.h \
 	nemo-clipboard-monitor.c \
@@ -144,6 +148,10 @@ libnemo_private_la_SOURCES = \
 	nemo-module.h \
 	nemo-monitor.c \
 	nemo-monitor.h \
+    nemo-pathbar-button.c \
+    nemo-pathbar-button.h \
+    nemo-places-tree-view.c \
+    nemo-places-tree-view.h \
 	nemo-progress-info.c \
 	nemo-progress-info.h \
 	nemo-progress-info-manager.c \
