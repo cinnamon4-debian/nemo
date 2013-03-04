@@ -29,6 +29,7 @@
 #include <math.h>
 #include "nemo-icon-container.h"
 
+#include "nemo-file.h"
 #include "nemo-global-preferences.h"
 #include "nemo-icon-private.h"
 #include "nemo-lib-self-check-functions.h"
@@ -193,6 +194,8 @@ static double	     get_mirror_x_position                     (NemoIconContainer 
 								NemoIcon *icon,
 								double x);
 static void         text_ellipsis_limit_changed_container_callback  (gpointer callback_data);
+
+static void         show_desktop_tooltips_changed_container_callback (gpointer callback_data);
 
 static int compare_icons_horizontal (NemoIconContainer *container,
 				     NemoIcon *icon_a,
@@ -1266,6 +1269,7 @@ lay_down_icons_horizontal (NemoIconContainer *container,
 	double max_height_above, max_height_below;
 	double height_above, height_below;
 	double line_width;
+    gboolean gridded_layout;
 	double grid_width;
 	double max_text_width, max_icon_width;
 	int icon_width;
@@ -1301,7 +1305,9 @@ lay_down_icons_horizontal (NemoIconContainer *container,
 	} else {
 		grid_width = STANDARD_ICON_GRID_WIDTH;
 	}
-	
+
+    gridded_layout = !nemo_icon_container_is_tighter_layout (container);
+
 	line_width = container->details->label_position == NEMO_ICON_LABEL_POSITION_BESIDE ? ICON_PAD_LEFT : 0;
 	line_start = icons;
 	y = start_y + CONTAINER_PAD_TOP;
@@ -1320,8 +1326,12 @@ lay_down_icons_horizontal (NemoIconContainer *container,
 		icon_bounds = nemo_icon_canvas_item_get_icon_rectangle (icon->item);
 		text_bounds = nemo_icon_canvas_item_get_text_rectangle (icon->item, TRUE);
 
-		icon_width = ceil ((bounds.x1 - bounds.x0)/grid_width) * grid_width;
-		
+        if (gridded_layout) {
+           icon_width = ceil ((bounds.x1 - bounds.x0)/grid_width) * grid_width;
+        } else {
+           icon_width = (bounds.x1 - bounds.x0) + ICON_PAD_RIGHT + 8; /* 8 pixels extra for fancy selection box */
+        }
+
 		/* Calculate size above/below baseline */
 		height_above = icon_bounds.y1 - bounds.y0;
 		height_below = bounds.y1 - icon_bounds.y1;
@@ -1365,7 +1375,11 @@ lay_down_icons_horizontal (NemoIconContainer *container,
 		position->height = icon_bounds.y1 - icon_bounds.y0;
 
 		if (container->details->label_position == NEMO_ICON_LABEL_POSITION_BESIDE) {
-			position->x_offset = max_icon_width + ICON_PAD_LEFT + ICON_PAD_RIGHT - (icon_bounds.x1 - icon_bounds.x0);
+            if (gridded_layout) {
+                position->x_offset = max_icon_width + ICON_PAD_LEFT + ICON_PAD_RIGHT - (icon_bounds.x1 - icon_bounds.x0);
+            } else {
+                position->x_offset = icon_width - ((icon_bounds.x1 - icon_bounds.x0) + (text_bounds.x1 - text_bounds.x0));
+            }
 			position->y_offset = 0;
 		} else {
 			position->x_offset = (icon_width - (icon_bounds.x1 - icon_bounds.x0)) / 2;
@@ -2012,8 +2026,9 @@ lay_down_icons_vertical_desktop (NemoIconContainer *container, GList *icons)
 			int baseline;
 			int icon_height_for_bound_check;
 			gboolean should_snap;
-			
-			should_snap = container->details->keep_aligned;
+
+            should_snap = !(container->details->tighter_layout && !container->details->keep_aligned);
+
 			
 			y = DESKTOP_PAD_VERTICAL;
 
@@ -4009,6 +4024,10 @@ finalize (GObject *object)
 					      text_ellipsis_limit_changed_container_callback,
 					      object);
 
+    g_signal_handlers_disconnect_by_func (nemo_desktop_preferences,
+                          show_desktop_tooltips_changed_container_callback,
+                          object);
+
 	g_hash_table_destroy (details->icon_set);
 	details->icon_set = NULL;
 
@@ -5586,6 +5605,19 @@ text_ellipsis_limit_changed_container_callback (gpointer callback_data)
 	schedule_redo_layout (container);
 }
 
+static void
+show_desktop_tooltips_changed_container_callback (gpointer callback_data)
+{
+    NemoIconContainer *container;
+    container = NEMO_ICON_CONTAINER (callback_data);
+
+    gboolean show_tooltips = g_settings_get_boolean (nemo_desktop_preferences,
+                                                     NEMO_PREFERENCES_DESKTOP_SHOW_TOOLTIPS);
+    nemo_icon_container_set_show_desktop_tooltips (container, show_tooltips);
+
+    nemo_icon_container_request_update_all (container);
+}
+
 static GObject*
 nemo_icon_container_constructor (GType                  type,
 				     guint                  n_construct_params,
@@ -6865,6 +6897,29 @@ handle_hadjustment_changed (GtkAdjustment *adjustment,
 	}
 }
 
+static void
+construct_tooltip (NemoFile *file, gchar **tooltip_text)
+{
+    gint item_count;
+    if (nemo_file_is_directory (file)) {
+        nemo_file_get_directory_item_count (file, &item_count, NULL);
+        *tooltip_text = g_strdup_printf (ngettext ("%d item", "%d items", item_count), item_count);
+    } else {
+        gchar *scheme = nemo_file_get_uri_scheme (file);
+        if (g_strcmp0 (scheme, "x-nemo-desktop") != 0) {
+            gchar *size_string;
+            gint prefix;
+
+            prefix = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_SIZE_PREFIXES);
+            size_string = g_format_size_full (nemo_file_get_size (file), prefix);
+            *tooltip_text = g_strdup (size_string);
+            g_free (size_string);
+        } else {
+            *tooltip_text = NULL;
+        }
+        g_free (scheme);
+    }
+}
 
 void 
 nemo_icon_container_update_icon (NemoIconContainer *container,
@@ -6939,6 +6994,20 @@ nemo_icon_container_update_icon (NemoIconContainer *container,
 					       &editable_text,
 					       &additional_text,
 					       FALSE);
+
+    if (nemo_icon_container_get_is_desktop (container)) {
+        NemoFile *file = NEMO_FILE (icon->data);
+        gchar *tooltip_text;
+        construct_tooltip (file, &tooltip_text);
+
+        if (nemo_icon_container_get_show_desktop_tooltips (container)) {
+            nemo_icon_canvas_item_set_tooltip_text (icon->item, tooltip_text);
+        } else {
+            nemo_icon_canvas_item_set_tooltip_text (icon->item, "");
+        }
+        if (tooltip_text != NULL)
+            g_free (tooltip_text);
+    }
 
 	/* If name of icon being renamed was changed from elsewhere, end renaming mode. 
 	 * Alternatively, we could replace the characters in the editable text widget
@@ -7912,6 +7981,33 @@ nemo_icon_container_set_auto_layout (NemoIconContainer *container,
 	g_signal_emit (container, signals[LAYOUT_CHANGED], 0);
 }
 
+/* Toggle the tighter layout boolean. */
+void
+nemo_icon_container_set_tighter_layout (NemoIconContainer *container,
+                                        gboolean tighter_layout)
+{
+   g_return_if_fail (NEMO_IS_ICON_CONTAINER (container));
+   g_return_if_fail (tighter_layout == FALSE || tighter_layout == TRUE);
+   if (container->details->tighter_layout == tighter_layout) {
+       return;
+   }
+
+   container->details->tighter_layout = tighter_layout;
+
+   if (container->details->auto_layout) {
+       invalidate_label_sizes (container);
+       redo_layout (container);
+
+       g_signal_emit (container, signals[LAYOUT_CHANGED], 0);
+   } else {
+       /* in manual layout, label sizes still change, even though
+        * the icons don't move.
+        */
+       invalidate_label_sizes (container); 
+       nemo_icon_container_request_update_all (container); 
+   }
+}
+
 gboolean
 nemo_icon_container_is_keep_aligned (NemoIconContainer *container)
 {
@@ -8049,6 +8145,14 @@ nemo_icon_container_is_auto_layout (NemoIconContainer *container)
 	g_return_val_if_fail (NEMO_IS_ICON_CONTAINER (container), FALSE);
 
 	return container->details->auto_layout;
+}
+
+gboolean
+nemo_icon_container_is_tighter_layout (NemoIconContainer *container)
+{
+   g_return_val_if_fail (NEMO_IS_ICON_CONTAINER (container), FALSE);
+
+   return container->details->tighter_layout;
 }
 
 static void
@@ -8392,6 +8496,23 @@ nemo_icon_container_set_is_desktop (NemoIconContainer *container,
 	}
 }
 
+gboolean
+nemo_icon_container_get_show_desktop_tooltips (NemoIconContainer *container)
+{
+    g_return_val_if_fail (NEMO_IS_ICON_CONTAINER (container), FALSE);
+
+    return container->details->show_desktop_tooltips;
+}
+
+void
+nemo_icon_container_set_show_desktop_tooltips (NemoIconContainer *container,
+                                               gboolean show_tooltips)
+{
+    g_return_if_fail (NEMO_IS_ICON_CONTAINER (container));
+
+    container->details->show_desktop_tooltips = show_tooltips;
+}
+
 void
 nemo_icon_container_set_margins (NemoIconContainer *container,
 				     int left_margin,
@@ -8559,6 +8680,15 @@ nemo_icon_container_set_highlighted_for_clipboard (NemoIconContainer *container,
 				     NULL);
 	}
 
+}
+
+void
+nemo_icon_container_setup_tooltip_preference_callback (NemoIconContainer *container)
+{
+    g_signal_connect_swapped (nemo_desktop_preferences,
+                              "changed::" NEMO_PREFERENCES_DESKTOP_SHOW_TOOLTIPS,
+                              G_CALLBACK (show_desktop_tooltips_changed_container_callback),
+                              container);
 }
 
 /* NemoIconContainerAccessible */

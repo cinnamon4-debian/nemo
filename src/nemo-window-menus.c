@@ -27,8 +27,9 @@
  */
 #include <config.h>
 
-#include <locale.h> 
+#include <locale.h>
 
+#include "nemo-window-menus.h"
 #include "nemo-actions.h"
 #include "nemo-application.h"
 #include "nemo-connect-server-dialog.h"
@@ -40,6 +41,7 @@
 #include "nemo-window-private.h"
 #include "nemo-desktop-window.h"
 #include "nemo-search-bar.h"
+#include "nemo-location-bar.h"
 #include "nemo-icon-view.h"
 #include "nemo-list-view.h"
 #include <gtk/gtk.h>
@@ -235,7 +237,6 @@ static void
 action_zoom_in_callback (GtkAction *action, 
 			 gpointer user_data) 
 {
-
 	nemo_view_bump_zoom_level (get_current_view (user_data), 1);
 }
 
@@ -626,6 +627,23 @@ nemo_window_update_split_view_actions_sensitivity (NemoWindow *window)
 	g_clear_object (&next_pane_location);
 }
 
+static void
+sidebar_radio_entry_changed_cb (GtkAction *action,
+                GtkRadioAction *current,
+                gpointer user_data)
+{
+    gint current_value;
+    NemoWindow *window = NEMO_WINDOW (user_data);
+
+    current_value = gtk_radio_action_get_current_value (current);
+
+    if (current_value == SIDEBAR_PLACES) {
+        nemo_window_set_sidebar_id (window, NEMO_WINDOW_SIDEBAR_PLACES);
+    } else if (current_value == SIDEBAR_TREE) {
+        nemo_window_set_sidebar_id (window, NEMO_WINDOW_SIDEBAR_TREE);
+    }
+}
+
 /* TODO: bind all of this with g_settings_bind and GBinding */
 static guint
 sidebar_id_to_value (const gchar *sidebar_id)
@@ -638,12 +656,29 @@ sidebar_id_to_value (const gchar *sidebar_id)
 	return retval;
 }
 
+static void
+update_side_bar_radio_buttons (NemoWindow *window)
+{
+    GtkActionGroup *action_group;
+    GtkAction *action;
+    guint current_value;
+
+    action_group = nemo_window_get_main_action_group (window);
+
+    action = gtk_action_group_get_action (action_group,
+                          "Sidebar Places");
+    current_value = sidebar_id_to_value (nemo_window_get_sidebar_id (window));
+
+    g_signal_handlers_block_by_func (action, sidebar_radio_entry_changed_cb, window);
+    gtk_radio_action_set_current_value (GTK_RADIO_ACTION (action), current_value);
+    g_signal_handlers_unblock_by_func (action, sidebar_radio_entry_changed_cb, window);
+}
+
 void
 nemo_window_update_show_hide_menu_items (NemoWindow *window) 
 {
 	GtkActionGroup *action_group;
 	GtkAction *action;
-	guint current_value;
 
 	action_group = nemo_window_get_main_action_group (window);
 
@@ -653,10 +688,7 @@ nemo_window_update_show_hide_menu_items (NemoWindow *window)
 				      nemo_window_split_view_showing (window));
 	nemo_window_update_split_view_actions_sensitivity (window);
 
-	action = gtk_action_group_get_action (action_group,
-					      "Sidebar Places");
-	current_value = sidebar_id_to_value (window->details->sidebar_id);
-	gtk_radio_action_set_current_value (GTK_RADIO_ACTION (action), current_value);
+    update_side_bar_radio_buttons (window);
 }
 
 static void
@@ -756,16 +788,69 @@ action_new_tab_callback (GtkAction *action,
 	nemo_window_new_tab (window);
 }
 
+void action_toggle_location_entry_callback (GtkToggleAction *action, gpointer user_data);
+
 static void
-action_edit_location_callback (GtkAction *action,
+toggle_location_entry_setting (NemoWindow     *window,
+                               NemoWindowPane *pane,
+                               gboolean        from_accel_or_menu)
+{
+    gboolean current_view, temp_toolbar_visible, default_toolbar_visible, grab_focus_only, already_has_focus;
+    GtkToggleAction *button_action;
+    GtkActionGroup *action_group;
+
+
+    current_view = nemo_toolbar_get_show_location_entry (pane->tool_bar);
+    temp_toolbar_visible = pane->temporary_navigation_bar;
+    default_toolbar_visible = g_settings_get_boolean (nemo_window_state,
+                                                      NEMO_WINDOW_STATE_START_WITH_TOOLBAR);
+    already_has_focus = nemo_location_bar_has_focus (NEMO_LOCATION_BAR (pane->location_bar));
+
+    grab_focus_only = from_accel_or_menu && (pane->last_focus_widget == NULL || !already_has_focus) && current_view;
+
+    if ((temp_toolbar_visible || default_toolbar_visible) && !grab_focus_only) {
+        nemo_toolbar_set_show_location_entry (pane->tool_bar, !current_view);
+        g_settings_set_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY, !current_view);
+
+        action_group = pane->toolbar_action_group;
+        button_action = GTK_TOGGLE_ACTION (gtk_action_group_get_action (action_group, NEMO_ACTION_TOGGLE_LOCATION));
+
+        g_signal_handlers_block_by_func (button_action, action_toggle_location_entry_callback, window);
+        gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (button_action), !current_view);
+        g_signal_handlers_unblock_by_func (button_action, action_toggle_location_entry_callback, window);
+    } else {
+        nemo_window_pane_ensure_location_bar (pane);
+    }
+}
+
+void
+action_toggle_location_entry_callback (GtkToggleAction *action,
+                                        gpointer user_data)
+{
+    NemoWindow *window = user_data;
+    NemoWindowPane *pane;
+
+    pane = nemo_window_get_active_pane (window);
+    toggle_location_entry_setting(window, pane, FALSE);
+}
+
+static void
+action_menu_edit_location_callback (GtkAction *action,
 				gpointer user_data)
 {
 	NemoWindow *window = user_data;
 	NemoWindowPane *pane;
 
-	pane = nemo_window_get_active_pane (window);
-	nemo_window_pane_ensure_location_bar (pane);
+    pane = nemo_window_get_active_pane (window);
+    toggle_location_entry_setting(window, pane, TRUE);
 }
+
+enum {
+    ICON_VIEW,
+    LIST_VIEW,
+    COMPACT_VIEW,
+    NULL_VIEW
+};
 
 static void
 action_icon_view_callback (GtkAction *action,
@@ -776,7 +861,7 @@ action_icon_view_callback (GtkAction *action,
     window = NEMO_WINDOW (user_data);
     slot = nemo_window_get_active_slot (window);
     nemo_window_slot_set_content_view (slot, NEMO_ICON_VIEW_ID);
-    toolbar_set_view_button (NEMO_ACTION_ICON_VIEW, nemo_window_get_active_pane(window));
+    toolbar_set_view_button (ICON_VIEW, nemo_window_get_active_pane(window));
 }
 
 
@@ -789,7 +874,7 @@ action_list_view_callback (GtkAction *action,
     window = NEMO_WINDOW (user_data);
     slot = nemo_window_get_active_slot (window);
     nemo_window_slot_set_content_view (slot, NEMO_LIST_VIEW_ID);
-    toolbar_set_view_button (NEMO_ACTION_LIST_VIEW, nemo_window_get_active_pane(window));
+    toolbar_set_view_button (LIST_VIEW, nemo_window_get_active_pane(window));
 }
 
 
@@ -802,30 +887,29 @@ action_compact_view_callback (GtkAction *action,
     window = NEMO_WINDOW (user_data);
     slot = nemo_window_get_active_slot (window);
     nemo_window_slot_set_content_view (slot, FM_COMPACT_VIEW_ID);
-    toolbar_set_view_button (NEMO_ACTION_COMPACT_VIEW, nemo_window_get_active_pane(window));
+    toolbar_set_view_button (COMPACT_VIEW, nemo_window_get_active_pane(window));
 }
 
-
-gchar *
-toolbar_action_for_view_id (gchar *view_id)
+guint
+toolbar_action_for_view_id (const char *view_id)
 {
     if (g_strcmp0(view_id, NEMO_ICON_VIEW_ID) == 0) {
-        return NEMO_ACTION_ICON_VIEW;
+        return ICON_VIEW;
     } else if (g_strcmp0(view_id, NEMO_LIST_VIEW_ID) == 0) {
-        return NEMO_ACTION_LIST_VIEW;
+        return LIST_VIEW;
     } else if (g_strcmp0(view_id, FM_COMPACT_VIEW_ID) == 0) {
-        return NEMO_ACTION_COMPACT_VIEW;
+        return COMPACT_VIEW;
     } else {
-        return NULL;
+        return NULL_VIEW;
     }
 }
 
 void
-toolbar_set_view_button (gchar *action_id, NemoWindowPane *pane)
+toolbar_set_view_button (guint action_id, NemoWindowPane *pane)
 {
     GtkAction *action, *action1, *action2;
     GtkActionGroup *action_group;
-    if (action_id == NULL) {
+    if (action_id == NULL_VIEW) {
         return;
     }
     action_group = nemo_window_pane_get_toolbar_action_group (pane);
@@ -858,19 +942,19 @@ toolbar_set_view_button (gchar *action_id, NemoWindowPane *pane)
                          action_compact_view_callback,
                          NULL);
 
-    if (g_strcmp0(action_id, NEMO_ACTION_ICON_VIEW) != 0) {
+    if (action_id != ICON_VIEW) {
         gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action), FALSE);
     } else {
         gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action), TRUE);
     }
 
-    if (g_strcmp0(action_id, NEMO_ACTION_LIST_VIEW) != 0) {
+    if (action_id != LIST_VIEW) {
         gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action1), FALSE);
     } else {
         gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action1), TRUE);
     }
 
-    if (g_strcmp0(action_id, NEMO_ACTION_COMPACT_VIEW) != 0) {
+    if (action_id != COMPACT_VIEW) {
         gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action2), FALSE);
     } else {
         gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action2), TRUE);
@@ -960,26 +1044,6 @@ action_tab_change_action_activate_callback (GtkAction *action,
 	num = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (action), "num"));
 	if (num < gtk_notebook_get_n_pages (notebook)) {
 		gtk_notebook_set_current_page (notebook, num);
-	}
-}
-
-static void
-sidebar_radio_entry_changed_cb (GtkAction *action,
-				GtkRadioAction *current,
-				gpointer user_data)
-{
-	gint current_value;
-
-	current_value = gtk_radio_action_get_current_value (current);
-
-	if (current_value == SIDEBAR_PLACES) {
-		g_settings_set_string (nemo_window_state,
-				       NEMO_WINDOW_STATE_SIDE_PANE_VIEW,
-				       NEMO_WINDOW_SIDEBAR_PLACES);
-	} else if (current_value == SIDEBAR_TREE) {
-		g_settings_set_string (nemo_window_state,
-				       NEMO_WINDOW_STATE_SIDE_PANE_VIEW,
-				       NEMO_WINDOW_SIDEBAR_TREE);
 	}
 }
 
@@ -1107,7 +1171,7 @@ static const GtkActionEntry main_entries[] = {
 				 G_CALLBACK (action_forward_callback) },
   /* name, stock id, label */  { NEMO_ACTION_EDIT_LOCATION, NULL, N_("_Location..."),
                                  "<control>L", N_("Specify a location to open"),
-                                 G_CALLBACK (action_edit_location_callback) },
+                                 G_CALLBACK (action_menu_edit_location_callback) },
   /* name, stock id, label */  { "SplitViewNextPane", NULL, N_("S_witch to Other Pane"),
 				 "F6", N_("Move focus to the other pane in a split view window"),
 				 G_CALLBACK (action_split_view_switch_next_pane_callback) },
@@ -1156,6 +1220,11 @@ static const GtkToggleActionEntry main_toggle_entries[] = {
   /* tooltip */              N_("Change the visibility of this window's statusbar"),
                              NULL,
   /* is_active */            TRUE },
+  /* name, stock id */     { NEMO_ACTION_SHOW_HIDE_MENUBAR, NULL,
+  /* label, accelerator */   N_("M_enubar"), NULL,
+  /* tooltip */              N_("Change the default visibility of the menubar"),
+                             NULL,
+  /* is_active */            TRUE },
   /* name, stock id */     { "Search", "edit-find",
   /* label, accelerator */   N_("_Search for Files..."), "<control>f",
   /* tooltip */              N_("Search documents and folders by name"),
@@ -1166,11 +1235,6 @@ static const GtkToggleActionEntry main_toggle_entries[] = {
   /* tooltip */              N_("Open an extra folder view side-by-side"),
                              G_CALLBACK (action_split_view_callback),
   /* is_active */            FALSE },
-  /* name, stock id */     { "Show Hide Location Entry", NULL,
-  /* label, accelerator */   N_("Loca_tion entry"), "<control>l",
-  /* tooltip */              N_("Change the visibility of this window's location entry"),
-                             NULL,
-  /* is_active */            TRUE },
 };
 
 static const GtkRadioActionEntry main_radio_entries[] = {
@@ -1186,6 +1250,7 @@ GtkActionGroup *
 nemo_window_create_toolbar_action_group (NemoWindow *window)
 {
 	gboolean show_label_search_icon_toolbar;
+    gboolean show_location_entry_initially;
 
 	NemoNavigationState *navigation_state;
 	GtkActionGroup *action_group;
@@ -1285,20 +1350,19 @@ nemo_window_create_toolbar_action_group (NemoWindow *window)
    	gtk_action_group_add_action (action_group, action);
    
    	g_object_unref (action);
- 
-   	action = g_object_new (NEMO_TYPE_NAVIGATION_ACTION,
-   			       "name", NEMO_ACTION_EDIT_LOCATION,
-   			       "label", _("Location"),
-   			       "icon_name", "location-symbolic",
-   			       "tooltip", _("Toggle Location bar / Path bar"),
-   			       "window", window,
-    			       "direction", NEMO_NAVIGATION_DIRECTION_EDIT,
-   			       NULL);
-   	g_signal_connect (action, "activate",
-   			  G_CALLBACK (action_edit_location_callback), window);
-   	gtk_action_group_add_action (action_group, action);
-  
-   	g_object_unref (action);
+
+    action = GTK_ACTION (gtk_toggle_action_new (NEMO_ACTION_TOGGLE_LOCATION,
+                                                _("Location"),
+                                                _("Use Location Entry"),
+                                                NULL));
+    gtk_action_group_add_action (action_group, GTK_ACTION (action));
+    show_location_entry_initially = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_LOCATION_ENTRY);
+    gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action), show_location_entry_initially);
+    g_signal_connect (action, "activate",
+                      G_CALLBACK (action_toggle_location_entry_callback), window);
+    gtk_action_set_icon_name (GTK_ACTION (action), "location-symbolic");
+
+    g_object_unref (action);
 
     action = GTK_ACTION (gtk_toggle_action_new (NEMO_ACTION_ICON_VIEW,
                          _("Icons"),
@@ -1380,23 +1444,23 @@ window_menus_set_bindings (NemoWindow *window)
 			 "active",
 			 G_SETTINGS_BIND_DEFAULT);
 
-	action = gtk_action_group_get_action (action_group,
-					      NEMO_ACTION_SHOW_HIDE_SIDEBAR);	
-
-	g_settings_bind (nemo_window_state,
-			 NEMO_WINDOW_STATE_START_WITH_SIDEBAR,
-			 action,
-			 "active",
-			 G_SETTINGS_BIND_DEFAULT);
-    
     action = gtk_action_group_get_action (action_group,
-					      NEMO_ACTION_SHOW_HIDE_LOCATION_ENTRY);
+                          NEMO_ACTION_SHOW_HIDE_MENUBAR);
 
-	g_settings_bind (nemo_preferences,
-             NEMO_PREFERENCES_SHOW_LOCATION_ENTRY,
-			 action,
-			 "active",
+    g_settings_bind (nemo_window_state,
+             NEMO_WINDOW_STATE_START_WITH_MENU_BAR,
+             action,
+             "active",
              G_SETTINGS_BIND_DEFAULT);
+
+	action = gtk_action_group_get_action (action_group,
+					      NEMO_ACTION_SHOW_HIDE_SIDEBAR);
+
+    g_object_bind_property (window,
+                            "show-sidebar",
+                            action,
+                            "active",
+                            G_BINDING_BIDIRECTIONAL | G_BINDING_SYNC_CREATE);
 }
 
 void 
@@ -1405,7 +1469,7 @@ nemo_window_initialize_actions (NemoWindow *window)
 	GtkActionGroup *action_group;
 	const gchar *nav_state_actions[] = {
 		NEMO_ACTION_BACK, NEMO_ACTION_FORWARD, NEMO_ACTION_UP, NEMO_ACTION_RELOAD, NEMO_ACTION_COMPUTER, NEMO_ACTION_HOME, NEMO_ACTION_EDIT_LOCATION,
-		NEMO_ACTION_SEARCH, NULL
+		NEMO_ACTION_TOGGLE_LOCATION, NEMO_ACTION_SEARCH, NULL
 	};
 
 	action_group = nemo_window_get_main_action_group (window);
@@ -1473,6 +1537,9 @@ nemo_window_initialize_menus (NemoWindow *window)
 	g_signal_connect_swapped (nemo_preferences, "changed::" NEMO_PREFERENCES_SHOW_HIDDEN_FILES,
 				  G_CALLBACK(show_hidden_files_preference_callback),
 				  window);
+
+    g_signal_connect_object ( NEMO_WINDOW (window), "notify::sidebar-view-id",
+                             G_CALLBACK (update_side_bar_radio_buttons), window, 0);
 
 	/* Alt+N for the first 10 tabs */
 	for (i = 0; i < 10; ++i) {

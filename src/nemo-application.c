@@ -48,6 +48,7 @@
 #include "nemo-window-manage-views.h"
 #include "nemo-window-private.h"
 #include "nemo-window-slot.h"
+#include "nemo-statusbar.h"
 
 #include <libnemo-private/nemo-dbus-manager.h>
 #include <libnemo-private/nemo-desktop-link-monitor.h>
@@ -563,7 +564,7 @@ desktop_changed_callback (gpointer user_data)
 {
 	NemoApplication *application;
 	application = NEMO_APPLICATION (user_data);
-	if (g_settings_get_boolean (gnome_background_preferences, NEMO_PREFERENCES_SHOW_DESKTOP)) {
+	if (g_settings_get_boolean (nemo_desktop_preferences, NEMO_PREFERENCES_SHOW_DESKTOP)) {
 		nemo_application_open_desktop (application);
 	} else {
 		nemo_application_close_desktop ();
@@ -573,7 +574,7 @@ desktop_changed_callback (gpointer user_data)
 static void
 monitors_changed_callback (GdkScreen *screen, NemoApplication *application)
 {
-	if (g_settings_get_boolean (gnome_background_preferences, NEMO_PREFERENCES_SHOW_DESKTOP)) {
+	if (g_settings_get_boolean (nemo_desktop_preferences, NEMO_PREFERENCES_SHOW_DESKTOP)) {
 		nemo_application_close_desktop ();
 		nemo_application_open_desktop (application);
 	} else {
@@ -678,7 +679,10 @@ mount_removed_callback (GVolumeMonitor *monitor,
 		slot = node->data;
 
 		if (slot != force_no_close_slot) {
-			nemo_window_pane_slot_close (slot->pane, slot);
+            if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_CLOSE_DEVICE_VIEW_ON_EJECT))
+                nemo_window_pane_slot_close (slot->pane, slot);
+            else
+                nemo_window_slot_go_home (slot, FALSE);
 		} else {
 			computer = g_file_new_for_path (g_get_home_dir ());
 			nemo_window_slot_go_to (slot, computer, FALSE);
@@ -1045,12 +1049,85 @@ nemo_application_local_command_line (GApplication *application,
 	return TRUE;	
 }
 
+static gboolean
+css_provider_load_from_resource (GtkCssProvider *provider,
+                     const char     *resource_path,
+                     GError        **error)
+{
+   GBytes  *data;
+   gboolean retval;
+
+   data = g_resources_lookup_data (resource_path, 0, error);
+   if (!data)
+       return FALSE;
+
+   retval = gtk_css_provider_load_from_data (provider,
+                         g_bytes_get_data (data, NULL),
+                         g_bytes_get_size (data),
+                         error);
+   g_bytes_unref (data);
+
+   return retval;
+}
+
+static void
+nemo_application_add_app_css_provider (void)
+{
+  GtkCssProvider *provider;
+  GError *error = NULL;
+  GdkScreen *screen;
+
+  provider = gtk_css_provider_new ();
+
+  if (!css_provider_load_from_resource (provider, "/org/nemo/nemo-style-fallback.css", &error))
+    {
+      g_warning ("Failed to load fallback css file: %s", error->message);
+      if (error->message != NULL)
+        g_error_free (error);
+      goto out_a;
+    }
+
+    screen = gdk_screen_get_default ();
+
+  gtk_style_context_add_provider_for_screen (screen,
+      GTK_STYLE_PROVIDER (provider),
+      GTK_STYLE_PROVIDER_PRIORITY_FALLBACK);
+
+out_a:
+  g_object_unref (provider);
+
+  provider = gtk_css_provider_new ();
+
+  if (!css_provider_load_from_resource (provider, "/org/nemo/nemo-style-application.css", &error))
+    {
+      g_warning ("Failed to load application css file: %s", error->message);
+      if (error->message != NULL)
+        g_error_free (error);
+      goto out_b;
+    }
+
+    screen = gdk_screen_get_default ();
+
+  gtk_style_context_add_provider_for_screen (screen,
+      GTK_STYLE_PROVIDER (provider),
+      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+out_b:
+  g_object_unref (provider);
+}
+
 static void
 init_icons_and_styles (void)
 {
 	/* initialize search path for custom icons */
 	gtk_icon_theme_append_search_path (gtk_icon_theme_get_default (),
 					   NEMO_DATADIR G_DIR_SEPARATOR_S "icons");
+
+    gtk_icon_size_register (NEMO_STATUSBAR_ICON_SIZE_NAME,
+                            NEMO_STATUSBAR_ICON_SIZE,
+                            NEMO_STATUSBAR_ICON_SIZE);
+
+    nemo_application_add_app_css_provider ();
 }
 
 static void
@@ -1062,7 +1139,7 @@ init_desktop (NemoApplication *self)
 	nemo_desktop_link_monitor_get ();
 
 	if (!self->priv->no_desktop &&
-	    !g_settings_get_boolean (gnome_background_preferences,
+	    !g_settings_get_boolean (nemo_desktop_preferences,
 				     NEMO_PREFERENCES_SHOW_DESKTOP)) {
 		self->priv->no_desktop = TRUE;
 	}
@@ -1072,7 +1149,7 @@ init_desktop (NemoApplication *self)
 	}
 
 	/* Monitor the preference to show or hide the desktop */
-	g_signal_connect_swapped (gnome_background_preferences, "changed::" NEMO_PREFERENCES_SHOW_DESKTOP,
+	g_signal_connect_swapped (nemo_desktop_preferences, "changed::" NEMO_PREFERENCES_SHOW_DESKTOP,
 				  G_CALLBACK (desktop_changed_callback),
 				  self);
 
@@ -1185,7 +1262,7 @@ nemo_application_startup (GApplication *app)
 	/* Check the user's ~/.nemo directories and post warnings
 	 * if there are problems.
 	 */
-	//check_required_directories (self);
+	check_required_directories (self);
 	init_desktop (self);
 
 	do_upgrades_once (self);

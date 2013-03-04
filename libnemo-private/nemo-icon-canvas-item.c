@@ -52,6 +52,7 @@
 #define LABEL_LINE_SPACING 0
 
 #define MAX_TEXT_WIDTH_STANDARD 135
+#define MAX_TEXT_WIDTH_TIGHTER 80
 #define MAX_TEXT_WIDTH_BESIDE 90
 #define MAX_TEXT_WIDTH_BESIDE_TOP_TO_BOTTOM 150
 
@@ -1585,6 +1586,7 @@ nemo_icon_canvas_item_event (EelCanvasItem *item, GdkEvent *event)
 
 	switch (event->type) {
 	case GDK_ENTER_NOTIFY:
+        gtk_widget_set_tooltip_text (GTK_WIDGET (item->canvas), icon_item->tooltip);
 		if (!icon_item->details->is_prelit) {
 			icon_item->details->is_prelit = TRUE;
 			nemo_icon_canvas_item_invalidate_label_size (icon_item);
@@ -1605,6 +1607,7 @@ nemo_icon_canvas_item_event (EelCanvasItem *item, GdkEvent *event)
 		return TRUE;
 		
 	case GDK_LEAVE_NOTIFY:
+        gtk_widget_set_tooltip_text (GTK_WIDGET (item->canvas), "");
 		if (icon_item->details->is_prelit 
 		    || icon_item->details->is_highlighted_for_drop) {
 			/* When leaving, turn of the prelight state and the
@@ -2055,20 +2058,23 @@ nemo_icon_canvas_item_get_max_text_width (NemoIconCanvasItem *item)
 
 	canvas_item = EEL_CANVAS_ITEM (item);
 	container = NEMO_ICON_CONTAINER (canvas_item->canvas);
-
-	if (container->details->label_position == NEMO_ICON_LABEL_POSITION_BESIDE) {
-		if (container->details->layout_mode == NEMO_ICON_LAYOUT_T_B_L_R ||
-		    container->details->layout_mode == NEMO_ICON_LAYOUT_T_B_R_L) {
-			if (container->details->all_columns_same_width) {
-				return MAX_TEXT_WIDTH_BESIDE_TOP_TO_BOTTOM * canvas_item->canvas->pixels_per_unit;
-			} else {
-				return -1;
-			}
-		} else {
-			return MAX_TEXT_WIDTH_BESIDE * canvas_item->canvas->pixels_per_unit;
-		}
-	} else {
-		return MAX_TEXT_WIDTH_STANDARD * canvas_item->canvas->pixels_per_unit;
+    if (nemo_icon_container_is_tighter_layout (container)) {
+       return MAX_TEXT_WIDTH_TIGHTER * canvas_item->canvas->pixels_per_unit;
+    } else {
+        if (container->details->label_position == NEMO_ICON_LABEL_POSITION_BESIDE) {
+           if (container->details->layout_mode == NEMO_ICON_LAYOUT_T_B_L_R ||
+               container->details->layout_mode == NEMO_ICON_LAYOUT_T_B_R_L) {
+               if (container->details->all_columns_same_width) {
+                   return MAX_TEXT_WIDTH_BESIDE_TOP_TO_BOTTOM * canvas_item->canvas->pixels_per_unit;
+               } else {
+                   return -1;
+               }
+            } else {
+                return MAX_TEXT_WIDTH_BESIDE * canvas_item->canvas->pixels_per_unit;
+            }
+        } else {
+           return MAX_TEXT_WIDTH_STANDARD * canvas_item->canvas->pixels_per_unit;
+        }
 	}
 }
 
@@ -2912,4 +2918,10 @@ nemo_icon_canvas_item_accessible_factory_class_init (NemoIconCanvasItemAccessibl
 {
 	klass->create_accessible = nemo_icon_canvas_item_accessible_factory_create_accessible;
 	klass->get_accessible_type = nemo_icon_canvas_item_accessible_factory_get_accessible_type;
+}
+
+void
+nemo_icon_canvas_item_set_tooltip_text            (NemoIconCanvasItem *item, const gchar *text)
+{
+    item->tooltip = g_strdup (text);
 }

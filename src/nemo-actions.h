@@ -37,6 +37,7 @@
 #define NEMO_ACTION_SHOW_HIDE_TOOLBAR "Show Hide Toolbar"
 #define NEMO_ACTION_SHOW_HIDE_SIDEBAR "Show Hide Sidebar"
 #define NEMO_ACTION_SHOW_HIDE_STATUSBAR "Show Hide Statusbar"
+#define NEMO_ACTION_SHOW_HIDE_MENUBAR "Show Hide Menubar"
 #define NEMO_ACTION_SHOW_HIDE_LOCATION_BAR "Show Hide Location Bar"
 #define NEMO_ACTION_SHOW_HIDE_EXTRA_PANE "Show Hide Extra Pane"
 #define NEMO_ACTION_SHOW_HIDE_LOCATION_ENTRY "Show Hide Location Entry"
@@ -119,12 +120,14 @@
 #define NEMO_ACTION_LOCATION_STOP_VOLUME "Location Stop Volume"
 #define NEMO_ACTION_LOCATION_POLL "Location Poll"
 #define NEMO_ACTION_SCRIPTS "Scripts"
+#define NEMO_ACTION_ACTIONS "Actions"
 #define NEMO_ACTION_NEW_LAUNCHER "New Launcher"
 #define NEMO_ACTION_NEW_LAUNCHER_DESKTOP "New Launcher"
 #define NEMO_ACTION_NEW_DOCUMENTS "New Documents"
 #define NEMO_ACTION_NEW_EMPTY_DOCUMENT "New Empty Document"
 #define NEMO_ACTION_EMPTY_TRASH_CONDITIONAL "Empty Trash Conditional"
 #define NEMO_ACTION_MANUAL_LAYOUT "Manual Layout"
+#define NEMO_ACTION_TIGHTER_LAYOUT "Tighter Layout"
 #define NEMO_ACTION_REVERSED_ORDER "Reversed Order"
 #define NEMO_ACTION_CLEAN_UP "Clean Up"
 #define NEMO_ACTION_KEEP_ALIGNED "Keep Aligned"
@@ -137,5 +140,14 @@
 #define NEMO_ACTION_MAILTO_OTHER "MailToOther"
 #define NEMO_ACTION_SET_AS_WALLPAPER "SetAsWallPaper"
 #define NEMO_ACTION_OPEN_AS_ROOT "OpenAsRoot"
+#define NEMO_ACTION_TOGGLE_LOCATION "Toggle Location Button"
+
+#define NEMO_ACTION_STATUSBAR_PLACES "Statusbar Places"
+#define NEMO_ACTION_STATUSBAR_TREEVIEW "Statusbar Treeview"
+#define NEMO_ACTION_STATUSBAR_SIDEBAR_TOGGLE "Statusbar Sidebar Toggle"
+
+#define NEMO_ACTION_ADD_DESKLETS_DESKTOP "Add Desklets"
+
+#define NEMO_ACTION_FOLLOW_SYMLINK "FollowSymbolicLink"
 
 #endif /* NEMO_ACTIONS_H */

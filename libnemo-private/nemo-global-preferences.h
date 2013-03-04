@@ -95,6 +95,9 @@ typedef enum
 #define NEMO_WINDOW_STATE_GEOMETRY				"geometry"
 #define NEMO_WINDOW_STATE_MAXIMIZED				"maximized"
 #define NEMO_WINDOW_STATE_SIDEBAR_WIDTH			"sidebar-width"
+#define NEMO_WINDOW_STATE_MY_COMPUTER_EXPANDED  "my-computer-expanded"
+#define NEMO_WINDOW_STATE_DEVICES_EXPANDED      "devices-expanded"
+#define NEMO_WINDOW_STATE_NETWORK_EXPANDED      "network-expanded"
 
 /* Sorting order */
 #define NEMO_PREFERENCES_SORT_DIRECTORIES_FIRST		"sort-directories-first"
@@ -106,6 +109,7 @@ typedef enum
 
 #define NEMO_PREFERENCES_SHOW_FULL_PATH_TITLES      "show-full-path-titles"
 
+#define NEMO_PREFERENCES_CLOSE_DEVICE_VIEW_ON_EJECT "close-device-view-on-device-eject"
 
 enum
 {
@@ -123,7 +127,7 @@ enum
 
 /* Icon View */
 #define NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ZOOM_LEVEL		"default-zoom-level"
-
+#define NEMO_PREFERENCES_ICON_VIEW_DEFAULT_USE_TIGHTER_LAYOUT   "default-use-tighter-layout"
 #define NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS		"labels-beside-icons"
 
 /* Which text attributes appear beneath icon names */
@@ -187,6 +191,7 @@ typedef enum
 #define NEMO_PREFERENCES_DESKTOP_NETWORK_VISIBLE       "network-icon-visible"
 #define NEMO_PREFERENCES_DESKTOP_NETWORK_NAME          "network-icon-name"
 #define NEMO_PREFERENCES_DESKTOP_BACKGROUND_FADE       "background-fade"
+#define NEMO_PREFERENCES_DESKTOP_SHOW_TOOLTIPS         "tooltips-on-desktop"
 
 /* bulk rename utility */
 #define NEMO_PREFERENCES_BULK_RENAME_TOOL              "bulk-rename-tool"
@@ -200,6 +205,11 @@ typedef enum
 /* File size unit prefix */
 #define NEMO_PREFERENCES_SIZE_PREFIXES			"size-prefixes"
 
+/* media handling */
+
+#define GNOME_DESKTOP_MEDIA_HANDLING_AUTOMOUNT      "automount"
+#define GNOME_DESKTOP_MEDIA_HANDLING_AUTOMOUNT_OPEN "automount-open"
+#define GNOME_DESKTOP_MEDIA_HANDLING_AUTORUN        "autorun-never"
 
 void nemo_global_preferences_init                      (void);
 char *nemo_global_preferences_get_default_folder_viewer_preference_as_iid (void);
@@ -213,6 +223,7 @@ GSettings *nemo_tree_sidebar_preferences;
 GSettings *nemo_window_state;
 GSettings *gnome_lockdown_preferences;
 GSettings *gnome_background_preferences;
+GSettings *gnome_media_handling_preferences;
 
 G_END_DECLS
 

@@ -250,6 +250,11 @@
         <_summary>Prefixes used for file sizes</_summary>
         <_description>Determines whether Nemo uses base-10, base-10 long, base-2 or base-2 long file size prefixes</_description>
     </key>
+    <key name="close-device-view-on-device-eject" type="b">
+      <default>false</default>
+      <_summary>Whether to close a view of a removeable device instead of navigating Home</_summary>
+      <_description>If set to true, a view open for a removeable device will be closed instead of sent Home if the device is ejected</_description>
+    </key>
   </schema>
 
   <schema id="org.nemo.icon-view" path="/org/nemo/icon-view/" gettext-domain="nemo">
@@ -261,6 +266,11 @@
       the zoom level.  Some possible values are:
       "size", "type", "date_modified", "date_changed", "date_accessed", "owner",
       "group", "permissions", "octal_permissions" and "mime_type".</_description>
+    </key>
+    <key name="default-use-tighter-layout" type="b">
+      <default>false</default>
+      <_summary>Use tighter layout in new windows</_summary>
+      <_description>If true, icons will be laid out tighter by default in new windows.</_description>
     </key>
     <key name="labels-beside-icons" type="b">
       <default>false</default>
@@ -344,12 +354,16 @@
       <_description>If set to true, Nemo will only show folders in the tree side pane. Otherwise it will show both folders and files.</_description>
     </key>
   </schema>
-
   <schema id="org.nemo.desktop" path="/org/nemo/desktop/" gettext-domain="nemo">
     <key name="font" type="s">
       <default l10n="messages" context="desktop-font">''</default>
       <_summary>Desktop font</_summary>
       <_description>The font _description used for the icons on the desktop.</_description>
+    </key>
+    <key name="show-desktop-icons" type="b">
+      <default>true</default>
+      <_summary>Allow Nemo to manage the desktop</_summary>
+      <_description>If this is set to true, Nemo will autostart and manage the desktop</_description>
     </key>
     <key name="home-icon-visible" type="b">
       <default>true</default>
@@ -406,6 +420,11 @@
       <_summary>Fade the background on change</_summary>
       <_description>If set to true, then Nemo will use a fade effect to change the desktop background.</_description>
     </key>
+    <key name="tooltips-on-desktop" type="b">
+      <default>false</default>
+      <_summary>Show tooltips for desktop items</_summary>
+      <_description>If true, tooltips will be displayed for desktop items.</_description>
+    </key>
   </schema>
 
   <schema id="org.nemo.window-state" path="/org/nemo/window-state/" gettext-domain="nemo">
@@ -448,6 +467,21 @@
       <default>true</default>
       <_summary>Show menu bar in new windows</_summary>
       <_description>If set to true, newly opened windows will have the menu bar visible.</_description>
+    </key>
+    <key name="my-computer-expanded" type="b">
+      <default>true</default>
+      <_summary>Expand My Computer section in places sidebar</_summary>
+      <_description>View state storage for My Computer in places sidebar</_description>
+    </key>
+    <key name="devices-expanded" type="b">
+      <default>true</default>
+      <_summary>Expand Devices section in places sidebar</_summary>
+      <_description>View state storage for My Computer in places sidebar</_description>
+    </key>
+    <key name="network-expanded" type="b">
+      <default>true</default>
+      <_summary>Expand Network section in places sidebar</_summary>
+      <_description>View state storage for My Computer in places sidebar</_description>
     </key>
     <key name="side-pane-view" type="s">
       <choices>

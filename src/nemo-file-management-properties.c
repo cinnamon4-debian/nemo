@@ -53,8 +53,8 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SIZE_PREFIXES_WIDGET "size_prefixes_combobox"
 
 /* bool preferences */
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_LOCATION_ENTRY_WIDGET "show_location_entry_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_FOLDERS_FIRST_WIDGET "sort_folders_first_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_COMPACT_LAYOUT_WIDGET "compact_layout_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_LABELS_BESIDE_ICONS_WIDGET "labels_beside_icons_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_ALL_COLUMNS_SAME_WIDTH "all_columns_same_width_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_ALWAYS_USE_BROWSER_WIDGET "always_use_browser_checkbutton"
@@ -72,7 +72,13 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SEARCH_ICON_TOOLBAR_WIDGET "show_search_icon_toolbar_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_LABEL_SEARCH_ICON_TOOLBAR_WIDGET "show_label_search_icon_toolbar_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_FULL_PATH_IN_TITLE_BARS_WIDGET "show_full_path_in_title_bars_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_CLOSE_DEVICE_VIEW_ON_EJECT_WIDGET "close_device_view_on_eject_checkbutton"
 
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_AUTOMOUNT_MEDIA_WIDGET "media_automount_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_AUTOOPEN_MEDIA_WIDGET "media_autoopen_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_AUTORUN_MEDIA_WIDGET "media_autorun_checkbutton"
+
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_DESKTOP_TOOLTIPS_WIDGET "tooltips_on_desktop_checkbutton"
 
 /* int enums */
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_THUMBNAIL_LIMIT_WIDGET "preview_image_size_combobox"
@@ -766,6 +772,9 @@ nemo_file_management_properties_dialog_setup (GtkBuilder *builder, GtkWindow *wi
 			   NEMO_PREFERENCES_SHOW_LABEL_SEARCH_ICON_TOOLBAR);
 
 	/* setup preferences */
+    bind_builder_bool (builder, nemo_icon_view_preferences,
+                NEMO_FILE_MANAGEMENT_PROPERTIES_COMPACT_LAYOUT_WIDGET,
+                NEMO_PREFERENCES_ICON_VIEW_DEFAULT_USE_TIGHTER_LAYOUT);
 	bind_builder_bool (builder, nemo_icon_view_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_LABELS_BESIDE_ICONS_WIDGET,
 			   NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS);
@@ -778,7 +787,9 @@ nemo_file_management_properties_dialog_setup (GtkBuilder *builder, GtkWindow *wi
 	bind_builder_bool_inverted (builder, nemo_preferences,
 				    NEMO_FILE_MANAGEMENT_PROPERTIES_ALWAYS_USE_BROWSER_WIDGET,
 				    NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
-
+    bind_builder_bool (builder, nemo_desktop_preferences,
+               NEMO_FILE_MANAGEMENT_PROPERTIES_DESKTOP_TOOLTIPS_WIDGET,
+               NEMO_PREFERENCES_DESKTOP_SHOW_TOOLTIPS);
 	bind_builder_bool (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_TRASH_CONFIRM_WIDGET,
 			   NEMO_PREFERENCES_CONFIRM_TRASH);
@@ -851,6 +862,22 @@ nemo_file_management_properties_dialog_setup (GtkBuilder *builder, GtkWindow *wi
 				NEMO_PREFERENCES_IMAGE_FILE_THUMBNAIL_LIMIT,
 				thumbnail_limit_values,
 				G_N_ELEMENTS (thumbnail_limit_values));
+
+    bind_builder_bool (builder, gnome_media_handling_preferences,
+               NEMO_FILE_MANAGEMENT_PROPERTIES_AUTOMOUNT_MEDIA_WIDGET,
+               GNOME_DESKTOP_MEDIA_HANDLING_AUTOMOUNT);
+
+    bind_builder_bool (builder, gnome_media_handling_preferences,
+               NEMO_FILE_MANAGEMENT_PROPERTIES_AUTOOPEN_MEDIA_WIDGET,
+               GNOME_DESKTOP_MEDIA_HANDLING_AUTOMOUNT_OPEN);
+
+    bind_builder_bool_inverted (builder, gnome_media_handling_preferences,
+               NEMO_FILE_MANAGEMENT_PROPERTIES_AUTORUN_MEDIA_WIDGET,
+               GNOME_DESKTOP_MEDIA_HANDLING_AUTORUN);
+
+    bind_builder_bool (builder, nemo_preferences,
+                       NEMO_FILE_MANAGEMENT_PROPERTIES_CLOSE_DEVICE_VIEW_ON_EJECT_WIDGET,
+                       NEMO_PREFERENCES_CLOSE_DEVICE_VIEW_ON_EJECT);
 
 	nemo_file_management_properties_dialog_setup_icon_caption_page (builder);
 	nemo_file_management_properties_dialog_setup_list_column_page (builder);
