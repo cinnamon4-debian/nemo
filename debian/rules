@@ -12,7 +12,7 @@ endif
 
 
 %:
-	dh $@ --with autoreconf $(DH_PARALLEL_OPTION)
+	dh $@ --with python2,autoreconf $(DH_PARALLEL_OPTION)
 
 override_dh_autoreconf:
 	NOCONFIGURE=yes dh_autoreconf --as-needed -- ./autogen.sh
@@ -31,6 +31,9 @@ override_dh_strip:
 
 override_dh_makeshlibs:
 	dh_makeshlibs -Xusr/lib/nemo/extensions-3.0/
+
+override_dh_python2:
+	dh_python2 -p nemo-data /usr/share/nemo
 
 override_dh_installmime:
 	dh_installmime -pnemo-data

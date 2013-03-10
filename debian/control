@@ -24,6 +24,7 @@ Build-Depends: debhelper (>= 9),
                libxml2-dev (>= 2.7.8),
                libxrender-dev,
                libxt-dev,
+               python-dev,
                shared-mime-info (>= 0.50),
                x11proto-core-dev
 Homepage: http://www.github.com/linuxmint/nemo/
@@ -111,7 +112,7 @@ Description: libraries for nemo components - gir bindings
 
 Package: nemo-data
 Architecture: all
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${python:Depends}
 Suggests: nemo
 Description: File manager and graphical shell for Cinnamon (data files)
  Nemo is the official file manager for the Cinnamon desktop. It allows
