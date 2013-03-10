@@ -38,8 +38,7 @@ Depends: ${shlibs:Depends},
          desktop-file-utils (>= 0.7),
          gvfs (>= 1.3.2),
          libglib2.0-data,
-         gsettings-desktop-schemas,
-         cinnamon
+         gsettings-desktop-schemas
 Recommends: eject,
             librsvg2-common,
             gvfs-backends,
