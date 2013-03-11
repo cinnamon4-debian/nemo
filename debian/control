@@ -57,6 +57,7 @@ Description: File manager and graphical shell for Cinnamon
 
 Package: nemo-dbg
 Section: debug
+Priority: extra
 Architecture: any
 Depends: nemo (= ${binary:Version}), ${misc:Depends}
 Description: File manager and graphical shell for Cinnamon (Debugging symbols)
