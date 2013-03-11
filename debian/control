@@ -28,7 +28,7 @@ Build-Depends: debhelper (>= 9),
                shared-mime-info (>= 0.50),
                x11proto-core-dev
 Homepage: http://www.github.com/linuxmint/nemo/
-Standards-Version: 3.9.2
+Standards-Version: 3.9.4
 
 Package: nemo
 Architecture: any
