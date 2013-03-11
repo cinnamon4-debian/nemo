@@ -6,13 +6,9 @@ CONFIGURE_EXTRA_FLAGS = --libexecdir=/usr/lib/$(DEB_HOST_MULTIARCH)/nemo \
 
 export DEB_LDFLAGS_MAINT_APPEND = -Wl,-z,defs -Wl,-O1 -Wl,--as-needed
 
-ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-  DH_PARALLEL_OPTION=--parallel
-endif
-
 
 %:
-	dh $@ --with autoreconf,python2,gir $(DH_PARALLEL_OPTION)
+	dh $@ --with autoreconf,python2,gir --parallel
 
 override_dh_autoreconf:
 	NOCONFIGURE=yes dh_autoreconf --as-needed -- ./autogen.sh
