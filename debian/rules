@@ -1,8 +1,11 @@
 #!/usr/bin/make -f
 
-CONFIGURE_EXTRA_FLAGS = --libexecdir=/usr/lib/$(DEB_HOST_MULTIARCH)/nemo \
-                        --disable-update-mimedb \
-                        --enable-gtk-doc
+CONFIGURE_EXTRA_FLAGS = \
+	--libexecdir=/usr/lib/$(DEB_HOST_MULTIARCH)/nemo \
+	--disable-silent-rules \
+	--disable-update-mimedb \
+	--enable-gtk-doc \
+	$(NULL)
 
 export DEB_LDFLAGS_MAINT_APPEND = -Wl,-z,defs -Wl,-O1 -Wl,--as-needed
 
