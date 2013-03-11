@@ -12,7 +12,7 @@ endif
 
 
 %:
-	dh $@ --with python2,autoreconf $(DH_PARALLEL_OPTION)
+	dh $@ --with python2,autoreconf,gir $(DH_PARALLEL_OPTION)
 
 override_dh_autoreconf:
 	NOCONFIGURE=yes dh_autoreconf --as-needed -- ./autogen.sh
@@ -21,10 +21,6 @@ override_dh_auto_configure:
 	dh_auto_configure -- $(CONFIGURE_EXTRA_FLAGS)
 
 override_dh_auto_test:
-
-override_dh_shlibdeps:
-	dh_shlibdeps
-	dh_girepository
 
 override_dh_strip:
 	dh_strip --dbg-package=nemo-dbg
@@ -37,4 +33,3 @@ override_dh_python2:
 
 override_dh_installmime:
 	dh_installmime -pnemo-data
-
