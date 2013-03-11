@@ -29,6 +29,8 @@ Build-Depends: debhelper (>= 9),
                x11proto-core-dev
 Homepage: http://www.github.com/linuxmint/nemo/
 Standards-Version: 3.9.4
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-cinnamon/nemo.git
+Vcs-Git: git://anonscm.debian.org/pkg-cinnamon/nemo.git
 
 Package: nemo
 Architecture: any
