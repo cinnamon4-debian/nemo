@@ -50,7 +50,6 @@ Copyright: 2000-2001, Eazel, Inc
   2004, Novell, Inc
   2004, Jonathan Blandford <jrb@gnome.org>
 License: LGPL-2+
- FIXME
 
 Files: eel/*
 Copyright: 1999-2001, Eazel, Inc
@@ -74,7 +73,6 @@ Copyright: 1999-2001, Eazel, Inc
   1999-2000, Free Software Foundation
   2002, James Willcox
 License: GPL-2+
- FIXME
 
 Files:
  libnemo-private/nemo-bookmark.*
@@ -139,7 +137,6 @@ License: GPL-2+
  On Debian systems, the complete text of the GNU General
  Public License can be found in `/usr/share/common-licenses/GPL-2'.
 
-
 License: LGPL-2+
  This library is free software; you can redistribute it and/or
  modify it under the terms of the GNU Library General Public
@@ -157,7 +154,6 @@ License: LGPL-2+
  .
  On Debian systems, the complete text of the GNU General
  Public License can be found in `/usr/share/common-licenses/LGPL-2'.
-
 
 License: LGPL-2.1+
  This library is free software; you can redistribute it and/or
