@@ -1,5 +1,5 @@
-nemo (1.7.2-1) UNRELEASED; urgency=low
+nemo (1.7.2-1) unstable; urgency=low
 
   * Initial release. (Closes: #692830)
 
- -- Nicolas Bourdaud <nicolas.bourdaud@gmail.com>  Mon, 04 Mar 2013 21:52:00 +0100
+ -- Nicolas Bourdaud <nicolas.bourdaud@gmail.com>  Fri, 22 Mar 2013 15:54:12 +0100
