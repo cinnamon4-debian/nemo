@@ -34,6 +34,7 @@ G_BEGIN_DECLS
 /* Trash options */
 #define NEMO_PREFERENCES_CONFIRM_TRASH			"confirm-trash"
 #define NEMO_PREFERENCES_ENABLE_DELETE			"enable-delete"
+#define NEMO_PREFERENCES_SWAP_TRASH_DELETE      "swap-trash-delete"
 
 /* Desktop options */
 #define NEMO_PREFERENCES_DESKTOP_IS_HOME_DIR                "desktop-is-home-dir"
@@ -182,14 +183,10 @@ typedef enum
 
 #define NEMO_PREFERENCES_DESKTOP_FONT		   "font"
 #define NEMO_PREFERENCES_DESKTOP_HOME_VISIBLE          "home-icon-visible"
-#define NEMO_PREFERENCES_DESKTOP_HOME_NAME             "home-icon-name"
 #define NEMO_PREFERENCES_DESKTOP_COMPUTER_VISIBLE      "computer-icon-visible"
-#define NEMO_PREFERENCES_DESKTOP_COMPUTER_NAME         "computer-icon-name"
 #define NEMO_PREFERENCES_DESKTOP_TRASH_VISIBLE         "trash-icon-visible"
-#define NEMO_PREFERENCES_DESKTOP_TRASH_NAME            "trash-icon-name"
 #define NEMO_PREFERENCES_DESKTOP_VOLUMES_VISIBLE	   "volumes-visible"
 #define NEMO_PREFERENCES_DESKTOP_NETWORK_VISIBLE       "network-icon-visible"
-#define NEMO_PREFERENCES_DESKTOP_NETWORK_NAME          "network-icon-name"
 #define NEMO_PREFERENCES_DESKTOP_BACKGROUND_FADE       "background-fade"
 #define NEMO_PREFERENCES_DESKTOP_SHOW_TOOLTIPS         "tooltips-on-desktop"
 
@@ -211,6 +208,9 @@ typedef enum
 #define GNOME_DESKTOP_MEDIA_HANDLING_AUTOMOUNT_OPEN "automount-open"
 #define GNOME_DESKTOP_MEDIA_HANDLING_AUTORUN        "autorun-never"
 
+/* Terminal */
+#define GNOME_DESKTOP_TERMINAL_EXEC        "exec"
+
 void nemo_global_preferences_init                      (void);
 char *nemo_global_preferences_get_default_folder_viewer_preference_as_iid (void);
 
@@ -224,6 +224,7 @@ GSettings *nemo_window_state;
 GSettings *gnome_lockdown_preferences;
 GSettings *gnome_background_preferences;
 GSettings *gnome_media_handling_preferences;
+GSettings *gnome_terminal_preferences;
 
 G_END_DECLS
 
