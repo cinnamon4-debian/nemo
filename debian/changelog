@@ -1,3 +1,10 @@
+nemo (1.8.1-1) unstable; urgency=low
+
+  * New upstream release.
+  * Add gtksourceview syntax highlighting files to nemo-data.
+
+ -- Benjamin Drung <bdrung@debian.org>  Thu, 09 May 2013 23:16:08 +0200
+
 nemo (1.7.2-1) unstable; urgency=low
 
   * Initial release. (Closes: #692830)
