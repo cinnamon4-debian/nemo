@@ -482,17 +482,17 @@ nemo_view_reveal_selection (NemoView *view)
 static void
 nemo_view_reset_to_defaults (NemoView *view)
 {
-	NemoWindowShowHiddenFilesMode mode;
+    g_return_if_fail (NEMO_IS_VIEW (view));
 
-	g_return_if_fail (NEMO_IS_VIEW (view));
+    NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->reset_to_defaults (view);
 
-	NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->reset_to_defaults (view);
+    gboolean show_hidden = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES);
 
-	mode = nemo_window_get_hidden_files_mode (view->details->window);
-	if (mode != NEMO_WINDOW_SHOW_HIDDEN_FILES_DEFAULT) {
-		nemo_window_set_hidden_files_mode (view->details->window,
-						       NEMO_WINDOW_SHOW_HIDDEN_FILES_DEFAULT);
-	}
+    if (show_hidden) {
+        nemo_window_set_hidden_files_mode (view->details->window, NEMO_WINDOW_SHOW_HIDDEN_FILES_ENABLE);
+    } else {
+        nemo_window_set_hidden_files_mode (view->details->window, NEMO_WINDOW_SHOW_HIDDEN_FILES_DISABLE);
+    }
 }
 
 static gboolean
@@ -2234,6 +2234,41 @@ sort_directories_first_changed_callback (gpointer callback_data)
 	}
 }
 
+static void
+swap_delete_keybinding_changed_callback (gpointer callback_data)
+{
+    NemoView *view = NEMO_VIEW (callback_data);
+
+    GtkBindingSet *binding_set = gtk_binding_set_find ("NemoView");
+
+    gboolean swap_keys = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SWAP_TRASH_DELETE);
+
+    gtk_binding_entry_remove (binding_set, GDK_KEY_Delete, 0);
+    gtk_binding_entry_remove (binding_set, GDK_KEY_KP_Delete, 0);
+    gtk_binding_entry_remove (binding_set, GDK_KEY_KP_Delete, GDK_SHIFT_MASK);
+    gtk_binding_entry_remove (binding_set, GDK_KEY_Delete, GDK_SHIFT_MASK);
+
+    if (swap_keys) {
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_Delete, 0,
+                          "delete", 0);
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Delete, 0,
+                          "delete", 0);
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Delete, GDK_SHIFT_MASK,
+                          "trash", 0);
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_Delete, GDK_SHIFT_MASK,
+                          "trash", 0);
+    } else {
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_Delete, 0,
+                          "trash", 0);
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Delete, 0,
+                          "trash", 0);
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Delete, GDK_SHIFT_MASK,
+                          "delete", 0);
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_Delete, GDK_SHIFT_MASK,
+                          "delete", 0);
+    }
+}
+
 static gboolean
 set_up_scripts_directory_global (void)
 {
@@ -2716,6 +2751,9 @@ nemo_view_init (NemoView *view)
 	g_signal_connect_swapped (nemo_preferences,
 				  "changed::" NEMO_PREFERENCES_ENABLE_DELETE,
 				  G_CALLBACK (schedule_update_menus_callback), view);
+    g_signal_connect_swapped (nemo_preferences,
+                  "changed::" NEMO_PREFERENCES_SWAP_TRASH_DELETE,
+                  G_CALLBACK (swap_delete_keybinding_changed_callback), view);
 	g_signal_connect_swapped (nemo_preferences,
 				  "changed::" NEMO_PREFERENCES_CLICK_POLICY,
 				  G_CALLBACK(click_policy_changed_callback),
@@ -5876,12 +5914,17 @@ determine_visibility (gpointer data, gpointer callback_data)
         case SELECTION_MULTIPLE:
             selection_type_show = selected_count > 1;
             break;
+        case SELECTION_NOT_NONE:
+            selection_type_show = selected_count > 0;
+            break;
         case SELECTION_NONE:
             selection_type_show = selected_count == 0;
             break;
         case SELECTION_ANY:
-        default:
             selection_type_show = TRUE;
+            break;
+        default:
+            selection_type_show = selected_count == selection_type;
             break;
     }
 
@@ -5895,13 +5938,13 @@ determine_visibility (gpointer data, gpointer callback_data)
 
     for (iter = selected_files; iter != NULL && found_match; iter = iter->next) {
         found_match = FALSE;
-        gchar *raw_fn = g_filename_from_uri (nemo_file_get_uri (NEMO_FILE (iter->data)), NULL, NULL);
+        gchar *raw_fn = nemo_file_get_name (NEMO_FILE (iter->data));
         gchar *filename = g_ascii_strdown (raw_fn, -1);
         g_free (raw_fn);
         int i;
         for (i = 0; i < ext_count; i++) {
             if (g_strcmp0 (extensions[i], "dir") == 0) {
-                if (g_file_test (filename, G_FILE_TEST_IS_DIR)) {
+                if (nemo_file_is_directory (NEMO_FILE (iter->data))) {
                     found_match = TRUE;
                     break;
                 }
@@ -6723,7 +6766,8 @@ static void
 open_in_terminal (gchar *location)
 {	
     gchar *argv[2];
-    argv[0] = "x-terminal-emulator";
+    argv[0] = g_settings_get_string (gnome_terminal_preferences,
+				     GNOME_DESKTOP_TERMINAL_EXEC);
     argv[1] = NULL;
     g_spawn_async(location, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL);
 }
@@ -7780,26 +7824,17 @@ nemo_view_init_show_hidden_files (NemoView *view)
 	show_hidden_changed = FALSE;
 	mode = nemo_window_get_hidden_files_mode (view->details->window);
 
-	if (mode == NEMO_WINDOW_SHOW_HIDDEN_FILES_DEFAULT) {
-		show_hidden_default_setting = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES);
-		if (show_hidden_default_setting != view->details->show_hidden_files) {
-			view->details->show_hidden_files = show_hidden_default_setting;
-			show_hidden_changed = TRUE;
-		}
-	} else {
-		if (mode == NEMO_WINDOW_SHOW_HIDDEN_FILES_ENABLE) {
-			show_hidden_changed = !view->details->show_hidden_files;
-			view->details->show_hidden_files = TRUE;
-		} else {
-			show_hidden_changed = view->details->show_hidden_files;
-			view->details->show_hidden_files = FALSE;
-		}
-	}
+    if (mode == NEMO_WINDOW_SHOW_HIDDEN_FILES_ENABLE) {
+        show_hidden_changed = !view->details->show_hidden_files;
+        view->details->show_hidden_files = TRUE;
+    } else {
+        show_hidden_changed = view->details->show_hidden_files;
+        view->details->show_hidden_files = FALSE;
+    }
 
-	if (show_hidden_changed && (view->details->model != NULL)) {
-		load_directory (view, view->details->model);	
-	}
-
+    if (show_hidden_changed && (view->details->model != NULL)) {
+        load_directory (view, view->details->model);	
+    }
 }
 
 static const GtkActionEntry directory_view_entries[] = {
@@ -7939,7 +7974,7 @@ static const GtkActionEntry directory_view_entries[] = {
   /* tooltip */                  N_("Move each selected item to the Trash"),
 				 G_CALLBACK (action_trash_callback) },
   /* name, stock id */         { "Delete", NULL,
-  /* label, accelerator */       N_("_Delete"), "<shift>Delete",
+  /* label, accelerator */       N_("_Delete"), NULL,
   /* tooltip */                  N_("Delete each selected item, without moving to the Trash"),
 				 G_CALLBACK (action_delete_callback) },
   /* name, stock id */         { "Restore From Trash", NULL,
@@ -10667,10 +10702,26 @@ nemo_view_class_init (NemoViewClass *klass)
 	g_object_class_install_properties (oclass, NUM_PROPERTIES, properties);
 
 	binding_set = gtk_binding_set_by_class (klass);
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_Delete, 0,
-				      "trash", 0);
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Delete, 0,
-				      "trash", 0);
-	gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Delete, GDK_SHIFT_MASK,
-				      "delete", 0);
+
+    gboolean swap_keys = g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SWAP_TRASH_DELETE);
+
+    if (swap_keys) {
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_Delete, 0,
+                          "delete", 0);
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Delete, 0,
+                          "delete", 0);
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Delete, GDK_SHIFT_MASK,
+                          "trash", 0);
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_Delete, GDK_SHIFT_MASK,
+                          "trash", 0);
+    } else {
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_Delete, 0,
+                          "trash", 0);
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Delete, 0,
+                          "trash", 0);
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_KP_Delete, GDK_SHIFT_MASK,
+                          "delete", 0);
+        gtk_binding_entry_add_signal (binding_set, GDK_KEY_Delete, GDK_SHIFT_MASK,
+                          "delete", 0);
+    }
 }

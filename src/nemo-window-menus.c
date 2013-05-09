@@ -273,30 +273,6 @@ action_show_hidden_files_callback (GtkAction *action,
 }
 
 static void
-show_hidden_files_preference_callback (gpointer callback_data)
-{
-	NemoWindow *window;
-	GtkAction *action;
-
-	window = NEMO_WINDOW (callback_data);
-
-	if (window->details->show_hidden_files_mode == NEMO_WINDOW_SHOW_HIDDEN_FILES_DEFAULT) {
-		action = gtk_action_group_get_action (nemo_window_get_main_action_group (window),
-						      NEMO_ACTION_SHOW_HIDDEN_FILES);
-
-		/* update button */
-		g_signal_handlers_block_by_func (action, action_show_hidden_files_callback, window);
-		gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (action),
-					      g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES));
-		g_signal_handlers_unblock_by_func (action, action_show_hidden_files_callback, window);
-
-		/* inform views */
-		nemo_window_set_hidden_files_mode (window, NEMO_WINDOW_SHOW_HIDDEN_FILES_DEFAULT);
-
-	}
-}
-
-static void
 action_preferences_callback (GtkAction *action, 
 			     gpointer user_data)
 {
@@ -768,14 +744,22 @@ action_new_window_callback (GtkAction *action,
 {
 	NemoApplication *application;
 	NemoWindow *current_window, *new_window;
+    gchar *uri;
 
 	current_window = NEMO_WINDOW (user_data);
+
+    uri = nemo_window_slot_get_current_uri (nemo_window_get_active_slot (current_window));
+    GFile *loc = g_file_new_for_uri (uri);
+
 	application = nemo_application_get_singleton ();
 
 	new_window = nemo_application_create_window (
 				application,
 				gtk_window_get_screen (GTK_WINDOW (current_window)));
-	nemo_window_slot_go_home (nemo_window_get_active_slot (new_window), FALSE);
+
+    nemo_window_slot_open_location (nemo_window_get_active_slot (new_window), loc, 0, NULL);
+    g_object_unref (loc);
+    g_free (uri);
 }
 
 static void
@@ -1533,11 +1517,6 @@ nemo_window_initialize_menus (NemoWindow *window)
 				      g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_SHOW_HIDDEN_FILES));
 	g_signal_handlers_unblock_by_func (action, action_show_hidden_files_callback, window);
 
-
-	g_signal_connect_swapped (nemo_preferences, "changed::" NEMO_PREFERENCES_SHOW_HIDDEN_FILES,
-				  G_CALLBACK(show_hidden_files_preference_callback),
-				  window);
-
     g_signal_connect_object ( NEMO_WINDOW (window), "notify::sidebar-view-id",
                              G_CALLBACK (update_side_bar_radio_buttons), window, 0);
 
@@ -1591,9 +1570,6 @@ nemo_window_finalize_menus (NemoWindow *window)
 
 	g_signal_handlers_disconnect_by_func (monitor,
 					      trash_state_changed_cb, window);
-
-	g_signal_handlers_disconnect_by_func (nemo_preferences,
-					      show_hidden_files_preference_callback, window);
 }
 
 static GList *
