@@ -1,3 +1,9 @@
+nemo (1.8.3-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Benjamin Drung <bdrung@debian.org>  Sat, 15 Jun 2013 16:37:02 +0200
+
 nemo (1.8.1-1) unstable; urgency=low
 
   * New upstream release.
