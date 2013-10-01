@@ -99,7 +99,7 @@ Description: Nemo component system facilities (development files)
 
 Package: gir1.2-nemo-3.0
 Architecture: any
-Section: libdevel
+Section: introspection
 Depends: ${gir:Depends}, ${misc:Depends}
 Description: libraries for nemo components - gir bindings
  Nemo is the official file manager for the Cinnamon desktop. It allows
