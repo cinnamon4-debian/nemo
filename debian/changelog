@@ -5,6 +5,7 @@ nemo (2.0.8-1) UNRELEASED; urgency=medium
   * New patch: upstream-stop_gtk_stock_deprecated.diff
   * New patch: disable_po_check
   * Add autopkgtests.
+  * Add abi-compliance-checker info.
 
  -- Maximiliano Curia <maxy@debian.org>  Fri, 21 Feb 2014 17:09:19 +0100
 
