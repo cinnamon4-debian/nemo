@@ -117,6 +117,7 @@ License: LGPL-2+
 Files: debian/*
 Copyright: 2012, Nicolas Bourdaud
   2012, Josselin Mouette
+  2014, Maximiliano Curia <maxy@debian.org>
 License: GPL-2+
 
 License: GPL-2+

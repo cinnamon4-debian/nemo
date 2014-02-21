@@ -1,8 +1,7 @@
 Source: nemo
 Section: misc
 Priority: optional
-Maintainer: Nicolas Bourdaud <nicolas.bourdaud@gmail.com>
-Uploaders: Benjamin Drung <bdrung@debian.org>
+Maintainer: Maximiliano Curia <maxy@debian.org>
 Build-Depends: debhelper (>= 9),
                dh-autoreconf,
                gnome-pkg-tools (>= 0.13),
@@ -28,10 +27,10 @@ Build-Depends: debhelper (>= 9),
                python-dev,
                shared-mime-info (>= 0.50),
                x11proto-core-dev
-Homepage: http://www.github.com/linuxmint/nemo/
-Standards-Version: 3.9.4
-Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-cinnamon/nemo.git
-Vcs-Git: git://anonscm.debian.org/pkg-cinnamon/nemo.git
+Homepage: http://cinnamon.linuxmint.com/
+Standards-Version: 3.9.5
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/cinnamon/nemo.git
+Vcs-Git: git://anonscm.debian.org/collab-maint/cinnamon/nemo.git
 
 Package: nemo
 Architecture: any
@@ -71,6 +70,7 @@ Description: File manager and graphical shell for Cinnamon (Debugging symbols)
 Package: libnemo-extension1
 Architecture: any
 Section: libs
+Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: Nemo component system facilities
