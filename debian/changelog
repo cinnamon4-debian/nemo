@@ -1,0 +1,24 @@
+nemo (1.8.4-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Benjamin Drung <bdrung@debian.org>  Thu, 01 Aug 2013 16:00:05 +0200
+
+nemo (1.8.3-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Benjamin Drung <bdrung@debian.org>  Sat, 15 Jun 2013 16:37:02 +0200
+
+nemo (1.8.1-1) unstable; urgency=low
+
+  * New upstream release.
+  * Add gtksourceview syntax highlighting files to nemo-data.
+
+ -- Benjamin Drung <bdrung@debian.org>  Thu, 09 May 2013 23:16:08 +0200
+
+nemo (1.7.2-1) unstable; urgency=low
+
+  * Initial release. (Closes: #692830)
+
+ -- Nicolas Bourdaud <nicolas.bourdaud@gmail.com>  Fri, 22 Mar 2013 15:54:12 +0100

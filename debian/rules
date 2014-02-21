@@ -1,0 +1,34 @@
+#!/usr/bin/make -f
+
+CONFIGURE_EXTRA_FLAGS = \
+	--libexecdir=/usr/lib/$(DEB_HOST_MULTIARCH)/nemo \
+	--disable-silent-rules \
+	--disable-update-mimedb \
+	--enable-gtk-doc \
+	$(NULL)
+
+export DEB_LDFLAGS_MAINT_APPEND = -Wl,-z,defs -Wl,-O1 -Wl,--as-needed
+
+
+%:
+	dh $@ --with autoreconf,python2,gir --parallel
+
+override_dh_autoreconf:
+	NOCONFIGURE=yes dh_autoreconf --as-needed -- ./autogen.sh
+
+override_dh_auto_configure:
+	dh_auto_configure -- $(CONFIGURE_EXTRA_FLAGS)
+
+override_dh_auto_test:
+
+override_dh_strip:
+	dh_strip --dbg-package=nemo-dbg
+
+override_dh_makeshlibs:
+	dh_makeshlibs -Xusr/lib/nemo/extensions-3.0/
+
+override_dh_python2:
+	dh_python2 -p nemo-data /usr/share/nemo
+
+override_dh_installmime:
+	dh_installmime -pnemo-data
