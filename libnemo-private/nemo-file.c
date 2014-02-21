@@ -99,7 +99,7 @@
 
 #define METADATA_ID_IS_LIST_MASK (1<<31)
 
-#define MAX_THUMBNAIL_TRIES 1
+#define MAX_THUMBNAIL_TRIES 2
 
 typedef enum {
 	SHOW_HIDDEN = 1 << 0,
@@ -120,6 +120,7 @@ static GHashTable *symbolic_links;
 static GQuark attribute_name_q,
 	attribute_size_q,
 	attribute_type_q,
+    attribute_detailed_type_q,
 	attribute_modification_date_q,
 	attribute_date_modified_q,
 	attribute_accessed_date_q,
@@ -146,9 +147,7 @@ static GQuark attribute_name_q,
 	attribute_free_space_q;
 
 static void     nemo_file_info_iface_init                (NemoFileInfoIface *iface);
-static char *   nemo_file_get_owner_as_string            (NemoFile          *file,
-							      gboolean               include_real_name);
-static char *   nemo_file_get_type_as_string             (NemoFile          *file);
+
 static gboolean update_info_and_name                         (NemoFile          *file,
 							      GFileInfo             *info);
 static const char * nemo_file_peek_display_name (NemoFile *file);
@@ -2147,8 +2146,6 @@ update_info_internal (NemoFile *file,
 
 	file->details->file_info_is_up_to_date = TRUE;
 
-    file->details->thumbnail_try_count = 0;
-
 	/* FIXME bugzilla.gnome.org 42044: Need to let links that
 	 * point to the old name know that the file has been renamed.
 	 */
@@ -2988,7 +2985,7 @@ prepend_automatic_keywords (NemoFile *file,
 }
 
 static int
-compare_by_type (NemoFile *file_1, NemoFile *file_2)
+compare_by_type (NemoFile *file_1, NemoFile *file_2, gboolean detailed)
 {
 	gboolean is_directory_1;
 	gboolean is_directory_2;
@@ -3016,15 +3013,13 @@ compare_by_type (NemoFile *file_1, NemoFile *file_2)
 		return +1;
 	}
 
-	if (file_1->details->mime_type != NULL &&
-	    file_2->details->mime_type != NULL &&
-	    strcmp (eel_ref_str_peek (file_1->details->mime_type),
-		    eel_ref_str_peek (file_2->details->mime_type)) == 0) {
-		return 0;
-	}
-
-	type_string_1 = nemo_file_get_type_as_string (file_1);
-	type_string_2 = nemo_file_get_type_as_string (file_2);
+    if (detailed) {
+        type_string_1 = nemo_file_get_detailed_type_as_string (file_1);
+        type_string_2 = nemo_file_get_detailed_type_as_string (file_2);
+    } else {
+        type_string_1 = nemo_file_get_type_as_string (file_1);
+        type_string_2 = nemo_file_get_type_as_string (file_2);
+    }
 
 	if (type_string_1 == NULL || type_string_2 == NULL) {
 		if (type_string_1 != NULL) {
@@ -3179,14 +3174,17 @@ nemo_file_compare_for_sort (NemoFile *file_1,
 			}
 			break;
 		case NEMO_FILE_SORT_BY_TYPE:
-			/* GnomeVFS doesn't know about our special text for certain
-			 * mime types, so we handle the mime-type sorting ourselves.
-			 */
-			result = compare_by_type (file_1, file_2);
+			result = compare_by_type (file_1, file_2, FALSE);
 			if (result == 0) {
 				result = compare_by_full_path (file_1, file_2);
 			}
 			break;
+        case NEMO_FILE_SORT_BY_DETAILED_TYPE:
+            result = compare_by_type (file_1, file_2, TRUE);
+            if (result == 0) {
+                result = compare_by_full_path (file_1, file_2);
+            }
+            break;
 		case NEMO_FILE_SORT_BY_MTIME:
 			result = compare_by_time (file_1, file_2, NEMO_DATE_TYPE_MODIFIED);
 			if (result == 0) {
@@ -3248,7 +3246,12 @@ nemo_file_compare_for_sort_by_attribute_q   (NemoFile                   *file_1,
 						       NEMO_FILE_SORT_BY_TYPE,
 						       directories_first,
 						       reversed);
-	} else if (attribute == attribute_modification_date_q || attribute == attribute_date_modified_q) {
+	} else if (attribute == attribute_detailed_type_q) {
+        return nemo_file_compare_for_sort (file_1, file_2,
+                               NEMO_FILE_SORT_BY_DETAILED_TYPE,
+                               directories_first,
+                               reversed); 
+    } else if (attribute == attribute_modification_date_q || attribute == attribute_date_modified_q) {
 		return nemo_file_compare_for_sort (file_1, file_2,
 						       NEMO_FILE_SORT_BY_MTIME,
 						       directories_first,
@@ -4025,8 +4028,7 @@ nemo_file_should_show_thumbnail (NemoFile *file)
 	/* If the thumbnail has already been created, don't care about the size
 	 * of the original file.
 	 */
-	if (nemo_thumbnail_is_mimetype_limited_by_size (mime_type) &&
-	    file->details->thumbnail_path == NULL &&
+	if (file->details->thumbnail_path == NULL &&
 	    nemo_file_get_size (file) > cached_thumbnail_limit) {
 		return FALSE;
 	}
@@ -4293,7 +4295,7 @@ nemo_file_get_icon (NemoFile *file,
 			   file->details->can_read &&				
 			   !file->details->is_thumbnailing &&
 			   !file->details->thumbnailing_failed &&
-               file->details->thumbnail_try_count <= MAX_THUMBNAIL_TRIES) {
+               file->details->thumbnail_try_count < MAX_THUMBNAIL_TRIES) {
 			if (nemo_can_thumbnail (file)) {
 				nemo_create_thumbnail (file);
 			}
@@ -4623,7 +4625,7 @@ nemo_file_get_trash_original_file_parent_as_string (NemoFile *file)
  * Returns: Newly allocated string ready to display to the user.
  * 
  **/
-static char *
+char *
 nemo_file_get_date_as_string (NemoFile *file, NemoDateType date_type)
 {
 	return nemo_file_fit_date_as_string (file, date_type,
@@ -5815,7 +5817,7 @@ nemo_file_get_permissions_as_string (NemoFile *file)
  * Returns: Newly allocated string ready to display to the user.
  * 
  **/
-static char *
+char *
 nemo_file_get_owner_as_string (NemoFile *file, gboolean include_real_name)
 {
 	char *user_name;
@@ -6086,7 +6088,7 @@ nemo_file_get_deep_directory_count_as_string (NemoFile *file)
  * 
  * @file: NemoFile representing the file in question.
  * @attribute_name: The name of the desired attribute. The currently supported
- * set includes "name", "type", "mime_type", "size", "deep_size", "deep_directory_count",
+ * set includes "name", "type", "detailed_type", "mime_type", "size", "deep_size", "deep_directory_count",
  * "deep_file_count", "deep_total_count", "date_modified", "date_changed", "date_accessed", 
  * "date_permissions", "owner", "group", "permissions", "octal_permissions", "uri", "where",
  * "link_target", "volume", "free_space", "selinux_context", "trashed_on", "trashed_orig_path"
@@ -6106,6 +6108,9 @@ nemo_file_get_string_attribute_q (NemoFile *file, GQuark attribute_q)
 	if (attribute_q == attribute_type_q) {
 		return nemo_file_get_type_as_string (file);
 	}
+    if (attribute_q == attribute_detailed_type_q) {
+        return nemo_file_get_detailed_type_as_string (file);
+    }
 	if (attribute_q == attribute_mime_type_q) {
 		return nemo_file_get_mime_type (file);
 	}
@@ -6265,12 +6270,11 @@ nemo_file_get_string_attribute_with_default_q (NemoFile *file, GQuark attribute_
 		}
 		return g_strdup ("...");
 	}
-	if (attribute_q == attribute_type_q) {
-		return g_strdup (_("unknown type"));
-	}
-	if (attribute_q == attribute_mime_type_q) {
-		return g_strdup (_("unknown MIME type"));
-	}
+    if (attribute_q == attribute_type_q
+        || attribute_q == attribute_detailed_type_q
+        || attribute_q == attribute_mime_type_q) {
+        return g_strdup (_("Unknown"));
+    }
 	if (attribute_q == attribute_trashed_on_q) {
 		/* If n/a */
 		return g_strdup ("");
@@ -6308,40 +6312,136 @@ nemo_file_is_date_sort_attribute_q (GQuark attribute_q)
 	return FALSE;
 }
 
-/**
- * get_description:
- * 
- * Get a user-displayable string representing a file type. The caller
- * is responsible for g_free-ing this string.
- * @file: NemoFile representing the file in question.
- * 
- * Returns: Newly allocated string ready to display to the user.
- * 
- **/
+struct {
+        const char *icon_name;
+        const char *display_name;
+} mime_type_map[] = {
+    { "application-x-executable", N_("Program") },
+    { "audio-x-generic", N_("Audio") },
+    { "font-x-generic", N_("Font") },
+    { "image-x-generic", N_("Image") },
+    { "package-x-generic", N_("Archive") },
+    { "text-html", N_("Markup") },
+    { "text-x-generic", N_("Text") },
+    { "text-x-generic-template", N_("Text") },
+    { "text-x-script", N_("Program") },
+    { "video-x-generic", N_("Video") },
+    { "x-office-address-book", N_("Contacts") },
+    { "x-office-calendar", N_("Calendar") },
+    { "x-office-document", N_("Document") },
+    { "x-office-presentation", N_("Presentation") },
+    { "x-office-spreadsheet", N_("Spreadsheet") },
+};
+
+/* FIXME: remove this ifdef once we no longer need support for < 2.34 glib */
+
+#ifdef GENERIC_ICON_API
+
 static char *
-get_description (NemoFile *file)
+get_basic_type_for_mime_type (const char *mime_type)
 {
-	const char *mime_type;
-	char *description;
+    char *icon_name;
+    char *basic_type = NULL;
 
-	g_assert (NEMO_IS_FILE (file));
+    icon_name = g_content_type_get_generic_icon_name (mime_type);
+    if (icon_name != NULL) {
+        int i;
 
-	mime_type = eel_ref_str_peek (file->details->mime_type);
-	if (eel_str_is_empty (mime_type)) {
-		return NULL;
-	}
+        for (i = 0; i < G_N_ELEMENTS (mime_type_map); i++) {
+            if (strcmp (mime_type_map[i].icon_name, icon_name) == 0) {
+                basic_type = g_strdup (gettext (mime_type_map[i].display_name));
+                break;
+            }
+        }
+    }
 
-	if (g_content_type_is_unknown (mime_type) &&
-	    nemo_file_is_executable (file)) {
-		return g_strdup (_("program"));
-	}
+    if (basic_type == NULL) {
+        basic_type = g_strdup (_("Unknown"));
+    }
 
-	description = g_content_type_get_description (mime_type);
-	if (!eel_str_is_empty (description)) {
-		return description;
-	}
+    g_free (icon_name);
 
-	return g_strdup (mime_type);
+    return basic_type;
+}
+
+#else
+
+static char *
+get_basic_type_for_mime_type (const char *mime_type)
+{
+    char *basic_type = NULL;
+
+    GIcon *icon;
+    icon = g_content_type_get_icon (mime_type);
+    const gchar * const *icon_names = g_themed_icon_get_names (G_THEMED_ICON (icon));
+
+    if (icon_names != NULL) {
+        int i, j;
+        for (j = 0; j < g_strv_length ((gchar **) icon_names); j++) {
+            for (i = 0; i < G_N_ELEMENTS (mime_type_map); i++) {
+                if (strcmp (mime_type_map[i].icon_name, icon_names[j]) == 0) {
+                    basic_type = g_strdup (gettext (mime_type_map[i].display_name));
+                    break;
+                }
+            }
+            if (basic_type != NULL)
+                break;
+        }
+    }
+
+    if (basic_type == NULL) {
+        basic_type = g_strdup (_("Unknown"));
+    }
+
+    g_object_unref (icon);
+
+    return basic_type;
+}
+
+#endif
+
+static char *
+get_description (NemoFile     *file,
+                 gboolean      detailed)
+{
+    const char *mime_type;
+
+    g_assert (NEMO_IS_FILE (file));
+
+    mime_type = eel_ref_str_peek (file->details->mime_type);
+
+    if (mime_type == NULL) {
+        return NULL;
+    }
+
+    if (g_content_type_is_unknown (mime_type)) {
+        if (nemo_file_is_executable (file)) {
+            return g_strdup (_("Program"));
+        }
+        return g_strdup (_("Binary"));
+    }
+
+    if (strcmp (mime_type, "inode/directory") == 0) {
+        return g_strdup (_("Folder"));
+     }
+
+    if (detailed) {
+        char *description;
+
+        description = g_content_type_get_description (mime_type);
+        if (description != NULL) {
+            return description;
+        }
+    } else {
+        char *category;
+
+        category = get_basic_type_for_mime_type (mime_type);
+        if (category != NULL) {
+            return category;
+        }
+    }
+
+    return g_strdup (mime_type);
 }
 
 /* Takes ownership of string */
@@ -6367,7 +6467,7 @@ update_description_for_link (NemoFile *file, char *string)
 	return string;
 }
 
-static char *
+char *
 nemo_file_get_type_as_string (NemoFile *file)
 {
 	if (file == NULL) {
@@ -6376,9 +6476,23 @@ nemo_file_get_type_as_string (NemoFile *file)
 
 	if (nemo_file_is_broken_symbolic_link (file)) {
 		return g_strdup (_("link (broken)"));
+    }
+
+    return update_description_for_link (file, get_description (file, FALSE));
+}
+
+char *
+nemo_file_get_detailed_type_as_string (NemoFile *file)
+{
+    if (file == NULL) {
+        return NULL;
+    }
+
+    if (nemo_file_is_broken_symbolic_link (file)) {
+        return g_strdup (_("link (broken)"));
 	}
 	
-	return update_description_for_link (file, get_description (file));
+	return update_description_for_link (file, get_description (file, TRUE));
 }
 
 /**
@@ -7294,6 +7408,97 @@ nemo_file_cancel_call_when_ready (NemoFile *file,
 		(file, callback, callback_data);
 }
 
+static GString *
+add_line (GString *string, const gchar *add, gboolean prefix_newline)
+{
+    if (prefix_newline)
+        string = g_string_append (string, "\n");
+    return g_string_append (string, add);
+}
+
+gchar *
+nemo_file_construct_tooltip (NemoFile *file, NemoFileTooltipFlags flags)
+{
+    gchar *scheme = nemo_file_get_uri_scheme (file);
+    gchar *nice = NULL;
+    gchar *tmp = NULL;
+    gchar *date;
+    gchar *ret;
+
+    if (g_strcmp0 (scheme, "x-nemo-desktop") == 0) {
+        g_free (scheme);
+        return NULL;
+    }
+
+    GString *string = g_string_new ("");
+
+    tmp = nemo_file_get_display_name (file);
+    nice = g_strdup_printf (_("Name: %s"), tmp);
+    string = add_line (string, nice, FALSE);
+    g_free (nice);
+    g_free (tmp);
+
+    if (flags & NEMO_FILE_TOOLTIP_FLAGS_FILE_TYPE) {
+        tmp = nemo_file_get_detailed_type_as_string (file);
+        nice = g_strdup_printf (_("Type: %s"), tmp);
+        string = add_line (string, nice, TRUE);
+        g_free (tmp);
+        g_free (nice);
+    }
+
+    if (nemo_file_is_directory (file)) {
+        gint item_count;
+        nemo_file_get_directory_item_count (file, &item_count, NULL);
+        gchar *launchpad_sucks = THOU_TO_STR (item_count);
+        gchar *count = g_strdup_printf (ngettext ("%s item", "%s items", item_count), launchpad_sucks);
+        g_free (launchpad_sucks);
+        nice = g_strdup_printf (_("Contains: %s"), count);
+        string = add_line (string, nice, TRUE);
+        g_free (count);
+        g_free (nice);
+    } else {
+        gchar *size_string;
+        gint prefix;
+        prefix = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_SIZE_PREFIXES);
+        size_string = g_format_size_full (nemo_file_get_size (file), prefix);
+        nice = g_strdup_printf (_("Size: %s"), size_string);
+        string = add_line (string, nice, TRUE);
+        g_free (size_string);
+        g_free (nice);
+    }
+
+    if (flags & NEMO_FILE_TOOLTIP_FLAGS_ACCESS_DATE) {
+        date = nemo_file_get_date_as_string (file, NEMO_DATE_TYPE_ACCESSED);
+        tmp = g_strdup_printf (_("Accessed: %s"), date);
+        g_free (date);
+        string = add_line (string, tmp, TRUE);
+        g_free (tmp);
+    }
+
+    if (flags & NEMO_FILE_TOOLTIP_FLAGS_MOD_DATE) {
+        date = nemo_file_get_date_as_string (file, NEMO_DATE_TYPE_MODIFIED);
+        tmp = g_strdup_printf (_("Modified: %s"), date);
+        g_free (date);
+        string = add_line (string, tmp, TRUE);
+        g_free (tmp);
+    }
+
+    if (flags & NEMO_FILE_TOOLTIP_FLAGS_PATH) {
+        NemoFile *parent = nemo_file_get_parent (file);
+        tmp = nemo_file_get_path (parent);
+        nice = g_strdup_printf (_("Location: %s"), tmp);
+        string = add_line (string, nice, TRUE);
+        g_free (tmp);
+        g_free (nice);
+    }
+
+    ret = string->str;
+
+    g_string_free (string, FALSE);
+
+    return ret;
+}
+
 static void
 invalidate_directory_count (NemoFile *file)
 {
@@ -8055,6 +8260,7 @@ nemo_file_class_init (NemoFileClass *class)
 	attribute_name_q = g_quark_from_static_string ("name");
 	attribute_size_q = g_quark_from_static_string ("size");
 	attribute_type_q = g_quark_from_static_string ("type");
+    attribute_detailed_type_q = g_quark_from_static_string ("detailed_type");
 	attribute_modification_date_q = g_quark_from_static_string ("modification_date");
 	attribute_date_modified_q = g_quark_from_static_string ("date_modified");
 	attribute_accessed_date_q = g_quark_from_static_string ("accessed_date");

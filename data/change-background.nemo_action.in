@@ -1,0 +1,18 @@
+[Nemo Action]
+
+Name=Change Desktop _Background
+
+Comment=Change Desktop _Background
+
+Exec=cinnamon-settings backgrounds
+
+Selection=None
+
+Icon-Name=desktop
+
+Extensions=any;
+
+Dependencies=cinnamon-settings;
+
+Conditions=desktop;dbus org.Cinnamon;
+

@@ -48,6 +48,8 @@
 #include <libnemo-private/nemo-program-choosing.h>
 #include <libnemo-private/nemo-tree-view-drag-dest.h>
 #include <libnemo-private/nemo-module.h>
+#include <libnemo-private/nemo-action-manager.h>
+#include <libnemo-private/nemo-action.h>
 
 #include <string.h>
 #include <eel/eel-gtk-extensions.h>
@@ -101,16 +103,27 @@ struct FMTreeViewDetails {
 	GtkWidget *popup_unmount_separator;
 	GtkWidget *popup_unmount;
 	GtkWidget *popup_eject;
+    GtkWidget *popup_action_separator;
 	NemoFile *popup_file;
 	guint popup_file_idle_handler;
 	
 	guint selection_changed_timer;
+
+    NemoActionManager *action_manager;
+    GList *action_items;
+    guint hidden_files_changed_id;
 };
 
 typedef struct {
 	GList *uris;
 	FMTreeView *view;
 } PrependURIParameters;
+
+typedef struct {
+    NemoAction *action;
+    FMTreeView *view;
+    GtkWidget *item;
+} ActionPayload;
 
 static GdkAtom copied_files_atom;
 
@@ -119,6 +132,8 @@ static void  fm_tree_view_activate_file     (FMTreeView *view,
 					     NemoWindowOpenFlags flags);
 
 static void create_popup_menu (FMTreeView *view);
+
+static void add_action_popup_items (FMTreeView *view);
 
 G_DEFINE_TYPE (FMTreeView, fm_tree_view, GTK_TYPE_SCROLLED_WINDOW)
 #define parent_class fm_tree_view_parent_class
@@ -705,7 +720,7 @@ button_pressed_callback (GtkTreeView *treeview, GdkEventButton *event,
 			return FALSE;
 		}
 		gtk_tree_view_get_cursor (view->details->tree_widget, &cursor_path, NULL);
-		gtk_tree_view_set_cursor (view->details->tree_widget, path, NULL, FALSE);
+
 		gtk_tree_path_free (path);
 
 		create_popup_menu (view);
@@ -769,6 +784,30 @@ button_pressed_callback (GtkTreeView *treeview, GdkEventButton *event,
 		} else {
 			gtk_widget_hide (view->details->popup_unmount_separator);
 		}
+
+        gboolean actions_visible = FALSE;
+
+        GList *l;
+        NemoFile *file = view->details->popup_file;
+        NemoFile *parent = nemo_file_get_parent (file);
+        GList *tmp = NULL;
+        tmp = g_list_append (tmp, file);
+        ActionPayload *p;
+
+        for (l = view->details->action_items; l != NULL; l = l->next) {
+            p = l->data;
+            if (nemo_action_get_visibility (p->action, tmp, parent)) {
+                gtk_menu_item_set_label (GTK_MENU_ITEM (p->item), nemo_action_get_label (p->action, tmp, parent));
+                gtk_widget_set_visible (p->item, TRUE);
+                actions_visible = TRUE;
+            } else {
+                gtk_widget_set_visible (p->item, FALSE);
+            }
+        }
+
+        gtk_widget_set_visible (view->details->popup_action_separator, actions_visible);
+
+        nemo_file_list_free (tmp);
 
 		gtk_menu_popup (GTK_MENU (view->details->popup),
 				NULL, NULL, NULL, NULL,
@@ -1135,6 +1174,63 @@ popup_menu_deactivated (GtkMenuShell *menu_shell, gpointer data)
 }
 
 static void
+action_payload_free (gpointer data)
+{
+    ActionPayload *p = (ActionPayload *) data;
+    gtk_widget_destroy (GTK_WIDGET (p->item));
+}
+
+static void
+action_activated_callback (GtkMenuItem *item, ActionPayload *payload)
+{
+    gchar *uri = NULL;
+
+    FMTreeView *view = payload->view;
+
+    NemoFile *file = view->details->popup_file;
+    NemoFile *parent = nemo_file_get_parent (file);
+    GList *tmp = NULL;
+    tmp = g_list_append (tmp, file);
+
+    nemo_action_activate (NEMO_ACTION (payload->action), tmp, parent);
+
+    nemo_file_list_free (tmp);
+
+    g_free (uri);
+}
+
+static void
+add_action_popup_items (FMTreeView *view)
+{
+    if (view->details->action_items != NULL)
+        g_list_free_full (view->details->action_items, action_payload_free);
+
+    view->details->action_items = NULL;
+
+    GList *action_list = nemo_action_manager_list_actions (view->details->action_manager);
+    GList *l;
+    GtkWidget *menu_item;
+    NemoAction *action;
+    ActionPayload *payload;
+
+    gint index = 13;
+
+    for (l = action_list; l != NULL; l = l->next) {
+        action = l->data;
+        payload = g_new0 (ActionPayload, 1);
+        payload->action = action;
+        payload->view = view;
+        menu_item = gtk_menu_item_new_with_mnemonic (nemo_action_get_orig_label (action));
+        payload->item = menu_item;
+        g_signal_connect (menu_item, "activate", G_CALLBACK (action_activated_callback), payload);
+        gtk_widget_show (menu_item);
+        gtk_menu_shell_insert (GTK_MENU_SHELL (view->details->popup), menu_item, index);
+        view->details->action_items = g_list_append (view->details->action_items, payload);
+        index ++;
+    }
+}
+
+static void
 create_popup_menu (FMTreeView *view)
 {
 	GtkWidget *popup, *menu_item, *menu_image;
@@ -1267,7 +1363,12 @@ create_popup_menu (FMTreeView *view)
 	gtk_widget_show (menu_item);
 	gtk_menu_shell_append (GTK_MENU_SHELL (popup), menu_item);
 	view->details->popup_delete = menu_item;
-	
+
+    /* Nemo Actions */
+
+    view->details->popup_action_separator =
+        GTK_WIDGET (eel_gtk_menu_append_separator (GTK_MENU (popup)));
+
 	eel_gtk_menu_append_separator (GTK_MENU (popup));
 
 	/* add the "Unmount" menu item */
@@ -1301,7 +1402,9 @@ create_popup_menu (FMTreeView *view)
 	gtk_menu_shell_append (GTK_MENU_SHELL (popup), menu_item);
 	view->details->popup_properties = menu_item;
 
-	view->details->popup = popup;
+    view->details->popup = popup;
+
+    add_action_popup_items (view);
 }
 
 static void
@@ -1384,6 +1487,10 @@ create_tree (FMTreeView *view)
 				 "move_copy_items",
 				 G_CALLBACK (move_copy_items_callback),
 				 view, 0);
+
+    view->details->action_manager = nemo_action_manager_new ();
+
+    view->details->action_items = NULL;
 
 	/* Create column */
 	column = gtk_tree_view_column_new ();
@@ -1499,12 +1606,6 @@ fm_tree_view_init (FMTreeView *view)
 	
 	view->details->selecting = FALSE;
 
-    g_signal_connect_object (view->details->window,
-                             "hidden-files-mode-changed",
-                             G_CALLBACK (filtering_changed_callback),
-                             view,
-                             0);
-
 	g_signal_connect_swapped (nemo_tree_sidebar_preferences,
 				  "changed::" NEMO_PREFERENCES_TREE_SHOW_ONLY_DIRECTORIES,
 				  G_CALLBACK (filtering_changed_callback), view);
@@ -1515,6 +1616,13 @@ fm_tree_view_init (FMTreeView *view)
 		g_signal_connect (nemo_clipboard_monitor_get (),
 				  "clipboard_info",
 				  G_CALLBACK (notify_clipboard_info), view);
+}
+
+static void 
+hidden_files_mode_changed_callback (NemoWindow *window,
+                    FMTreeView *view)
+{
+    update_filtering_from_preferences (view);
 }
 
 static void
@@ -1572,9 +1680,14 @@ fm_tree_view_dispose (GObject *object)
 		view->details->volume_monitor = NULL;
 	}
 
-	g_signal_handlers_disconnect_by_func (nemo_preferences,
-					      G_CALLBACK(filtering_changed_callback),
-					      view);
+    if (view->details->hidden_files_changed_id != 0) {
+        g_signal_handler_disconnect (view->details->window,
+                                     view->details->hidden_files_changed_id);
+        view->details->hidden_files_changed_id = 0;
+    }
+
+    g_clear_object (&view->details->action_manager);
+
 	g_signal_handlers_disconnect_by_func (nemo_tree_sidebar_preferences,
 					      G_CALLBACK(filtering_changed_callback),
 					      view);
@@ -1604,12 +1717,6 @@ fm_tree_view_class_init (FMTreeViewClass *class)
 
 	copied_files_atom = gdk_atom_intern ("x-special/gnome-copied-files", FALSE);
 }
-static void 
-hidden_files_mode_changed_callback (NemoWindow *window,
-				    FMTreeView *view)
-{
-	update_filtering_from_preferences (view);
-}
 
 static void
 fm_tree_view_set_parent_window (FMTreeView *sidebar,
@@ -1628,8 +1735,9 @@ fm_tree_view_set_parent_window (FMTreeView *sidebar,
 	loading_uri_callback (window, location, sidebar);
 	g_free (location);
 
-	g_signal_connect_object (window, "hidden_files_mode_changed",
-				 G_CALLBACK (hidden_files_mode_changed_callback), sidebar, 0);  
+	sidebar->details->hidden_files_changed_id = 
+                    g_signal_connect_object (window, "hidden-files-mode-changed",
+                                             G_CALLBACK (hidden_files_mode_changed_callback), sidebar, 0);
 
 }
 

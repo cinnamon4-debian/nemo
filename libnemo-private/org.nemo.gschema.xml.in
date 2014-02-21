@@ -161,11 +161,6 @@
       <_summary>What to do with executable text files when activated</_summary>
       <_description>What to do with executable text files when they are activated (single or double clicked). Possible values are "launch" to launch them as programs, "ask" to ask what to do via a dialog, and "display" to display them as text files.</_description>
     </key>
-    <key name="install-mime-activation" type="b">
-      <default>true</default>
-      <_summary>Show the package installer for unknown mime types</_summary>
-      <_description>Whether to show the user a package installer dialog in case an unknown mime type is opened, in order to search for an application to handle it.</_description>
-    </key>
     <key name="mouse-use-extra-buttons" type="b">
       <default>true</default>
       <_summary>Use extra mouse button events in Nemo' browser window</_summary>
@@ -188,7 +183,7 @@
       <_description>Speed tradeoff for when to show an image file as a thumbnail. If set to "always" then always thumbnail,  even if the folder is on a remote server. If set to "local-only" then only show thumbnails for local file systems. If set to "never" then never bother to thumbnail images, just use a generic icon.</_description>
     </key>
     <key name="thumbnail-limit" type="t">
-      <default>10485760</default>
+      <default>1048576</default>
       <_summary>Maximum image size for thumbnailing</_summary>
       <_description>Images over this size (in bytes) won't be  thumbnailed. The purpose of this setting is to  avoid thumbnailing large images that may take a long time to load or use lots of memory.</_description>
     </key>
@@ -259,6 +254,66 @@
       <default>false</default>
       <_summary>Whether to close a view of a removeable device instead of navigating Home</_summary>
       <_description>If set to true, a view open for a removeable device will be closed instead of sent Home if the device is ejected</_description>
+    </key>
+    <key name="start-with-dual-pane" type="b">
+      <default>false</default>
+      <_summary>Whether to default to showing dual-pane view when a new window is opened</_summary>
+      <_description>If set to true, new Nemo windows will default to showing two panes</_description>
+    </key>
+    <key name="ignore-view-metadata" type="b">
+      <default>false</default>
+      <_summary>Whether to ignore folder metadata for view zoom levels and layouts</_summary>
+      <_description>If set to true, views will not change according to their metadata, but stay consistent for the life of that window</_description>
+    </key>
+    <key name="show-bookmarks-in-to-menus" type="b">
+      <default>true</default>
+      <_summary>Whether to list bookmarks in the Move To/Copy To menus</_summary>
+      <_description>If set to true, bookmarks will be listed in the MoveTo/CopyTo menus</_description>
+    </key>
+    <key name="show-places-in-to-menus" type="b">
+      <default>true</default>
+      <_summary>Whether to list places in the Move To/Copy To menus</_summary>
+      <_description>If set to true, places will be listed in the MoveTo/CopyTo menus</_description>
+    </key>
+    <key name="tooltips-on-desktop" type="b">
+      <default>false</default>
+      <_summary>Show tooltips for desktop items</_summary>
+      <_description>If true, tooltips will be displayed for desktop items.</_description>
+    </key>
+    <key name="tooltips-in-icon-view" type="b">
+      <default>false</default>
+      <_summary>Show tooltips when hovering on items in an icon or compact view</_summary>
+      <_description>If true, tooltips will be displayed for icon and compact view items</_description>
+    </key>
+    <key name="tooltips-in-list-view" type="b">
+      <default>false</default>
+      <_summary>Show tooltips when hovering on items in a list view</_summary>
+      <_description>If true, tooltips will be displayed for list view items</_description>
+    </key>
+    <key name="tooltips-show-file-type" type="b">
+      <default>false</default>
+      <_summary>Show detailed file type in tooltip</_summary>
+      <_description>If true, tooltips will show a detailed file type.</_description>
+    </key>
+    <key name="tooltips-show-mod-date" type="b">
+      <default>false</default>
+      <_summary>Show file modified date in tooltip</_summary>
+      <_description>If true, tooltips will show their modified date.</_description>
+    </key>
+    <key name="tooltips-show-access-date" type="b">
+      <default>false</default>
+      <_summary>Show file accessed date in tooltip</_summary>
+      <_description>If true, tooltips will show their accessed date.</_description>
+    </key>
+    <key name="tooltips-show-path" type="b">
+      <default>false</default>
+      <_summary>Show full path in tooltip</_summary>
+      <_description>If true, tooltips will show the file's full path.</_description>
+    </key>
+    <key name="disable-menu-warning" type="b">
+      <default>false</default>
+      <_summary>Don't show the explainer message when turning off the main menu</_summary>
+      <_description>If true, you will no longer recieve a popup explaining how to reactivate the main menu once you've hidden it</_description>
     </key>
   </schema>
 
@@ -371,22 +426,22 @@
       <_description>If this is set to true, Nemo will autostart and manage the desktop</_description>
     </key>
     <key name="home-icon-visible" type="b">
-      <default>true</default>
+      <default>false</default>
       <_summary>Home icon visible on desktop</_summary>
       <_description>If this is set to true, an icon linking to the home folder will be put on the desktop.</_description>
     </key>
     <key name="computer-icon-visible" type="b">
-      <default>true</default>
+      <default>false</default>
       <_summary>Computer icon visible on desktop</_summary>
       <_description>If this is set to true, an icon linking to the computer location will be put on the desktop.</_description>
     </key>
     <key name="trash-icon-visible" type="b">
-      <default>true</default>
+      <default>false</default>
       <_summary>Trash icon visible on desktop</_summary>
       <_description>If this is set to true, an icon linking to the trash will be put on the desktop.</_description>
     </key>
     <key name="volumes-visible" type="b">
-      <default>true</default>
+      <default>false</default>
       <_summary>Show mounted volumes on the desktop</_summary>
       <_description>If this is set to true, icons linking to mounted volumes will be put on the desktop.</_description>
     </key>
@@ -404,11 +459,6 @@
       <default>true</default>
       <_summary>Fade the background on change</_summary>
       <_description>If set to true, then Nemo will use a fade effect to change the desktop background.</_description>
-    </key>
-    <key name="tooltips-on-desktop" type="b">
-      <default>false</default>
-      <_summary>Show tooltips for desktop items</_summary>
-      <_description>If true, tooltips will be displayed for desktop items.</_description>
     </key>
   </schema>
 

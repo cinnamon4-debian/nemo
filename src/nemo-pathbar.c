@@ -1104,8 +1104,6 @@ nemo_path_bar_scroll_timeout (NemoPathBar *path_bar)
 {
         gboolean retval = FALSE;
 
-        GDK_THREADS_ENTER ();
-
         if (path_bar->timer) {
                 if (gtk_widget_has_focus (path_bar->up_slider_button)) {
 			nemo_path_bar_scroll_up (path_bar);
@@ -1124,10 +1122,7 @@ nemo_path_bar_scroll_timeout (NemoPathBar *path_bar)
 		} else {
 			retval = TRUE;
 		}
-        }            
-                
-
-        GDK_THREADS_LEAVE ();
+        }
 
         return retval;
 }
@@ -1345,33 +1340,6 @@ get_dir_name (ButtonData *button_data)
 	} else {
 		return button_data->dir_name;
 	}
-}
-
-/* We always want to request the same size for the label, whether
- * or not the contents are bold
- */
-static void
-set_label_size_request (ButtonData *button_data)
-{
-        const gchar *dir_name = get_dir_name (button_data);
-        PangoLayout *layout;
-        gint width, height, bold_width, bold_height;
-        gchar *markup;
-	
-	layout = gtk_widget_create_pango_layout (button_data->label, dir_name);
-        pango_layout_get_pixel_size (layout, &width, &height);
-  
-        markup = g_markup_printf_escaped ("<b>%s</b>", dir_name);
-        pango_layout_set_markup (layout, markup, -1);
-        g_free (markup);
-
-        pango_layout_get_pixel_size (layout, &bold_width, &bold_height);
-
-	gtk_widget_set_size_request (button_data->alignment,
-				     MAX (width, bold_width),
-				     MAX (height, bold_height));
-	
-        g_object_unref (layout);
 }
 
 static void

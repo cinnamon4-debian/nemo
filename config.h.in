@@ -12,17 +12,15 @@
 /* always defined to indicate that i18n is enabled */
 #undef ENABLE_NLS
 
-/* define to enable PackageKit mimetype installer */
-#undef ENABLE_PACKAGEKIT
-
 /* Define to enable Tracker support */
 #undef ENABLE_TRACKER
 
+/* Defined if we meet the minimum version for
+   g_content_type_get_generic_icon_name */
+#undef GENERIC_ICON_API
+
 /* the gettext translation domain */
 #undef GETTEXT_PACKAGE
-
-/* Define the location where the catalogs will be installed */
-#undef GNOMELOCALEDIR
 
 /* Define to 1 if you have the `bind_textdomain_codeset' function. */
 #undef HAVE_BIND_TEXTDOMAIN_CODESET
@@ -104,6 +102,9 @@
 
 /* Define to 1 if you have the <X11/XF86keysym.h> header file. */
 #undef HAVE_X11_XF86KEYSYM_H
+
+/* path for translations */
+#undef LOCALEDIR
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */

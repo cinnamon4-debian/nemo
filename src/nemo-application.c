@@ -209,59 +209,6 @@ menu_provider_init_callback (void)
         nemo_module_extension_list_free (providers);
 }
 
-static void
-mark_desktop_files_trusted (void)
-{
-	char *do_once_file;
-	GFile *f, *c;
-	GFileEnumerator *e;
-	GFileInfo *info;
-	const char *name;
-	int fd;
-	
-	do_once_file = g_build_filename (g_get_user_data_dir (),
-					 ".converted-launchers", NULL);
-
-	if (g_file_test (do_once_file, G_FILE_TEST_EXISTS)) {
-		goto out;
-	}
-
-	f = nemo_get_desktop_location ();
-	e = g_file_enumerate_children (f,
-				       G_FILE_ATTRIBUTE_STANDARD_TYPE ","
-				       G_FILE_ATTRIBUTE_STANDARD_NAME ","
-				       G_FILE_ATTRIBUTE_ACCESS_CAN_EXECUTE
-				       ,
-				       G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-				       NULL, NULL);
-	if (e == NULL) {
-		goto out2;
-	}
-	
-	while ((info = g_file_enumerator_next_file (e, NULL, NULL)) != NULL) {
-		name = g_file_info_get_name (info);
-		
-		if (g_str_has_suffix (name, ".desktop") &&
-		    !g_file_info_get_attribute_boolean (info, G_FILE_ATTRIBUTE_ACCESS_CAN_EXECUTE)) {
-			c = g_file_get_child (f, name);
-			nemo_file_mark_desktop_file_trusted (c,
-								 NULL, FALSE,
-								 NULL, NULL);
-			g_object_unref (c);
-		}
-		g_object_unref (info);
-	}
-	
-	g_object_unref (e);
- out2:
-	fd = g_creat (do_once_file, 0666);
-	close (fd);
-	
-	g_object_unref (f);
- out:	
-	g_free (do_once_file);
-}
-
 static void 
 selection_get_cb (GtkWidget          *widget,
 		  GtkSelectionData   *selection_data,
@@ -1146,6 +1093,66 @@ init_gtk_accels (void)
 			  G_CALLBACK (queue_accel_map_save_callback), NULL);
 }
 
+
+static void
+menu_state_changed_callback (NemoApplication *self)
+{
+    if (!g_settings_get_boolean (nemo_window_state, NEMO_WINDOW_STATE_START_WITH_MENU_BAR) &&
+        !g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_DISABLE_MENU_WARNING)) {
+
+        GtkWidget *dialog;
+        GtkWidget *msg_area;
+        GtkWidget *checkbox;
+
+        dialog = gtk_message_dialog_new (NULL,
+                                         GTK_DIALOG_MODAL,
+                                         GTK_MESSAGE_INFO,
+                                         GTK_BUTTONS_OK,
+                                         _("Nemo's main menu is now hidden"),
+                                         NULL);
+
+        gchar *secondary;
+        secondary = g_strdup_printf (_("You have chosen to hide the main menu.  You can get it back temporarily by:\n\n"
+                                     "- Tapping the <Alt> key\n"
+                                     "- Right-clicking an empty region of the main toolbar\n"
+                                     "- Right-clicking an empty region of the status bar.\n\n"
+                                     "You can restore it permanently by selecting this option again from the View menu."));
+        g_object_set (dialog,
+                      "secondary-text", secondary,
+                      NULL);
+        g_free (secondary);
+
+        msg_area = gtk_message_dialog_get_message_area (GTK_MESSAGE_DIALOG (dialog));
+        checkbox = gtk_check_button_new_with_label (_("Don't show this message again."));
+        gtk_box_pack_start (GTK_BOX (msg_area), checkbox, TRUE, TRUE, 2);
+
+        g_settings_bind (nemo_preferences,
+                         NEMO_PREFERENCES_DISABLE_MENU_WARNING,
+                         checkbox,
+                         "active",
+                         G_SETTINGS_BIND_DEFAULT);
+
+        gtk_widget_show_all (dialog);
+
+        g_signal_connect (dialog, "response",
+                          G_CALLBACK (gtk_widget_destroy), NULL);
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 static void
 nemo_application_startup (GApplication *app)
 {
@@ -1201,6 +1208,9 @@ nemo_application_startup (GApplication *app)
 				 G_CALLBACK (mount_removed_callback), self, 0);
 	g_signal_connect_object (self->priv->volume_monitor, "mount_added",
 				 G_CALLBACK (mount_added_callback), self, 0);
+
+    g_signal_connect_swapped (nemo_window_state, "changed::" NEMO_WINDOW_STATE_START_WITH_MENU_BAR,
+                              G_CALLBACK (menu_state_changed_callback), self);
 
 	/* Check the user's ~/.nemo directories and post warnings
 	 * if there are problems.

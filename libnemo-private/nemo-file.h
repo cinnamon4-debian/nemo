@@ -58,6 +58,7 @@ typedef enum {
 	NEMO_FILE_SORT_BY_DISPLAY_NAME,
 	NEMO_FILE_SORT_BY_SIZE,
 	NEMO_FILE_SORT_BY_TYPE,
+    NEMO_FILE_SORT_BY_DETAILED_TYPE,
 	NEMO_FILE_SORT_BY_MTIME,
         NEMO_FILE_SORT_BY_ATIME,
 	NEMO_FILE_SORT_BY_TRASHED_TIME
@@ -83,6 +84,22 @@ typedef enum {
 	/* render the mount icon as an emblem over the regular one */
 	NEMO_FILE_ICON_FLAGS_USE_MOUNT_ICON_AS_EMBLEM = (1<<7)
 } NemoFileIconFlags;	
+
+typedef enum {
+    NEMO_DATE_TYPE_MODIFIED,
+    NEMO_DATE_TYPE_CHANGED,
+    NEMO_DATE_TYPE_ACCESSED,
+    NEMO_DATE_TYPE_PERMISSIONS_CHANGED,
+    NEMO_DATE_TYPE_TRASHED
+} NemoDateType;
+
+typedef enum {
+    NEMO_FILE_TOOLTIP_FLAGS_NONE = 0,
+    NEMO_FILE_TOOLTIP_FLAGS_FILE_TYPE =  (1<<0),
+    NEMO_FILE_TOOLTIP_FLAGS_MOD_DATE = (1<<1),
+    NEMO_FILE_TOOLTIP_FLAGS_ACCESS_DATE = (1<<2),
+    NEMO_FILE_TOOLTIP_FLAGS_PATH = (1<<3)
+} NemoFileTooltipFlags;
 
 /* Emblems sometimes displayed for NemoFiles. Do not localize. */ 
 #define NEMO_FILE_EMBLEM_NAME_SYMBOLIC_LINK "symbolic-link"
@@ -468,6 +485,15 @@ void                    nemo_file_list_call_when_ready              (GList      
 									 gpointer                        callback_data);
 void                    nemo_file_list_cancel_call_when_ready       (NemoFileListHandle         *handle);
 
+char *   nemo_file_get_owner_as_string            (NemoFile          *file,
+                                                          gboolean           include_real_name);
+char *   nemo_file_get_type_as_string             (NemoFile          *file);
+char *   nemo_file_get_detailed_type_as_string    (NemoFile          *file);
+
+char *   nemo_file_get_date_as_string             (NemoFile *file, NemoDateType date_type);
+
+gchar *  nemo_file_construct_tooltip              (NemoFile *file, NemoFileTooltipFlags flags);
+
 /* Debugging */
 void                    nemo_file_dump                              (NemoFile                   *file);
 
@@ -477,17 +503,6 @@ struct NemoFile {
 	GObject parent_slot;
 	NemoFileDetails *details;
 };
-
-/* This is actually a "protected" type, but it must be here so we can
- * compile the get_date function pointer declaration below.
- */
-typedef enum {
-	NEMO_DATE_TYPE_MODIFIED,
-	NEMO_DATE_TYPE_CHANGED,
-	NEMO_DATE_TYPE_ACCESSED,
-	NEMO_DATE_TYPE_PERMISSIONS_CHANGED,
-	NEMO_DATE_TYPE_TRASHED
-} NemoDateType;
 
 typedef struct {
 	GObjectClass parent_slot;

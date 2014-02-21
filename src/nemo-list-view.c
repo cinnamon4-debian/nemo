@@ -32,6 +32,7 @@
 #include "nemo-error-reporting.h"
 #include "nemo-view-dnd.h"
 #include "nemo-view-factory.h"
+#include "nemo-window.h"
 
 #include <string.h>
 #include <eel/eel-vfs-extensions.h>
@@ -57,7 +58,6 @@
 #include <libnemo-private/nemo-module.h>
 #include <libnemo-private/nemo-tree-view-drag-dest.h>
 #include <libnemo-private/nemo-clipboard.h>
-#include <libnemo-private/nemo-cell-renderer-text-ellipsized.h>
 
 #define DEBUG_FLAG NEMO_DEBUG_LIST_VIEW
 #include <libnemo-private/nemo-debug.h>
@@ -108,6 +108,9 @@ struct NemoListViewDetails {
 	gulong clipboard_handler_id;
 
 	GQuark last_sort_attr;
+
+    gboolean tooltip_flags;
+    gboolean show_tooltips;
 };
 
 struct SelectionForeachData {
@@ -146,8 +149,25 @@ static void   nemo_list_view_rename_callback                 (NemoFile      *fil
 								  GError            *error,
 								  gpointer           callback_data);
 
+static void   apply_columns_settings                             (NemoListView *list_view,
+                                                                  char **column_order,
+                                                                  char **visible_columns);
+static char **get_visible_columns                                (NemoListView *list_view);
+static char **get_default_visible_columns                        (NemoListView *list_view);
+static char **get_column_order                                   (NemoListView *list_view);
+static char **get_default_column_order                           (NemoListView *list_view);
+
+static void   set_columns_settings_from_metadata_and_preferences (NemoListView *list_view);
 
 G_DEFINE_TYPE (NemoListView, nemo_list_view, NEMO_TYPE_VIEW);
+
+static const char * default_search_visible_columns[] = {
+   "name", "size", "type", "where", NULL
+};
+
+static const char * default_search_columns_order[] = {
+   "name", "size", "type", "where", NULL
+};
 
 static const char * default_trash_visible_columns[] = {
 	"name", "size", "type", "trashed_on", "trash_orig_path", NULL
@@ -187,6 +207,15 @@ get_default_sort_order (NemoFile *file, gboolean *reversed)
 	}
 
 	return retval;
+}
+
+static void
+tooltip_prefs_changed_callback (NemoListView *view)
+{
+    view->details->show_tooltips = g_settings_get_boolean (nemo_preferences,
+                                                           NEMO_PREFERENCES_TOOLTIPS_LIST_VIEW);
+
+    view->details->tooltip_flags = nemo_global_preferences_get_tooltip_flags ();
 }
 
 static void
@@ -566,6 +595,54 @@ motion_notify_callback (GtkWidget *widget,
 }
 
 static gboolean
+query_tooltip_callback (GtkWidget *widget,
+                        gint x,
+                        gint y,
+                        gboolean kb_mode,
+                        GtkTooltip *tooltip,
+                        gpointer user_data)
+{
+    NemoListView *list_view;
+    gboolean ret;
+
+    ret = FALSE;
+
+    list_view = NEMO_LIST_VIEW (user_data);
+
+    if (list_view->details->show_tooltips) {
+        GtkTreeIter iter;
+        NemoFile *file;
+        GtkTreePath *path = NULL;
+        GtkTreeModel *model = GTK_TREE_MODEL (list_view->details->model);
+
+        if (gtk_tree_view_get_tooltip_context (GTK_TREE_VIEW (widget), &x, &y,
+                                               kb_mode,
+                                               &model, &path, &iter)) {
+
+            if (!gtk_tree_view_is_blank_at_pos (GTK_TREE_VIEW (widget), x, y, NULL, NULL, NULL, NULL)) {
+                gtk_tree_model_get (GTK_TREE_MODEL (list_view->details->model),
+                                    &iter,
+                                    NEMO_LIST_MODEL_FILE_COLUMN, &file,
+                                    -1);
+                if (file) {
+                    gchar *tooltip_text;
+
+                    tooltip_text = nemo_file_construct_tooltip (file, list_view->details->tooltip_flags);
+                    gtk_tooltip_set_text (tooltip, tooltip_text);
+                    gtk_tree_view_set_tooltip_cell (GTK_TREE_VIEW (widget), tooltip, path, NULL, NULL);
+                    g_free (tooltip_text);
+
+                    ret = TRUE;
+                }
+            }
+        }
+        gtk_tree_path_free (path);
+    }
+
+    return ret;
+}
+
+static gboolean
 leave_notify_callback (GtkWidget *widget,
 		       GdkEventCrossing *event,
 		       gpointer callback_data)
@@ -625,6 +702,51 @@ row_activated_callback (GtkTreeView *treeview, GtkTreePath *path,
 			GtkTreeViewColumn *column, NemoListView *view)
 {
 	activate_selected_items (view);
+}
+
+static void
+columns_reordered_callback (AtkObject *atk,
+                            gpointer user_data)
+{
+
+    NemoListView *view = NEMO_LIST_VIEW (user_data);
+
+    gchar **columns;
+    GList *vis_columns = NULL;
+    int i;
+    NemoFile *file = nemo_view_get_directory_as_file (NEMO_VIEW (view));
+
+    columns = get_visible_columns (view);
+
+    for (i = 0; columns[i] != NULL; ++i) {
+        vis_columns = g_list_prepend (vis_columns, columns[i]);
+    }
+
+    vis_columns = g_list_reverse (vis_columns);
+
+    GList *tv_list, *iter, *l;
+    GList *list = NULL;
+
+    tv_list = gtk_tree_view_get_columns (view->details->tree_view);
+
+    for (iter = tv_list; iter != NULL; iter = iter->next) {
+        for (l = vis_columns; l != NULL; l = l->next) {
+            if (iter->data == g_hash_table_lookup (view->details->columns, l->data))
+                list = g_list_prepend (list, (gchar *)l->data);
+        }
+    }
+    list = g_list_reverse (list);
+
+    if (nemo_global_preferences_get_ignore_view_metadata ())
+        nemo_window_set_ignore_meta_column_order (nemo_view_get_nemo_window (NEMO_VIEW (view)), list);
+    else
+        nemo_file_set_metadata_list (file,
+                                     NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER,
+                                     list);
+    g_list_free_full (list, g_free);
+    g_free (columns);
+    g_list_free (vis_columns);
+    g_list_free (tv_list);
 }
 
 static gboolean
@@ -1180,8 +1302,13 @@ sort_column_changed_callback (GtkTreeSortable *sortable,
 	default_sort_column_id = nemo_list_model_get_sort_column_id_from_attribute (view->details->model,
 										  g_quark_from_string (get_default_sort_order (file, &default_sort_reversed)));
 	default_sort_attr = nemo_list_model_get_attribute_from_sort_column_id (view->details->model, default_sort_column_id);
-	nemo_file_set_metadata (file, NEMO_METADATA_KEY_LIST_VIEW_SORT_COLUMN,
-				    g_quark_to_string (default_sort_attr), g_quark_to_string (sort_attr));
+
+    if (nemo_global_preferences_get_ignore_view_metadata ())
+        nemo_window_set_ignore_meta_sort_column (nemo_view_get_nemo_window (NEMO_VIEW (view)),
+                                                 g_quark_to_string (sort_attr));
+    else
+        nemo_file_set_metadata (file, NEMO_METADATA_KEY_LIST_VIEW_SORT_COLUMN,
+                                g_quark_to_string (default_sort_attr), g_quark_to_string (sort_attr));
 
 	default_reversed_attr = (default_sort_reversed ? "true" : "false");
 
@@ -1207,10 +1334,14 @@ sort_column_changed_callback (GtkTreeSortable *sortable,
 		}
 	}
 
-
-	reversed_attr = (reversed ? "true" : "false");
-	nemo_file_set_metadata (file, NEMO_METADATA_KEY_LIST_VIEW_SORT_REVERSED,
-				    default_reversed_attr, reversed_attr);
+    if (nemo_global_preferences_get_ignore_view_metadata ()) {
+        nemo_window_set_ignore_meta_sort_direction (nemo_view_get_nemo_window (NEMO_VIEW (view)),
+                                                    reversed ? SORT_DESCENDING : SORT_ASCENDING);
+    } else {
+        reversed_attr = (reversed ? "true" : "false");
+        nemo_file_set_metadata (file, NEMO_METADATA_KEY_LIST_VIEW_SORT_REVERSED,
+                                default_reversed_attr, reversed_attr);
+    }
 
 	/* Make sure selected item(s) is visible after sort */
 	nemo_list_view_reveal_selection (NEMO_VIEW (view));
@@ -1405,6 +1536,224 @@ move_copy_items_callback (NemoTreeViewDragDest *dest,
 }
 
 static void
+column_header_menu_toggled (GtkCheckMenuItem *menu_item,
+                            NemoListView *list_view)
+{
+	NemoFile *file;
+	char **visible_columns;
+	char **column_order;
+	const char *column;
+	GList *list = NULL;
+	GList *l;
+	int i;
+
+	file = nemo_view_get_directory_as_file (NEMO_VIEW (list_view));
+	visible_columns = get_visible_columns (list_view);
+	column_order = get_column_order (list_view);
+	column = g_object_get_data (G_OBJECT (menu_item), "column-name");
+
+	for (i = 0; visible_columns[i] != NULL; ++i) {
+		list = g_list_prepend (list, visible_columns[i]);
+	}
+
+	if (gtk_check_menu_item_get_active (menu_item)) {
+		list = g_list_prepend (list, g_strdup (column));
+	} else {
+		l = g_list_find_custom (list, column, (GCompareFunc) g_strcmp0);
+		list = g_list_delete_link (list, l);
+	}
+
+	list = g_list_reverse (list);
+
+    if (nemo_global_preferences_get_ignore_view_metadata ())
+        nemo_window_set_ignore_meta_visible_columns (nemo_view_get_nemo_window (NEMO_VIEW (list_view)), list);
+    else
+        nemo_file_set_metadata_list (file,
+                                     NEMO_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS,
+                                     list);
+
+	g_free (visible_columns);
+
+	visible_columns = g_new0 (char *, g_list_length (list) + 1);
+	for (i = 0, l = list; l != NULL; ++i, l = l->next) {
+		visible_columns[i] = l->data;
+	}
+
+	/* set view values ourselves, as new metadata could not have been
+	 * updated yet.
+	 */
+	apply_columns_settings (list_view, column_order, visible_columns);
+
+	g_list_free (list);
+	g_strfreev (column_order);
+	g_strfreev (visible_columns);
+}
+
+static void
+column_header_menu_use_default (GtkMenuItem *menu_item,
+                                NemoListView *list_view)
+{
+	NemoFile *file;
+	char **default_columns;
+	char **default_order;
+
+	file = nemo_view_get_directory_as_file (NEMO_VIEW (list_view));
+
+    g_signal_handlers_block_by_func (list_view->details->tree_view,
+                                     columns_reordered_callback,
+                                     list_view);
+
+    if (nemo_global_preferences_get_ignore_view_metadata ()) {
+        NemoWindow *window = nemo_view_get_nemo_window (NEMO_VIEW (list_view));
+        nemo_window_set_ignore_meta_visible_columns (window, NULL);
+        nemo_window_set_ignore_meta_column_order (window, NULL);
+    } else {
+        nemo_file_set_metadata_list (file, NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER, NULL);
+        nemo_file_set_metadata_list (file, NEMO_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS, NULL);
+    }
+
+    default_columns = get_default_visible_columns (list_view);
+
+    default_order = get_default_column_order (list_view);
+
+	/* set view values ourselves, as new metadata could not have been
+	 * updated yet.
+	 */
+	apply_columns_settings (list_view, default_order, default_columns);
+
+    g_signal_handlers_unblock_by_func (list_view->details->tree_view,
+                                       columns_reordered_callback,
+                                       list_view);
+
+	g_strfreev (default_columns);
+	g_strfreev (default_order);
+}
+
+static void
+column_header_menu_disable_sort (GtkMenuItem *menu_item,
+                                 NemoListView *list_view)
+{
+    gboolean active = gtk_check_menu_item_get_active (GTK_CHECK_MENU_ITEM (menu_item));
+
+    nemo_list_model_set_temporarily_disable_sort (list_view->details->model, active);
+}
+
+static gboolean
+column_header_clicked (GtkWidget *column_button,
+                       GdkEventButton *event,
+                       NemoListView *list_view)
+{
+	NemoFile *file;
+	char **visible_columns;
+	char **column_order;
+	GList *all_columns;
+	GHashTable *visible_columns_hash;
+	int i;
+	GList *l;
+	GtkWidget *menu;
+	GtkWidget *menu_item;
+
+	if (event->button != GDK_BUTTON_SECONDARY) {
+		return FALSE;
+	}
+
+	file = nemo_view_get_directory_as_file (NEMO_VIEW (list_view));
+
+	visible_columns = get_visible_columns (list_view);
+	column_order = get_column_order (list_view);
+
+	all_columns = nemo_get_columns_for_file (file);
+	all_columns = nemo_sort_columns (all_columns, column_order);
+
+	/* hash table to lookup if a given column should be visible */
+	visible_columns_hash = g_hash_table_new_full (g_str_hash,
+	                                              g_str_equal,
+	                                              (GDestroyNotify) g_free,
+	                                              (GDestroyNotify) g_free);
+	if (visible_columns != NULL) {
+		for (i = 0; visible_columns[i] != NULL; ++i) {
+			g_hash_table_insert (visible_columns_hash,
+			                     g_ascii_strdown (visible_columns[i], -1),
+			                     g_ascii_strdown (visible_columns[i], -1));
+		}
+	}
+
+	menu = gtk_menu_new ();
+
+	for (l = all_columns; l != NULL; l = l->next) {
+		char *name;
+		char *label;
+		char *lowercase;
+
+		g_object_get (G_OBJECT (l->data),
+		              "name", &name,
+		              "label", &label,
+		              NULL);
+		lowercase = g_ascii_strdown (name, -1);
+
+		menu_item = gtk_check_menu_item_new_with_label (label);
+		gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_item);
+
+		g_object_set_data_full (G_OBJECT (menu_item),
+		                        "column-name", name, g_free);
+
+		if (g_hash_table_lookup (visible_columns_hash, lowercase) != NULL) {
+			gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (menu_item),
+			                                TRUE);
+        /*  Don't allow hiding the only visible column */
+            if (g_hash_table_size (visible_columns_hash) == 1)
+                gtk_widget_set_sensitive (GTK_WIDGET (menu_item), FALSE);
+		}
+
+		g_signal_connect (menu_item,
+		                  "toggled",
+		                  G_CALLBACK (column_header_menu_toggled),
+		                  list_view);
+
+		g_free (lowercase);
+		g_free (label);
+	}
+
+	menu_item = gtk_separator_menu_item_new ();
+	gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_item);
+
+	menu_item = gtk_menu_item_new_with_label (_("Use Default"));
+	gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_item);
+
+	g_signal_connect (menu_item,
+	                  "activate",
+	                  G_CALLBACK (column_header_menu_use_default),
+	                  list_view);
+
+    menu_item = gtk_separator_menu_item_new ();
+    gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_item);
+
+    menu_item = gtk_check_menu_item_new_with_label (_("Temporarily disable auto-sort"));
+    gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_item);
+
+    gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (menu_item),
+                                    nemo_list_model_get_temporarily_disable_sort (list_view->details->model));
+
+    g_signal_connect (menu_item,
+                      "activate",
+                      G_CALLBACK (column_header_menu_disable_sort),
+                      list_view);
+
+	gtk_widget_show_all (menu);
+	gtk_menu_popup_for_device (GTK_MENU (menu),
+	                           gdk_event_get_device ((GdkEvent *) event),
+	                           NULL, NULL, NULL, NULL, NULL,
+	                           event->button, event->time);
+
+	g_hash_table_destroy (visible_columns_hash);
+	nemo_column_list_free (all_columns);
+	g_strfreev (column_order);
+	g_strfreev (visible_columns);
+
+	return TRUE;
+}
+
+static void
 apply_columns_settings (NemoListView *list_view,
 			char **column_order,
 			char **visible_columns)
@@ -1461,7 +1810,7 @@ apply_columns_settings (NemoListView *list_view,
 
 	view_columns = g_list_reverse (view_columns);
 
-	/* remove columns that are not present in the configuration */
+	/* hide columns that are not present in the configuration */
 	old_view_columns = gtk_tree_view_get_columns (list_view->details->tree_view);
 	for (l = old_view_columns; l != NULL; l = l->next) {
 		if (g_list_find (view_columns, l->data) == NULL) {
@@ -1470,14 +1819,19 @@ apply_columns_settings (NemoListView *list_view,
 	}
 	g_list_free (old_view_columns);
 
-	/* append new columns from the configuration */
-	old_view_columns = gtk_tree_view_get_columns (list_view->details->tree_view);
+
+    old_view_columns = gtk_tree_view_get_columns (list_view->details->tree_view);
+	/* show new columns from the configuration */
 	for (l = view_columns; l != NULL; l = l->next) {
-		if (g_list_find (old_view_columns, l->data) == NULL) {
-			gtk_tree_view_append_column (list_view->details->tree_view, l->data);
-		}
+        if (g_list_find (old_view_columns, l->data) == NULL) {
+            gtk_tree_view_append_column (list_view->details->tree_view, l->data);
+            g_signal_connect (gtk_tree_view_column_get_button (l->data),
+                             "button-press-event",
+                             G_CALLBACK (column_header_clicked),
+                             list_view);
+        }
 	}
-	g_list_free (old_view_columns);
+    g_list_free (old_view_columns);
 
 	/* place columns in the correct order */
 	prev_view_column = NULL;
@@ -1551,7 +1905,7 @@ create_and_set_up_tree_view (NemoListView *view)
 	view->details->tree_view = GTK_TREE_VIEW (gtk_tree_view_new ());
 	view->details->columns = g_hash_table_new_full (g_str_hash, 
 							g_str_equal,
-							(GDestroyNotify)g_free,
+							(GDestroyNotify) g_free,
 							(GDestroyNotify) g_object_unref);
 	gtk_tree_view_set_enable_search (view->details->tree_view, TRUE);
 
@@ -1587,6 +1941,9 @@ create_and_set_up_tree_view (NemoListView *view)
 				 "changed",
 				 G_CALLBACK (list_selection_changed_callback), view, 0);
 
+    g_signal_connect_object (GTK_WIDGET (view->details->tree_view), "query-tooltip",
+                             G_CALLBACK (query_tooltip_callback), view, 0);
+
 	g_signal_connect_object (view->details->tree_view, "drag_begin",
 				 G_CALLBACK (drag_begin_callback), view, 0);
 	g_signal_connect_object (view->details->tree_view, "drag_data_get",
@@ -1614,7 +1971,7 @@ create_and_set_up_tree_view (NemoListView *view)
 	
     	g_signal_connect_object (view->details->tree_view, "focus_in_event",
 				 G_CALLBACK(focus_in_event_callback), view, 0);
-    
+
 	view->details->model = g_object_new (NEMO_TYPE_LIST_MODEL, NULL);
 	gtk_tree_view_set_model (view->details->tree_view, GTK_TREE_MODEL (view->details->model));
 	/* Need the model for the dnd drop icon "accept" change */
@@ -1657,7 +2014,7 @@ create_and_set_up_tree_view (NemoListView *view)
 			view->details->pixbuf_cell = (GtkCellRendererPixbuf *)cell;
 			
 			view->details->file_name_column = gtk_tree_view_column_new ();
-			g_object_ref_sink (view->details->file_name_column);
+            g_object_ref_sink (view->details->file_name_column);
 			view->details->file_name_column_num = column_num;
 			
 			g_hash_table_insert (view->details->columns,
@@ -1669,15 +2026,23 @@ create_and_set_up_tree_view (NemoListView *view)
 			gtk_tree_view_column_set_sort_column_id (view->details->file_name_column, column_num);
 			gtk_tree_view_column_set_title (view->details->file_name_column, _("Name"));
 			gtk_tree_view_column_set_resizable (view->details->file_name_column, TRUE);
-			
+            gtk_tree_view_column_set_min_width (view->details->file_name_column, 125);
+            gtk_tree_view_column_set_reorderable (view->details->file_name_column, TRUE);
+
+            gtk_tree_view_column_set_expand (view->details->file_name_column, TRUE);
+
 			gtk_tree_view_column_pack_start (view->details->file_name_column, cell, FALSE);
 			gtk_tree_view_column_set_attributes (view->details->file_name_column,
 							     cell,
 							     "pixbuf", NEMO_LIST_MODEL_SMALLEST_ICON_COLUMN,
 							     NULL);
 			
-			cell = nemo_cell_renderer_text_ellipsized_new ();
+			cell = gtk_cell_renderer_text_new ();
 			view->details->file_name_cell = (GtkCellRendererText *)cell;
+            g_object_set (cell,
+                          "ellipsize", PANGO_ELLIPSIZE_END,
+                          "xpad", 5,
+                          NULL);
 			g_signal_connect (cell, "edited", G_CALLBACK (cell_renderer_edited), view);
 			g_signal_connect (cell, "editing-canceled", G_CALLBACK (cell_renderer_editing_canceled), view);
 			g_signal_connect (cell, "editing-started", G_CALLBACK (cell_renderer_editing_started_cb), view);
@@ -1688,21 +2053,25 @@ create_and_set_up_tree_view (NemoListView *view)
 								 view, NULL);
 		} else {		
 			cell = gtk_cell_renderer_text_new ();
-			g_object_set (cell, "xalign", xalign, NULL);
+            g_object_set (cell,
+                          "xalign", xalign,
+                          "xpad", 5,
+                          NULL);
 			view->details->cells = g_list_append (view->details->cells,
 							      cell);
 			column = gtk_tree_view_column_new_with_attributes (label,
 									   cell,
 									   "text", column_num,
 									   NULL);
-			g_object_ref_sink (column);
+            g_object_ref_sink (column);
 			gtk_tree_view_column_set_sort_column_id (column, column_num);
 			g_hash_table_insert (view->details->columns, 
 					     g_strdup (name), 
 					     column);
-			
+
 			gtk_tree_view_column_set_resizable (column, TRUE);
-			gtk_tree_view_column_set_visible (column, TRUE);
+            gtk_tree_view_column_set_visible (column, TRUE);
+            gtk_tree_view_column_set_reorderable (column, TRUE);
 		}
 		g_free (name);
 		g_free (label);
@@ -1727,6 +2096,8 @@ create_and_set_up_tree_view (NemoListView *view)
         atk_obj = gtk_widget_get_accessible (GTK_WIDGET (view->details->tree_view));
         atk_object_set_name (atk_obj, _("List View"));
 
+    gtk_widget_set_has_tooltip (GTK_WIDGET (view->details->tree_view), TRUE);
+
 	g_strfreev (default_visible_columns);
 	g_strfreev (default_column_order);
 }
@@ -1741,6 +2112,27 @@ nemo_list_view_add_file (NemoView *view, NemoFile *file, NemoDirectory *director
 }
 
 static char **
+get_default_visible_columns (NemoListView *list_view)
+{
+    NemoFile *file;
+    NemoDirectory *directory;
+
+    file = nemo_view_get_directory_as_file (NEMO_VIEW (list_view));
+
+    if (nemo_file_is_in_trash (file)) {
+        return g_strdupv ((gchar **) default_trash_visible_columns);
+    }
+
+    directory = nemo_view_get_model (NEMO_VIEW (list_view));
+    if (NEMO_IS_SEARCH_DIRECTORY (directory)) {
+        return g_strdupv ((gchar **) default_search_visible_columns);
+    }
+
+    return g_settings_get_strv (nemo_list_view_preferences,
+                                NEMO_PREFERENCES_LIST_VIEW_DEFAULT_VISIBLE_COLUMNS);
+}
+
+static char **
 get_visible_columns (NemoListView *list_view)
 {
 	NemoFile *file;
@@ -1751,9 +2143,12 @@ get_visible_columns (NemoListView *list_view)
 
 	file = nemo_view_get_directory_as_file (NEMO_VIEW (list_view));
 
-	visible_columns = nemo_file_get_metadata_list 
-		(file,
-		 NEMO_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS);
+    if (nemo_global_preferences_get_ignore_view_metadata ()) {
+        visible_columns = nemo_window_get_ignore_meta_visible_columns (nemo_view_get_nemo_window (NEMO_VIEW (list_view)));
+    } else {
+        visible_columns = nemo_file_get_metadata_list (file,
+                                                   NEMO_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS);
+    }
 
 	if (visible_columns) {
 		GPtrArray *res;
@@ -1773,10 +2168,28 @@ get_visible_columns (NemoListView *list_view)
 		return ret;
 	}
 
-	return nemo_file_is_in_trash (file) ?
-		g_strdupv ((gchar **) default_trash_visible_columns) :
-		g_settings_get_strv (nemo_list_view_preferences,
-				     NEMO_PREFERENCES_LIST_VIEW_DEFAULT_VISIBLE_COLUMNS);
+	return get_default_visible_columns (list_view);
+}
+
+static char **
+get_default_column_order (NemoListView *list_view)
+{
+    NemoFile *file;
+    NemoDirectory *directory;
+
+    file = nemo_view_get_directory_as_file (NEMO_VIEW (list_view));
+
+    if (nemo_file_is_in_trash (file)) {
+        return g_strdupv ((gchar **) default_trash_columns_order);
+    }
+
+    directory = nemo_view_get_model (NEMO_VIEW (list_view));
+    if (NEMO_IS_SEARCH_DIRECTORY (directory)) {
+        return g_strdupv ((gchar **) default_search_columns_order);
+    }
+
+    return g_settings_get_strv (nemo_list_view_preferences,
+                                NEMO_PREFERENCES_LIST_VIEW_DEFAULT_COLUMN_ORDER);
 }
 
 static char **
@@ -1790,9 +2203,12 @@ get_column_order (NemoListView *list_view)
 
 	file = nemo_view_get_directory_as_file (NEMO_VIEW (list_view));
 
-	column_order = nemo_file_get_metadata_list 
-		(file,
-		 NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER);
+    if (nemo_global_preferences_get_ignore_view_metadata ()) {
+        column_order = nemo_window_get_ignore_meta_column_order (nemo_view_get_nemo_window (NEMO_VIEW (list_view)));
+    } else {
+        column_order = nemo_file_get_metadata_list (file,
+                                                    NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER);
+    }
 
 	if (column_order) {
 		GPtrArray *res;
@@ -1812,10 +2228,7 @@ get_column_order (NemoListView *list_view)
 		return ret;
 	}
 
-	return nemo_file_is_in_trash (file) ?
-		g_strdupv ((gchar **) default_trash_columns_order) :
-		g_settings_get_strv (nemo_list_view_preferences,
-				     NEMO_PREFERENCES_LIST_VIEW_DEFAULT_COLUMN_ORDER);
+	return get_default_column_order (list_view);
 }
 
 static void
@@ -1843,9 +2256,13 @@ set_sort_order_from_metadata_and_preferences (NemoListView *list_view)
 	const gchar *default_sort_order;
 	
 	file = nemo_view_get_directory_as_file (NEMO_VIEW (list_view));
-	sort_attribute = nemo_file_get_metadata (file,
-						     NEMO_METADATA_KEY_LIST_VIEW_SORT_COLUMN,
-						     NULL);
+
+    if (nemo_global_preferences_get_ignore_view_metadata ())
+        sort_attribute = g_strdup (nemo_window_get_ignore_meta_sort_column (nemo_view_get_nemo_window (NEMO_VIEW (list_view))));
+    else
+        sort_attribute = nemo_file_get_metadata (file,
+                                                 NEMO_METADATA_KEY_LIST_VIEW_SORT_COLUMN,
+                                                 NULL);
 	sort_column_id = nemo_list_model_get_sort_column_id_from_attribute (list_view->details->model,
 									  g_quark_from_string (sort_attribute));
 	g_free (sort_attribute);
@@ -1858,13 +2275,17 @@ set_sort_order_from_metadata_and_preferences (NemoListView *list_view)
 									 g_quark_from_string (default_sort_order));
 	}
 
-	sort_reversed = nemo_file_get_boolean_metadata (file,
-							    NEMO_METADATA_KEY_LIST_VIEW_SORT_REVERSED,
-							    default_sort_reversed);
-
-	gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (list_view->details->model),
-					      sort_column_id,
-					      sort_reversed ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING);					      
+    if (nemo_global_preferences_get_ignore_view_metadata ()) {
+        gint dir = nemo_window_get_ignore_meta_sort_direction (nemo_view_get_nemo_window (NEMO_VIEW (list_view)));
+        sort_reversed = dir > SORT_NULL ? dir == SORT_DESCENDING : default_sort_reversed;
+    } else {
+        sort_reversed = nemo_file_get_boolean_metadata (file,
+                                                        NEMO_METADATA_KEY_LIST_VIEW_SORT_REVERSED,
+                                                        default_sort_reversed);
+    }
+    gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (list_view->details->model),
+                                                             sort_column_id,
+                                                             sort_reversed ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING);
 }
 
 static gboolean
@@ -1900,9 +2321,14 @@ set_zoom_level_from_metadata_and_preferences (NemoListView *list_view)
 
 	if (nemo_view_supports_zooming (NEMO_VIEW (list_view))) {
 		file = nemo_view_get_directory_as_file (NEMO_VIEW (list_view));
-		level = nemo_file_get_integer_metadata (file,
+        if (nemo_global_preferences_get_ignore_view_metadata ()) {
+            gint ignore_level = nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (list_view)));
+            level = ignore_level > -1 ? ignore_level : get_default_zoom_level ();
+        } else {
+            level = nemo_file_get_integer_metadata (file,
 							    NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL, 
 							    get_default_zoom_level ());
+        }
 		nemo_list_view_set_zoom_level (list_view, level, TRUE);
 		
 		/* updated the rows after updating the font size */
@@ -1921,6 +2347,11 @@ nemo_list_view_begin_loading (NemoView *view)
 	set_sort_order_from_metadata_and_preferences (list_view);
 	set_zoom_level_from_metadata_and_preferences (list_view);
 	set_columns_settings_from_metadata_and_preferences (list_view);
+
+    AtkObject *atk = gtk_widget_get_accessible (GTK_WIDGET (NEMO_LIST_VIEW (view)->details->tree_view));
+
+    g_signal_connect_object (atk, "column-reordered",
+                             G_CALLBACK (columns_reordered_callback), view, 0);
 }
 
 static void
@@ -2409,263 +2840,47 @@ nemo_list_view_select_all (NemoView *view)
 }
 
 static void
-column_editor_response_callback (GtkWidget *dialog, 
-				 int response_id,
-				 gpointer user_data)
-{
-	gtk_widget_destroy (GTK_WIDGET (dialog));
-}
-
-static void
-column_chooser_changed_callback (NemoColumnChooser *chooser,
-				 NemoListView *view)
-{
-	NemoFile *file;
-	char **visible_columns;
-	char **column_order;
-	GList *list;
-	int i;
-
-	file = nemo_view_get_directory_as_file (NEMO_VIEW (view));
-
-	nemo_column_chooser_get_settings (chooser,
-					      &visible_columns,
-					      &column_order);
-
-	list = NULL;
-	for (i = 0; visible_columns[i] != NULL; ++i) {
-		list = g_list_prepend (list, visible_columns[i]);
-	}
-	list = g_list_reverse (list);
-	nemo_file_set_metadata_list (file,
-					 NEMO_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS,
-					 list);
-	g_list_free (list);
-
-	list = NULL;
-	for (i = 0; column_order[i] != NULL; ++i) {
-		list = g_list_prepend (list, column_order[i]);
-	}
-	list = g_list_reverse (list);
-	nemo_file_set_metadata_list (file,
-					 NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER,
-					 list);
-	g_list_free (list);
-
-	apply_columns_settings (view, column_order, visible_columns);
-
-	g_strfreev (visible_columns);
-	g_strfreev (column_order);
-}
-
-static void
-column_chooser_set_from_arrays (NemoColumnChooser *chooser,
-                                NemoListView *view,
-                                char **visible_columns,
-                                char **column_order)
-{
-	g_signal_handlers_block_by_func 
-		(chooser, G_CALLBACK (column_chooser_changed_callback), view);
-
-	nemo_column_chooser_set_settings (chooser,
-					      visible_columns, 
-					      column_order);
-
-	g_signal_handlers_unblock_by_func 
-		(chooser, G_CALLBACK (column_chooser_changed_callback), view);
-}
-
-static void
-column_chooser_set_from_settings (NemoColumnChooser *chooser,
-				  NemoListView *view)
-{
-	char **visible_columns;
-	char **column_order;
-
-	visible_columns = get_visible_columns (view);
-	column_order = get_column_order (view);
-
-	column_chooser_set_from_arrays (chooser, view,
-	                                visible_columns, column_order);
-
-	g_strfreev (visible_columns);
-	g_strfreev (column_order);
-}
-
-static void
-column_chooser_use_default_callback (NemoColumnChooser *chooser,
-				     NemoListView *view)
-{
-	NemoFile *file;
-	char **default_columns;
-	char **default_order;
-
-	file = nemo_view_get_directory_as_file 
-		(NEMO_VIEW (view));
-
-	nemo_file_set_metadata_list (file, NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER, NULL);
-	nemo_file_set_metadata_list (file, NEMO_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS, NULL);
-
-	/* set view values ourselves, as new metadata could not have been
-	 * updated yet.
-	 */
-	default_columns = nemo_file_is_in_trash (file) ?
-		g_strdupv ((gchar **) default_trash_visible_columns) :
-		g_settings_get_strv (nemo_list_view_preferences,
-				     NEMO_PREFERENCES_LIST_VIEW_DEFAULT_VISIBLE_COLUMNS);
-
-	default_order = nemo_file_is_in_trash (file) ?
-		g_strdupv ((gchar **) default_trash_columns_order) :
-		g_settings_get_strv (nemo_list_view_preferences,
-				     NEMO_PREFERENCES_LIST_VIEW_DEFAULT_COLUMN_ORDER);
-
-	apply_columns_settings (view, default_order, default_columns);
-	column_chooser_set_from_arrays (chooser, view,
-	                                default_columns, default_order);
-
-	g_strfreev (default_columns);
-	g_strfreev (default_order);
-}
-
-static GtkWidget *
-create_column_editor (NemoListView *view)
-{
-	GtkWidget *window;
-	GtkWidget *label;
-	GtkWidget *box;
-	GtkWidget *column_chooser;
-	GtkWidget *alignment;
-	NemoFile *file;
-	char *str;
-	char *name;
-	const char *label_text;
-	
-	file = nemo_view_get_directory_as_file (NEMO_VIEW (view));
-	name = nemo_file_get_display_name (file);
-	str = g_strdup_printf (_("%s Visible Columns"), name);
-	g_free (name);
-
-	window = gtk_dialog_new_with_buttons (str,
-					      GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (view))),
-					      GTK_DIALOG_DESTROY_WITH_PARENT,
-					      GTK_STOCK_CLOSE, GTK_RESPONSE_CLOSE,
-					      NULL);
-	g_free (str);
-	g_signal_connect (window, "response", 
-			  G_CALLBACK (column_editor_response_callback), NULL);
-	
-	gtk_window_set_default_size (GTK_WINDOW (window), 300, 400);
-
-	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 12);
-	gtk_container_set_border_width (GTK_CONTAINER (box), 12);
-	gtk_widget_show (box);
-	gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG (window))), box,
-			    TRUE, TRUE, 0);
-
-	label_text = _("Choose the order of information to appear in this folder:");
-	str = g_strconcat ("<b>", label_text, "</b>", NULL);
-	label = gtk_label_new (NULL);
-	gtk_label_set_markup (GTK_LABEL (label), str);
-	gtk_label_set_line_wrap (GTK_LABEL (label), FALSE);
-	gtk_misc_set_alignment (GTK_MISC (label), 0, 0);
-	gtk_widget_show (label);
-	gtk_box_pack_start (GTK_BOX (box), label, FALSE, FALSE, 0);
-
-	g_free (str);
-
-	alignment = gtk_alignment_new (0.5, 0.5, 1, 1);
-	gtk_alignment_set_padding (GTK_ALIGNMENT (alignment),
-				   0, 0, 12, 0);
-	gtk_widget_show (alignment);
-	gtk_box_pack_start (GTK_BOX (box), alignment, TRUE, TRUE, 0);
-
-	column_chooser = nemo_column_chooser_new (file);
-	gtk_widget_show (column_chooser);
-	gtk_container_add (GTK_CONTAINER (alignment), column_chooser);
-
-	g_signal_connect (column_chooser, "changed",
-			  G_CALLBACK (column_chooser_changed_callback),
-			  view);
-	g_signal_connect (column_chooser, "use_default",
-			  G_CALLBACK (column_chooser_use_default_callback),
-			  view);
-
-	column_chooser_set_from_settings 
-		(NEMO_COLUMN_CHOOSER (column_chooser), view);
-
-	return window;
-}
-
-static void
-action_visible_columns_callback (GtkAction *action,
-				 gpointer callback_data)
-{
-	NemoListView *list_view;
-	
-	list_view = NEMO_LIST_VIEW (callback_data);
-
-	if (list_view->details->column_editor) {
-		gtk_window_present (GTK_WINDOW (list_view->details->column_editor));
-	} else {
-		list_view->details->column_editor = create_column_editor (list_view);
-		eel_add_weak_pointer (&list_view->details->column_editor);
-		
-		gtk_widget_show (list_view->details->column_editor);
-	}
-}
-
-static const GtkActionEntry list_view_entries[] = {
-	/* name, stock id */     { "Visible Columns", NULL,
-				   /* label, accelerator */   N_("Visible _Columns..."), NULL,
-				   /* tooltip */              N_("Select the columns visible in this folder"),
-				   G_CALLBACK (action_visible_columns_callback) },
-};
-
-static void
 nemo_list_view_merge_menus (NemoView *view)
 {
-	NemoListView *list_view;
-	GtkUIManager *ui_manager;
-	GtkActionGroup *action_group;
+  NemoListView *list_view;
+  GtkUIManager *ui_manager;
+  GtkActionGroup *action_group;
 
-	list_view = NEMO_LIST_VIEW (view);
+  list_view = NEMO_LIST_VIEW (view);
 
-	NEMO_VIEW_CLASS (nemo_list_view_parent_class)->merge_menus (view);
+  NEMO_VIEW_CLASS (nemo_list_view_parent_class)->merge_menus (view);
 
-	ui_manager = nemo_view_get_ui_manager (view);
+  ui_manager = nemo_view_get_ui_manager (view);
 
-	action_group = gtk_action_group_new ("ListViewActions");
-	gtk_action_group_set_translation_domain (action_group, GETTEXT_PACKAGE);
-	list_view->details->list_action_group = action_group;
-	gtk_action_group_add_actions (action_group, 
-				      list_view_entries, G_N_ELEMENTS (list_view_entries),
-				      list_view);
+  action_group = gtk_action_group_new ("ListViewActions");
+  gtk_action_group_set_translation_domain (action_group, GETTEXT_PACKAGE);
+  list_view->details->list_action_group = action_group;
 
-	gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
-	g_object_unref (action_group); /* owned by ui manager */
+  gtk_ui_manager_insert_action_group (ui_manager, action_group, 0);
+  g_object_unref (action_group); /* owned by ui manager */
 
-	list_view->details->list_merge_id =
-		gtk_ui_manager_add_ui_from_resource (ui_manager, "/org/nemo/nemo-list-view-ui.xml", NULL);
+  list_view->details->list_merge_id =
+    gtk_ui_manager_add_ui_from_resource (ui_manager, "/org/nemo/nemo-list-view-ui.xml", NULL);
 
-	list_view->details->menus_ready = TRUE;
+  list_view->details->menus_ready = TRUE;
 }
 
 static void
 nemo_list_view_unmerge_menus (NemoView *view)
 {
-	NemoListView *list_view;
-	GtkUIManager *ui_manager;
+  NemoListView *list_view;
+  GtkUIManager *ui_manager;
 
-	list_view = NEMO_LIST_VIEW (view);
+  list_view = NEMO_LIST_VIEW (view);
 
-	NEMO_VIEW_CLASS (nemo_list_view_parent_class)->unmerge_menus (view);
+  NEMO_VIEW_CLASS (nemo_list_view_parent_class)->unmerge_menus (view);
 
-	ui_manager = nemo_view_get_ui_manager (view);
-	if (ui_manager != NULL) {
-		nemo_ui_unmerge_ui (ui_manager,
-					&list_view->details->list_merge_id,
-					&list_view->details->list_action_group);
-	}
+  ui_manager = nemo_view_get_ui_manager (view);
+  if (ui_manager != NULL) {
+    nemo_ui_unmerge_ui (ui_manager,
+          &list_view->details->list_merge_id,
+          &list_view->details->list_action_group);
+  }
 }
 
 static void
@@ -2688,27 +2903,37 @@ static void
 nemo_list_view_reset_to_defaults (NemoView *view)
 {
 	NemoFile *file;
-	const gchar *default_sort_order;
-	gboolean default_sort_reversed;
 
 	file = nemo_view_get_directory_as_file (view);
 
-	nemo_file_set_metadata (file, NEMO_METADATA_KEY_LIST_VIEW_SORT_COLUMN, NULL, NULL);
-	nemo_file_set_metadata (file, NEMO_METADATA_KEY_LIST_VIEW_SORT_REVERSED, NULL, NULL);
-	nemo_file_set_metadata (file, NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL, NULL, NULL);
-	nemo_file_set_metadata_list (file, NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER, NULL);
-	nemo_file_set_metadata_list (file, NEMO_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS, NULL);
+    g_signal_handlers_block_by_func (NEMO_LIST_VIEW (view)->details->tree_view,
+                                     columns_reordered_callback,
+                                     NEMO_LIST_VIEW (view));
 
-	default_sort_order = get_default_sort_order (file, &default_sort_reversed);
+    if (nemo_global_preferences_get_ignore_view_metadata ()) {
+        NemoWindow *window = nemo_view_get_nemo_window (NEMO_VIEW (view));
+        nemo_window_set_ignore_meta_sort_column (window, NULL);
+        nemo_window_set_ignore_meta_sort_direction (window, SORT_NULL);
+        nemo_window_set_ignore_meta_zoom_level (window, NEMO_ZOOM_LEVEL_NULL);
+        nemo_window_set_ignore_meta_column_order (window, NULL);
+        nemo_window_set_ignore_meta_visible_columns (window, NULL);
+    } else {
+        nemo_file_set_metadata (file, NEMO_METADATA_KEY_LIST_VIEW_SORT_COLUMN, NULL, NULL);
+        nemo_file_set_metadata (file, NEMO_METADATA_KEY_LIST_VIEW_SORT_REVERSED, NULL, NULL);
+        nemo_file_set_metadata (file, NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL, NULL, NULL);
+        nemo_file_set_metadata_list (file, NEMO_METADATA_KEY_LIST_VIEW_COLUMN_ORDER, NULL);
+        nemo_file_set_metadata_list (file, NEMO_METADATA_KEY_LIST_VIEW_VISIBLE_COLUMNS, NULL);
+    }
 
-	gtk_tree_sortable_set_sort_column_id
-		(GTK_TREE_SORTABLE (NEMO_LIST_VIEW (view)->details->model),
-		 nemo_list_model_get_sort_column_id_from_attribute (NEMO_LIST_VIEW (view)->details->model,
-								  g_quark_from_string (default_sort_order)),
-		 default_sort_reversed ? GTK_SORT_DESCENDING : GTK_SORT_ASCENDING);
+    char **default_columns, **default_order;
 
-	nemo_list_view_set_zoom_level (NEMO_LIST_VIEW (view), get_default_zoom_level (), FALSE);
-	set_columns_settings_from_metadata_and_preferences (NEMO_LIST_VIEW (view));
+    default_columns = get_default_visible_columns (NEMO_LIST_VIEW (view));
+    default_order = get_default_column_order (NEMO_LIST_VIEW (view));
+    apply_columns_settings (NEMO_LIST_VIEW (view), default_order, default_columns);
+
+    g_signal_handlers_unblock_by_func (NEMO_LIST_VIEW (view)->details->tree_view,
+                                       columns_reordered_callback,
+                                       NEMO_LIST_VIEW (view));
 }
 
 static void
@@ -2768,11 +2993,14 @@ nemo_list_view_set_zoom_level (NemoListView *view,
 	view->details->zoom_level = new_level;
 	g_signal_emit_by_name (NEMO_VIEW(view), "zoom_level_changed");
 
-	nemo_file_set_integer_metadata
-		(nemo_view_get_directory_as_file (NEMO_VIEW (view)), 
-		 NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL, 
-		 get_default_zoom_level (),
-		 new_level);
+    if (nemo_global_preferences_get_ignore_view_metadata ())
+        nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (view)), new_level);
+    else
+        nemo_file_set_integer_metadata
+            (nemo_view_get_directory_as_file (NEMO_VIEW (view)), 
+             NEMO_METADATA_KEY_LIST_VIEW_ZOOM_LEVEL, 
+             get_default_zoom_level (),
+             new_level);
 
 	/* Select correctly scaled icons. */
 	column = nemo_list_model_get_column_id_from_zoom_level (new_level);
@@ -2785,7 +3013,7 @@ nemo_list_view_set_zoom_level (NemoListView *view,
 	nemo_list_view_scale_font_size (view, new_level);
 
 	/* Make all rows the same size. */
-	icon_size = nemo_get_icon_size_for_zoom_level (new_level);
+	icon_size = nemo_get_list_icon_size_for_zoom_level (new_level);
 	gtk_cell_renderer_set_fixed_size (GTK_CELL_RENDERER (view->details->pixbuf_cell),
 					  -1, icon_size);
 
@@ -2881,8 +3109,7 @@ nemo_list_view_start_renaming_file (NemoView *view,
 	NemoListView *list_view;
 	GtkTreeIter iter;
 	GtkTreePath *path;
-	gint start_offset, end_offset;
-	
+
 	list_view = NEMO_LIST_VIEW (view);
 	
 	/* Select all if we are in renaming mode already */
@@ -2922,8 +3149,13 @@ nemo_list_view_start_renaming_file (NemoView *view,
 
 	/* set cursor also triggers editing-started, where we save the editable widget */
 	if (list_view->details->editable_widget != NULL) {
-		eel_filename_get_rename_region (list_view->details->original_name,
-						&start_offset, &end_offset);
+        int start_offset = 0;
+        int end_offset = -1;
+
+        if (!select_all) {
+            eel_filename_get_rename_region (list_view->details->original_name,
+                           &start_offset, &end_offset);
+        }
 
 		gtk_editable_select_region (GTK_EDITABLE (list_view->details->editable_widget),
 					    start_offset, end_offset);
@@ -3072,7 +3304,7 @@ nemo_list_view_dispose (GObject *object)
 		list_view->details->clipboard_handler_id = 0;
 	}
 
-	G_OBJECT_CLASS (nemo_list_view_parent_class)->dispose (object);
+    G_OBJECT_CLASS (nemo_list_view_parent_class)->dispose (object);
 }
 
 static void
@@ -3120,6 +3352,10 @@ nemo_list_view_finalize (GObject *object)
 	g_signal_handlers_disconnect_by_func (nemo_list_view_preferences,
 					      default_column_order_changed_callback,
 					      list_view);
+
+    g_signal_handlers_disconnect_by_func (nemo_preferences,
+                                          tooltip_prefs_changed_callback,
+                                          list_view);
 
 	G_OBJECT_CLASS (nemo_list_view_parent_class)->finalize (object);
 }
@@ -3260,8 +3496,8 @@ nemo_list_view_class_init (NemoListViewClass *class)
 	nemo_view_class->get_item_count = nemo_list_view_get_item_count;
 	nemo_view_class->is_empty = nemo_list_view_is_empty;
 	nemo_view_class->remove_file = nemo_list_view_remove_file;
-	nemo_view_class->merge_menus = nemo_list_view_merge_menus;
-	nemo_view_class->unmerge_menus = nemo_list_view_unmerge_menus;
+    nemo_view_class->merge_menus = nemo_list_view_merge_menus;
+    nemo_view_class->unmerge_menus = nemo_list_view_unmerge_menus;
 	nemo_view_class->update_menus = nemo_list_view_update_menus;
 	nemo_view_class->reset_to_defaults = nemo_list_view_reset_to_defaults;
 	nemo_view_class->restore_default_zoom_level = nemo_list_view_restore_default_zoom_level;
@@ -3309,6 +3545,33 @@ nemo_list_view_init (NemoListView *list_view)
 				  "changed::" NEMO_PREFERENCES_LIST_VIEW_DEFAULT_COLUMN_ORDER,
 				  G_CALLBACK (default_column_order_changed_callback),
 				  list_view);
+
+    g_signal_connect_swapped (nemo_preferences,
+                              "changed::" NEMO_PREFERENCES_TOOLTIPS_LIST_VIEW,
+                              G_CALLBACK (tooltip_prefs_changed_callback),
+                              list_view);
+
+    g_signal_connect_swapped (nemo_preferences,
+                              "changed::" NEMO_PREFERENCES_TOOLTIP_FILE_TYPE,
+                              G_CALLBACK (tooltip_prefs_changed_callback),
+                              list_view);
+
+    g_signal_connect_swapped (nemo_preferences,
+                              "changed::" NEMO_PREFERENCES_TOOLTIP_MOD_DATE,
+                              G_CALLBACK (tooltip_prefs_changed_callback),
+                              list_view);
+
+    g_signal_connect_swapped (nemo_preferences,
+                              "changed::" NEMO_PREFERENCES_TOOLTIP_ACCESS_DATE,
+                              G_CALLBACK (tooltip_prefs_changed_callback),
+                              list_view);
+
+    g_signal_connect_swapped (nemo_preferences,
+                              "changed::" NEMO_PREFERENCES_TOOLTIP_FULL_PATH,
+                              G_CALLBACK (tooltip_prefs_changed_callback),
+                              list_view);
+
+    tooltip_prefs_changed_callback (list_view);
 
 	nemo_list_view_click_policy_changed (NEMO_VIEW (list_view));
 

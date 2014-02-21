@@ -32,6 +32,7 @@
 #include "nemo-error-reporting.h"
 #include "nemo-view-dnd.h"
 #include "nemo-view-factory.h"
+#include "nemo-window.h"
 
 #include <stdlib.h>
 #include <eel/eel-vfs-extensions.h>
@@ -878,6 +879,11 @@ nemo_icon_view_get_directory_tighter_layout (NemoIconView *icon_view,
         return FALSE;
     }
 
+    if (nemo_global_preferences_get_ignore_view_metadata ()) {
+        gint t = nemo_window_get_ignore_meta_tighter_layout (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
+        return t > TIGHTER_NULL ? t == TIGHTER_YES : get_default_directory_tighter_layout ();
+    }
+
     return nemo_file_get_boolean_metadata (file,
                                            NEMO_METADATA_KEY_ICON_VIEW_TIGHTER_LAYOUT,
                                            get_default_directory_tighter_layout ());
@@ -892,10 +898,14 @@ nemo_icon_view_set_directory_tighter_layout (NemoIconView *icon_view,
         return;
     }
 
-    nemo_file_set_boolean_metadata
-       (file, NEMO_METADATA_KEY_ICON_VIEW_TIGHTER_LAYOUT,
-        get_default_directory_tighter_layout (),
-        tighter_layout);
+    if (nemo_global_preferences_get_ignore_view_metadata ()) {
+        gint t = tighter_layout ? TIGHTER_YES : TIGHTER_NO;
+        nemo_window_set_ignore_meta_tighter_layout (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)), t);
+    } else {
+        nemo_file_set_boolean_metadata (file, NEMO_METADATA_KEY_ICON_VIEW_TIGHTER_LAYOUT,
+                                        get_default_directory_tighter_layout (),
+                                        tighter_layout);
+    }
 }
 
 static gboolean
@@ -1022,17 +1032,22 @@ nemo_icon_view_begin_loading (NemoView *view)
 
 	/* Set up the zoom level from the metadata. */
 	if (nemo_view_supports_zooming (NEMO_VIEW (icon_view))) {
-		if (icon_view->details->compact) {
-			level = nemo_file_get_integer_metadata
-				(file, 
-				 NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL, 
-				 get_default_zoom_level (icon_view));
-		} else {
-			level = nemo_file_get_integer_metadata
-				(file, 
-				 NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 
-				 get_default_zoom_level (icon_view));
-		}
+        if (nemo_global_preferences_get_ignore_view_metadata () &&
+            nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view))) > -1) {
+            level = nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
+        } else {
+    		if (icon_view->details->compact) {
+    			level = nemo_file_get_integer_metadata
+    				(file, 
+    				 NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL, 
+    				 get_default_zoom_level (icon_view));
+    		} else {
+    			level = nemo_file_get_integer_metadata
+    				(file, 
+    				 NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 
+    				 get_default_zoom_level (icon_view));
+    		}
+        }
 
 		nemo_icon_view_set_zoom_level (icon_view, level, TRUE);
 	}
@@ -1132,19 +1147,23 @@ nemo_icon_view_set_zoom_level (NemoIconView *view,
 		return;
 	}
 
-	if (view->details->compact) {
-		nemo_file_set_integer_metadata
-			(nemo_view_get_directory_as_file (NEMO_VIEW (view)), 
-			 NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL, 
-			 get_default_zoom_level (view),
-			 new_level);
-	} else {
-		nemo_file_set_integer_metadata
-			(nemo_view_get_directory_as_file (NEMO_VIEW (view)), 
-			 NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 
-			 get_default_zoom_level (view),
-			 new_level);
-	}
+    if (nemo_global_preferences_get_ignore_view_metadata ()) {
+        nemo_window_set_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (view)), new_level);
+    } else {
+    	if (view->details->compact) {
+    		nemo_file_set_integer_metadata
+    			(nemo_view_get_directory_as_file (NEMO_VIEW (view)), 
+    			 NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL, 
+    			 get_default_zoom_level (view),
+    			 new_level);
+    	} else {
+    		nemo_file_set_integer_metadata
+    			(nemo_view_get_directory_as_file (NEMO_VIEW (view)), 
+    			 NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 
+    			 get_default_zoom_level (view),
+    			 new_level);
+    	}
+    }
 
 	nemo_icon_container_set_zoom_level (icon_container, new_level);
 
@@ -1602,6 +1621,12 @@ nemo_icon_view_reset_to_defaults (NemoView *view)
 	update_layout_menus (icon_view);
 
 	nemo_icon_view_restore_default_zoom_level (view);
+
+    if (nemo_global_preferences_get_ignore_view_metadata ()) {
+        NemoWindow *window = nemo_view_get_nemo_window (view);
+        nemo_window_set_ignore_meta_tighter_layout (window, TIGHTER_NULL);
+        nemo_window_set_ignore_meta_zoom_level (window, NEMO_ZOOM_LEVEL_NULL);
+    }
 }
 
 static void
@@ -2176,15 +2201,20 @@ default_zoom_level_changed_callback (gpointer callback_data)
 	if (nemo_view_supports_zooming (NEMO_VIEW (icon_view))) {
 		file = nemo_view_get_directory_as_file (NEMO_VIEW (icon_view));
 
-		if (nemo_icon_view_is_compact (icon_view)) {
-			level = nemo_file_get_integer_metadata (file, 
-								    NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL, 
-								    get_default_zoom_level (icon_view));
-		} else {
-			level = nemo_file_get_integer_metadata (file, 
-								    NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 
-								    get_default_zoom_level (icon_view));
-		}
+        if (nemo_global_preferences_get_ignore_view_metadata () &&
+            nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view))) > -1) {
+            level = nemo_window_get_ignore_meta_zoom_level (nemo_view_get_nemo_window (NEMO_VIEW (icon_view)));
+        } else {
+    		if (nemo_icon_view_is_compact (icon_view)) {
+    			level = nemo_file_get_integer_metadata (file, 
+    								    NEMO_METADATA_KEY_COMPACT_VIEW_ZOOM_LEVEL, 
+    								    get_default_zoom_level (icon_view));
+    		} else {
+    			level = nemo_file_get_integer_metadata (file, 
+    								    NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL, 
+    								    get_default_zoom_level (icon_view));
+    		}
+        }
 		nemo_view_zoom_to_level (NEMO_VIEW (icon_view), level);
 	}
 }

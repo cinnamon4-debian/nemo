@@ -38,7 +38,7 @@
 #include <cairo.h>
 
 #define GNOME_DESKTOP_USE_UNSTABLE_API
-#include <libgnome-desktop/gnome-desktop-thumbnail.h>
+#include <libcinnamon-desktop/gnome-desktop-thumbnail.h>
 
 #include <eel/eel-accessibility.h>
 #include <eel/eel-glib-extensions.h>
@@ -2122,22 +2122,21 @@ directory_contents_value_field_update (NemoPropertiesWindow *window)
 			text = g_strdup ("...");
 		}
 	} else {
-		char *size_str;
-        char *hidden_str;
+		char *size_str;        
 		int prefix;
 		prefix = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_SIZE_PREFIXES);
 		size_str = g_format_size_full (total_size, prefix);
         if (total_hidden > 0) {
-            hidden_str = g_strdup_printf (_(" (and %d hidden)"), total_hidden);
+        	text = g_strdup_printf (ngettext("%1$s item (and %2$s hidden), with size %3$s", "%1$s items (and %2$s hidden), totalling %3$s", total_count), 
+        		g_strdup_printf("%'d", total_count),
+        		g_strdup_printf("%'d", total_hidden),
+        		size_str);
         } else {
-            hidden_str = g_strdup_printf ("");
-        }
-		text = g_strdup_printf (ngettext("%'d item%s, with size %s",
-						 "%'d items%s, totalling %s",
-						 total_count),
-					total_count, hidden_str, size_str);
+        	text = g_strdup_printf (ngettext("%1$s item, with size %2$s", "%1$s items, totalling %2$s", total_count), 
+        		g_strdup_printf("%'d", total_count),
+        		size_str);
+        }		
 		g_free (size_str);
-        g_free (hidden_str);
 
 		if (unreadable_directory_count != 0) {
 			temp = text;
@@ -4083,7 +4082,6 @@ create_simple_permissions (NemoPropertiesWindow *window, GtkGrid *page_grid)
 	gboolean has_file, has_directory;
 	GtkLabel *group_label;
 	GtkLabel *owner_label;
-	GtkLabel *execute_label;
 	GtkWidget *value;
 	GtkComboBox *group_combo_box;
 	GtkComboBox *owner_combo_box;
@@ -4167,15 +4165,17 @@ create_simple_permissions (NemoPropertiesWindow *window, GtkGrid *page_grid)
 					   !has_directory);
 	}
 
-	append_blank_slim_row (page_grid);
-	
-	execute_label = attach_title_field (page_grid, _("Execute:"));
-	add_permissions_checkbox_with_label (window, page_grid,
-					     GTK_WIDGET (execute_label),
-					     _("Allow _executing file as program"),
-					     UNIX_PERM_USER_EXEC|UNIX_PERM_GROUP_EXEC|UNIX_PERM_OTHER_EXEC,
-					     execute_label, FALSE);
-	
+    if (!has_directory) {
+        GtkLabel *execute_label;
+        append_blank_slim_row (page_grid);
+
+        execute_label = attach_title_field (page_grid, _("Execute:"));
+        add_permissions_checkbox_with_label (window, page_grid,
+                             GTK_WIDGET (execute_label),
+                             _("Allow _executing file as program"),
+                             UNIX_PERM_USER_EXEC|UNIX_PERM_GROUP_EXEC|UNIX_PERM_OTHER_EXEC,
+                             execute_label, FALSE);
+    }
 }
 
 static void
@@ -5397,6 +5397,7 @@ select_image_button_callback (GtkWidget *widget,
 						      GTK_STOCK_OPEN, GTK_RESPONSE_OK,
 						      NULL);
 		gtk_file_chooser_add_shortcut_folder (GTK_FILE_CHOOSER (dialog), "/usr/share/pixmaps", NULL);
+        gtk_file_chooser_add_shortcut_folder (GTK_FILE_CHOOSER (dialog), "/usr/share/icons", NULL);
 		gtk_window_set_destroy_with_parent (GTK_WINDOW (dialog), TRUE);
 
 		filter = gtk_file_filter_new ();

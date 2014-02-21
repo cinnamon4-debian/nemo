@@ -41,7 +41,6 @@
 #include <fcntl.h>
 #include <gdk/gdkx.h>
 #include <glib/gi18n.h>
-#include <libnemo-private/nemo-desktop-background.h>
 #include <libnemo-private/nemo-desktop-icon-file.h>
 #include <libnemo-private/nemo-directory-notify.h>
 #include <libnemo-private/nemo-file-changes-queue.h>
@@ -76,8 +75,6 @@ struct NemoDesktopIconViewDetails
 	gulong delayed_init_signal;
 	guint reload_desktop_timeout;
 	gboolean pending_rescan;
-
-	NemoDesktopBackground *background;
 };
 
 static void     default_zoom_level_changed                        (gpointer                user_data);
@@ -88,7 +85,6 @@ static void     font_changed_callback                             (gpointer     
 
 G_DEFINE_TYPE (NemoDesktopIconView, nemo_desktop_icon_view, NEMO_TYPE_ICON_VIEW)
 
-gboolean have_cinnamon_settings;
 static char *desktop_directory;
 static time_t desktop_dir_modify_time;
 
@@ -240,22 +236,6 @@ desktop_icon_view_property_filter (GdkXEvent *gdk_xevent,
 	return GDK_FILTER_CONTINUE;
 }
 
-static void
-real_begin_loading (NemoView *object)
-{
-	NemoIconContainer *icon_container;
-	NemoDesktopIconView *view;
-
-	view = NEMO_DESKTOP_ICON_VIEW (object);
-
-	icon_container = get_icon_container (view);
-	if (view->details->background == NULL) {
-		view->details->background = nemo_desktop_background_new (icon_container);
-	}
-
-	NEMO_VIEW_CLASS (nemo_desktop_icon_view_parent_class)->begin_loading (object);
-}
-
 static const char *
 real_get_id (NemoView *view)
 {
@@ -298,11 +278,6 @@ nemo_desktop_icon_view_dispose (GObject *object)
 					      nemo_view_update_menus,
 					      icon_view);
 
-	if (icon_view->details->background != NULL) {
-		g_object_unref (icon_view->details->background);
-		icon_view->details->background = NULL;
-	}
-
 	G_OBJECT_CLASS (nemo_desktop_icon_view_parent_class)->dispose (object);
 }
 
@@ -315,7 +290,6 @@ nemo_desktop_icon_view_class_init (NemoDesktopIconViewClass *class)
 
 	G_OBJECT_CLASS (class)->dispose = nemo_desktop_icon_view_dispose;
 
-	vclass->begin_loading = real_begin_loading;
 	vclass->merge_menus = real_merge_menus;
 	vclass->update_menus = real_update_menus;
 	vclass->get_view_id = real_get_id;
@@ -441,6 +415,17 @@ realized_callback (GtkWidget *widget, NemoDesktopIconView *desktop_icon_view)
 	gdk_window_add_filter (root_window,
 			       desktop_icon_view_property_filter,
 			       desktop_icon_view);
+}
+
+static void
+desktop_icon_container_realize (GtkWidget *widget,
+                                NemoDesktopIconView *desktop_icon_view)
+{
+    GdkWindow *bin_window;
+    GdkRGBA transparent = { 0, 0, 0, 0 };
+
+    bin_window = gtk_layout_get_bin_window (GTK_LAYOUT (widget));
+    gdk_window_set_background_rgba (bin_window, &transparent);
 }
 
 static NemoZoomLevel
@@ -590,12 +575,6 @@ nemo_desktop_icon_view_init (NemoDesktopIconView *desktop_icon_view)
 	nemo_icon_container_set_is_fixed_size (icon_container, TRUE);
 	nemo_icon_container_set_is_desktop (icon_container, TRUE);
 
-    gboolean show_tooltips = g_settings_get_boolean (nemo_desktop_preferences,
-                                                     NEMO_PREFERENCES_DESKTOP_SHOW_TOOLTIPS);
-    nemo_icon_container_set_show_desktop_tooltips (icon_container, show_tooltips);
-
-    nemo_icon_container_setup_tooltip_preference_callback (icon_container);
-
 	nemo_icon_container_set_store_layout_timestamps (icon_container, TRUE);
 
 	/* Set allocation to be at 0, 0 */
@@ -629,6 +608,8 @@ nemo_desktop_icon_view_init (NemoDesktopIconView *desktop_icon_view)
 
 	g_signal_connect_object (icon_container, "middle_click",
 				 G_CALLBACK (nemo_desktop_icon_view_handle_middle_click), desktop_icon_view, 0);
+    g_signal_connect_object (icon_container, "realize",
+                 G_CALLBACK (desktop_icon_container_realize), desktop_icon_view, 0);
 	g_signal_connect_object (desktop_icon_view, "realize",
 				 G_CALLBACK (realized_callback), desktop_icon_view, 0);
 	g_signal_connect_object (desktop_icon_view, "unrealize",
@@ -651,32 +632,6 @@ nemo_desktop_icon_view_init (NemoDesktopIconView *desktop_icon_view)
 				  "changed::" NEMO_PREFERENCES_LOCKDOWN_COMMAND_LINE,
 				  G_CALLBACK (nemo_view_update_menus),
 				  desktop_icon_view);
-
-    have_cinnamon_settings = g_find_program_in_path ("cinnamon-settings") != NULL;
-}
-
-static void
-action_change_background_callback (GtkAction *action, 
-				   gpointer data)
-{
-        g_assert (NEMO_VIEW (data));
-
-	nemo_launch_application_from_command (gtk_widget_get_screen (GTK_WIDGET (data)),
-						  "cinnamon-settings",
-						  FALSE,
-						  "backgrounds", NULL);
-}
-
-static void
-action_add_desklets_callback (GtkAction *action,
-                   gpointer data)
-{
-    g_assert (NEMO_VIEW (data));
-
-    nemo_launch_application_from_command (gtk_widget_get_screen (GTK_WIDGET (data)),
-                          "cinnamon-settings",
-                          FALSE,
-                          "desklets", NULL);
 }
 
 static void
@@ -686,23 +641,6 @@ action_empty_trash_conditional_callback (GtkAction *action,
         g_assert (NEMO_IS_VIEW (data));
 
 	nemo_file_operations_empty_trash (GTK_WIDGET (data));
-}
-
-static void
-action_new_launcher_callback (GtkAction *action, gpointer data)
-{
-	char *desktop_directory;
-
-        g_assert (NEMO_IS_VIEW (data));
-
-	desktop_directory = nemo_get_desktop_directory ();
-
-	nemo_launch_application_from_command (gtk_widget_get_screen (GTK_WIDGET (data)),
-						  "gnome-desktop-item-edit", 
-						  FALSE,
-						  "--create-new", desktop_directory, NULL);
-	g_free (desktop_directory);
-
 }
 
 static gboolean
@@ -748,14 +686,6 @@ real_update_menus (NemoView *view)
 
 	desktop_view = NEMO_DESKTOP_ICON_VIEW (view);
 
-
-	/* New Launcher */
-	action = gtk_action_group_get_action (desktop_view->details->desktop_action_group,
-					      NEMO_ACTION_NEW_LAUNCHER_DESKTOP);
-	if (action) {
-		gtk_action_set_visible (action, TRUE);
-	}
-
 	/* Empty Trash */
 	include_empty_trash = trash_link_is_selection (view);
 	action = gtk_action_group_get_action (desktop_view->details->desktop_action_group,
@@ -769,41 +699,17 @@ real_update_menus (NemoView *view)
 					  !nemo_trash_monitor_is_empty ());
 		g_free (label);
 	}
-
-    action = gtk_action_group_get_action (desktop_view->details->desktop_action_group,
-                                          NEMO_ACTION_ADD_DESKLETS_DESKTOP);
-    gtk_action_set_visible (action, have_cinnamon_settings);
 }
 
 static const GtkActionEntry desktop_view_entries[] = {
-	/* name, stock id */
-	{ "New Launcher Desktop", NULL,
-	  /* label, accelerator */
-	  N_("Create L_auncher..."), NULL,
-	  /* tooltip */
-	  N_("Create a new launcher"),
-	  G_CALLBACK (action_new_launcher_callback) },
-	/* name, stock id */
-	{ "Change Background", NULL,
-	  /* label, accelerator */
-	  N_("Change Desktop _Background"), NULL,
-	  /* tooltip */
-	  N_("Show a window that lets you set your desktop background's pattern or color"),
-	  G_CALLBACK (action_change_background_callback) },
+
 	/* name, stock id */
 	{ "Empty Trash Conditional", NULL,
 	  /* label, accelerator */
 	  N_("Empty Trash"), NULL,
 	  /* tooltip */
 	  N_("Delete all items in the Trash"),
-	  G_CALLBACK (action_empty_trash_conditional_callback) },
-      /* name, stock id */
-    { NEMO_ACTION_ADD_DESKLETS_DESKTOP, NULL,
-      /* label, accelerator */
-      N_("Add Desklets"), NULL,
-      /* tooltip */
-      N_("Open Cinnamon Settings to add desklets"),
-      G_CALLBACK (action_add_desklets_callback) }
+	  G_CALLBACK (action_empty_trash_conditional_callback) }
 };
 
 static void

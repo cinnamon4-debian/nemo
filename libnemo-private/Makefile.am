@@ -61,12 +61,12 @@ libnemo_private_la_LIBADD =		\
 libnemo_private_la_SOURCES = \
     nemo-action.c \
     nemo-action.h \
+    nemo-action-manager.c \
+    nemo-action-manager.h \
 	nemo-bookmark.c \
 	nemo-bookmark.h \
     nemo-cell-renderer-disk.c \
     nemo-cell-renderer-disk.h \
-	nemo-cell-renderer-text-ellipsized.c \
-	nemo-cell-renderer-text-ellipsized.h \
 	nemo-clipboard-monitor.c \
 	nemo-clipboard-monitor.h \
 	nemo-clipboard.c \
@@ -81,8 +81,6 @@ libnemo_private_la_SOURCES = \
 	nemo-debug.h \
 	nemo-default-file-icon.c \
 	nemo-default-file-icon.h \
-	nemo-desktop-background.c \
-	nemo-desktop-background.h \
 	nemo-desktop-directory-file.c \
 	nemo-desktop-directory-file.h \
 	nemo-desktop-directory.c \
@@ -214,15 +212,11 @@ gsettingsschema_in_files = org.nemo.gschema.xml.in
 gsettings_SCHEMAS = $(gsettingsschema_in_files:.xml.in=.xml)
 .PRECIOUS: $(gsettings_SCHEMAS)
 
-convertdir = $(datadir)/GConf/gsettings
-convert_DATA = nemo.convert
-
 @INTLTOOL_XML_NOMERGE_RULE@
 
 @GSETTINGS_RULES@
 
 EXTRA_DIST =				\
-	nemo.convert		\
 	$(gsettingsschema_in_files)     \
 	$(TRACKER_SOURCES)		\
 	$(NULL)

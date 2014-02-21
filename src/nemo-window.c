@@ -92,6 +92,7 @@ static void mouse_back_button_changed		     (gpointer                  callback_
 static void mouse_forward_button_changed	     (gpointer                  callback_data);
 static void use_extra_mouse_buttons_changed          (gpointer              callback_data);
 static void side_pane_id_changed                    (NemoWindow            *window);
+static void handle_alt_menu_key                     (NemoWindow *window, gboolean on_release);
 
 /* Sanity check: highest mouse button value I could find was 14. 5 is our 
  * lower threshold (well-documented to be the one of the button events for the 
@@ -522,6 +523,18 @@ nemo_window_disable_chrome_mapping (GValue *value,
 	return TRUE;
 }
 
+static gboolean
+on_button_press_callback (GtkWidget *widget, GdkEventButton *event, gpointer user_data)
+{
+    NemoWindow *window = NEMO_WINDOW (user_data);
+    if (event->button == 3) {
+            /* simulate activating the menu */
+            handle_alt_menu_key (window, FALSE);
+            handle_alt_menu_key (window, TRUE);
+    }
+    return TRUE;
+}
+
 static void
 nemo_window_constructed (GObject *self)
 {
@@ -577,6 +590,10 @@ nemo_window_constructed (GObject *self)
 	toolbar_holder = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
 	gtk_container_add (GTK_CONTAINER (grid), toolbar_holder);
 	gtk_widget_show (toolbar_holder);
+
+    g_signal_connect_object (toolbar_holder, "button-press-event",
+                             G_CALLBACK (on_button_press_callback), window, 0);
+
 	window->details->toolbar_holder = toolbar_holder;
 
 	/* Register to menu provider extension signal managing menu updates */
@@ -613,11 +630,21 @@ nemo_window_constructed (GObject *self)
     gtk_container_add (GTK_CONTAINER (grid), sep);
     gtk_widget_show (sep);
 
-    gtk_container_add (GTK_CONTAINER (grid), nemo_statusbar);
+    GtkWidget *eb;
+
+    eb = gtk_event_box_new ();
+    gtk_container_add (GTK_CONTAINER (eb), nemo_statusbar);
+    gtk_container_add (GTK_CONTAINER (grid), eb);
+    gtk_widget_show (eb);
 
     window->details->statusbar = nemo_status_bar_get_real_statusbar (NEMO_STATUS_BAR (nemo_statusbar));
     window->details->help_message_cid = gtk_statusbar_get_context_id (GTK_STATUSBAR (window->details->statusbar),
                                                                       "help_message");
+
+    gtk_widget_add_events (GTK_WIDGET (eb), GDK_BUTTON_PRESS_MASK);
+
+    g_signal_connect_object (GTK_WIDGET (eb), "button-press-event",
+                             G_CALLBACK (on_button_press_callback), window, 0);
 
     g_settings_bind_with_mapping (nemo_window_state,
                       NEMO_WINDOW_STATE_START_WITH_STATUS_BAR,
@@ -643,6 +670,10 @@ nemo_window_constructed (GObject *self)
 
 	slot = nemo_window_pane_open_slot (window->details->active_pane, 0);
 	nemo_window_set_active_slot (window, slot);
+
+    if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_START_WITH_DUAL_PANE) &&
+        !window->details->disable_chrome)
+        nemo_window_split_view_on (window);
 }
 
 static void
@@ -1892,6 +1923,13 @@ create_extra_pane (NemoWindow *window)
 		gtk_paned_pack2 (paned, GTK_WIDGET (pane), TRUE, FALSE);
 	}
 
+    /* Make the paned think it's been manually resized, otherwise
+       things like the trash bar will force unwanted resizes */
+
+    int w;
+    w = gtk_widget_get_allocated_width (GTK_WIDGET (paned)) / 2;
+    gtk_paned_set_position (paned, w);
+
 	/* Ensure the toolbar doesn't pop itself into existence (double toolbars suck.) */
 	gtk_widget_hide (pane->tool_bar);
 
@@ -2017,6 +2055,14 @@ nemo_window_init (NemoWindow *window)
 
     window->details->show_sidebar = g_settings_get_boolean (nemo_window_state,
                                                             NEMO_WINDOW_STATE_START_WITH_SIDEBAR);
+
+    window->details->ignore_meta_view_id = NULL;
+    window->details->ignore_meta_zoom_level = -1;
+    window->details->ignore_meta_visible_columns = NULL;
+    window->details->ignore_meta_column_order = NULL;
+    window->details->ignore_meta_sort_column = NULL;
+    window->details->ignore_meta_sort_direction = SORT_NULL;
+    window->details->ignore_meta_tighter_layout = TIGHTER_NULL;
 
 	/* Set initial window title */
 	gtk_window_set_title (GTK_WINDOW (window), _("Nemo"));
@@ -2265,4 +2311,148 @@ gboolean
 nemo_window_get_show_sidebar (NemoWindow *window)
 {
     return window->details->show_sidebar;
+}
+
+const gchar *
+nemo_window_get_ignore_meta_view_id (NemoWindow *window)
+{
+    return window->details->ignore_meta_view_id;
+}
+
+void
+nemo_window_set_ignore_meta_view_id (NemoWindow *window, const gchar *id)
+{
+    if (id != NULL) {
+        gchar *old_id = window->details->ignore_meta_view_id;
+        if (g_strcmp0 (old_id, id) != 0) {
+            nemo_window_set_ignore_meta_zoom_level (window, -1);
+        }
+        window->details->ignore_meta_view_id = g_strdup (id);
+        g_free (old_id);
+    }
+}
+
+gint
+nemo_window_get_ignore_meta_zoom_level (NemoWindow *window)
+{
+    return window->details->ignore_meta_zoom_level;
+}
+
+void
+nemo_window_set_ignore_meta_zoom_level (NemoWindow *window, gint level)
+{
+    window->details->ignore_meta_zoom_level = level;
+}
+
+/* FIXME:
+ *
+ * Remove this and just use g_list_copy_deep 
+ * when we no longer need to support GLib < 2.34
+ *
+ */
+
+static GList *
+list_copy_deep (GList *list, GCopyFunc func, gpointer user_data)
+{
+  GList *new_list = NULL;
+
+  if (list)
+    {
+      GList *last;
+
+      new_list = g_slice_new (GList);
+      if (func)
+        new_list->data = func (list->data, user_data);
+      else
+        new_list->data = list->data;
+      new_list->prev = NULL;
+      last = new_list;
+      list = list->next;
+      while (list)
+    {
+      last->next = g_slice_new (GList);
+      last->next->prev = last;
+      last = last->next;
+      if (func)
+        last->data = func (list->data, user_data);
+      else
+        last->data = list->data;
+      list = list->next;
+    }
+      last->next = NULL;
+    }
+
+  return new_list;
+}
+
+GList *
+nemo_window_get_ignore_meta_visible_columns (NemoWindow *window)
+{
+    return list_copy_deep (window->details->ignore_meta_visible_columns, (GCopyFunc) g_strdup, NULL);
+}
+
+void
+nemo_window_set_ignore_meta_visible_columns (NemoWindow *window, GList *list)
+{
+    GList *old = window->details->ignore_meta_visible_columns;
+    window->details->ignore_meta_visible_columns = list != NULL ? list_copy_deep (list, (GCopyFunc) g_strdup, NULL) :
+                                                                  NULL;
+    if (old != NULL)
+        g_list_free_full (old, g_free);
+}
+
+GList *
+nemo_window_get_ignore_meta_column_order (NemoWindow *window)
+{
+    return list_copy_deep (window->details->ignore_meta_column_order, (GCopyFunc) g_strdup, NULL);
+}
+
+void
+nemo_window_set_ignore_meta_column_order (NemoWindow *window, GList *list)
+{
+    GList *old = window->details->ignore_meta_column_order;
+    window->details->ignore_meta_column_order = list != NULL ? list_copy_deep (list, (GCopyFunc) g_strdup, NULL) :
+                                                               NULL;
+    if (old != NULL)
+        g_list_free_full (old, g_free);
+}
+
+const gchar *
+nemo_window_get_ignore_meta_sort_column (NemoWindow *window)
+{
+    return window->details->ignore_meta_sort_column;
+}
+
+void
+nemo_window_set_ignore_meta_sort_column (NemoWindow *window, const gchar *column)
+{
+    if (column != NULL) {
+        gchar *old_column = window->details->ignore_meta_sort_column;
+        window->details->ignore_meta_sort_column = g_strdup (column);
+        g_free (old_column);
+    }
+}
+
+gint
+nemo_window_get_ignore_meta_sort_direction (NemoWindow *window)
+{
+    return window->details->ignore_meta_sort_direction;
+}
+
+void
+nemo_window_set_ignore_meta_sort_direction (NemoWindow *window, gint direction)
+{
+    window->details->ignore_meta_sort_direction = direction;
+}
+
+gint
+nemo_window_get_ignore_meta_tighter_layout (NemoWindow *window)
+{
+    return window->details->ignore_meta_tighter_layout;
+}
+
+void
+nemo_window_set_ignore_meta_tighter_layout (NemoWindow *window, gint tighter)
+{
+    window->details->ignore_meta_tighter_layout = tighter;
 }

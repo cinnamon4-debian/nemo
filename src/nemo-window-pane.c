@@ -243,8 +243,12 @@ static void
 navigation_bar_cancel_callback (GtkWidget *widget,
 				NemoWindowPane *pane)
 {
-	nemo_toolbar_set_show_location_entry (NEMO_TOOLBAR (pane->tool_bar), FALSE);
+	GtkAction *location;
 
+	location = gtk_action_group_get_action (pane->action_group,
+					      NEMO_ACTION_TOGGLE_LOCATION);
+	gtk_toggle_action_set_active (GTK_TOGGLE_ACTION (location), FALSE);
+	
 	nemo_window_pane_hide_temporary_bars (pane);
 	restore_focus_widget (pane);
 }
@@ -358,6 +362,9 @@ path_bar_button_pressed_callback (GtkWidget *widget,
 			}
 		}
 	}
+
+    if (event->button == 2)
+        return TRUE;
 
 	return FALSE;
 }
@@ -580,10 +587,18 @@ notebook_button_press_cb (GtkWidget *widget,
 {
 	NemoWindowPane *pane;
 
-	pane = user_data;
-	if (GDK_BUTTON_PRESS == event->type && 3 == event->button) {
-		notebook_popup_menu_show (pane, event);
-		return TRUE;
+	if (event->type == GDK_BUTTON_PRESS) {
+		pane = NEMO_WINDOW_PANE (user_data);
+
+		if (event->button == 2) {
+			notebook_tab_close_requested (NEMO_NOTEBOOK (pane->notebook), 
+										  pane->active_slot, pane);
+			return TRUE;
+		}
+		if (event->button == 3) {
+			notebook_popup_menu_show (pane, event);
+			return TRUE;
+		}
 	}
 
 	return FALSE;
@@ -1055,7 +1070,6 @@ nemo_window_pane_sync_location_widgets (NemoWindowPane *pane)
 {
 	NemoWindowSlot *slot, *active_slot;
 	NemoNavigationState *nav_state;
-	gchar *view_id;
 	slot = pane->active_slot;
 
 	nemo_window_pane_hide_temporary_bars (pane);

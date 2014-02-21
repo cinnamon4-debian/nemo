@@ -71,9 +71,6 @@ typedef enum
 /* Activating executable text files */
 #define NEMO_PREFERENCES_EXECUTABLE_TEXT_ACTIVATION		"executable-text-activation"
 
-/* Installing new packages when unknown mime type activated */
-#define NEMO_PREFERENCES_INSTALL_MIME_ACTIVATION		"install-mime-activation"
-
 /* Spatial or browser mode */
 #define NEMO_PREFERENCES_ALWAYS_USE_BROWSER			"always-use-browser"
 #define NEMO_PREFERENCES_NEW_TAB_POSITION			"tabs-open-position"
@@ -111,6 +108,11 @@ typedef enum
 #define NEMO_PREFERENCES_SHOW_FULL_PATH_TITLES      "show-full-path-titles"
 
 #define NEMO_PREFERENCES_CLOSE_DEVICE_VIEW_ON_EJECT "close-device-view-on-device-eject"
+
+#define NEMO_PREFERENCES_START_WITH_DUAL_PANE "start-with-dual-pane"
+#define NEMO_PREFERENCES_IGNORE_VIEW_METADATA "ignore-view-metadata"
+#define NEMO_PREFERENCES_SHOW_BOOKMARKS_IN_TO_MENUS "show-bookmarks-in-to-menus"
+#define NEMO_PREFERENCES_SHOW_PLACES_IN_TO_MENUS "show-places-in-to-menus"
 
 enum
 {
@@ -188,7 +190,6 @@ typedef enum
 #define NEMO_PREFERENCES_DESKTOP_VOLUMES_VISIBLE	   "volumes-visible"
 #define NEMO_PREFERENCES_DESKTOP_NETWORK_VISIBLE       "network-icon-visible"
 #define NEMO_PREFERENCES_DESKTOP_BACKGROUND_FADE       "background-fade"
-#define NEMO_PREFERENCES_DESKTOP_SHOW_TOOLTIPS         "tooltips-on-desktop"
 
 /* bulk rename utility */
 #define NEMO_PREFERENCES_BULK_RENAME_TOOL              "bulk-rename-tool"
@@ -211,8 +212,21 @@ typedef enum
 /* Terminal */
 #define GNOME_DESKTOP_TERMINAL_EXEC        "exec"
 
+/* Tooltips */
+#define NEMO_PREFERENCES_TOOLTIPS_DESKTOP              "tooltips-on-desktop"
+#define NEMO_PREFERENCES_TOOLTIPS_ICON_VIEW            "tooltips-in-icon-view"
+#define NEMO_PREFERENCES_TOOLTIPS_LIST_VIEW            "tooltips-in-list-view"
+#define NEMO_PREFERENCES_TOOLTIP_FILE_TYPE             "tooltips-show-file-type"
+#define NEMO_PREFERENCES_TOOLTIP_MOD_DATE              "tooltips-show-mod-date"
+#define NEMO_PREFERENCES_TOOLTIP_ACCESS_DATE           "tooltips-show-access-date"
+#define NEMO_PREFERENCES_TOOLTIP_FULL_PATH             "tooltips-show-path"
+
+#define NEMO_PREFERENCES_DISABLE_MENU_WARNING          "disable-menu-warning"
+
 void nemo_global_preferences_init                      (void);
 char *nemo_global_preferences_get_default_folder_viewer_preference_as_iid (void);
+gboolean nemo_global_preferences_get_ignore_view_metadata (void);
+gint nemo_global_preferences_get_tooltip_flags (void);
 
 GSettings *nemo_preferences;
 GSettings *nemo_icon_view_preferences;

@@ -77,6 +77,7 @@ struct NemoListModelDetails {
 	GPtrArray *columns;
 
 	GList *highlight_files;
+    gboolean temp_unsorted;
 };
 
 typedef struct {
@@ -290,7 +291,7 @@ nemo_list_model_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter, int colu
 
 		if (file != NULL) {
 			zoom_level = nemo_list_model_get_zoom_level_from_column_id (column);
-			icon_size = nemo_get_icon_size_for_zoom_level (zoom_level);
+			icon_size = nemo_get_list_icon_size_for_zoom_level (zoom_level);
 
 			flags = NEMO_FILE_ICON_FLAGS_USE_THUMBNAILS |
 				NEMO_FILE_ICON_FLAGS_FORCE_THUMBNAIL_SIZE |
@@ -993,9 +994,11 @@ nemo_list_model_add_file (NemoListModel *model, NemoFile *file,
 		}
 	}
 
-	
-	file_entry->ptr = g_sequence_insert_sorted (files, file_entry,
-					    nemo_list_model_file_entry_compare_func, model);
+	if (model->details->temp_unsorted)
+        file_entry->ptr = g_sequence_append (files, file_entry);
+    else
+        file_entry->ptr = g_sequence_insert_sorted (files, file_entry,
+                                                    nemo_list_model_file_entry_compare_func, model);
 
 	g_hash_table_insert (parent_hash, file, file_entry->ptr);
 	
@@ -1009,16 +1012,28 @@ nemo_list_model_add_file (NemoListModel *model, NemoFile *file,
 		gtk_tree_model_row_inserted (GTK_TREE_MODEL (model), path, &iter);
 	}
 
-	if (nemo_file_is_directory (file)) {
-		file_entry->files = g_sequence_new ((GDestroyNotify)file_entry_free);
+    gboolean add_child = FALSE;
 
-		add_dummy_row (model, file_entry);
+    if (nemo_file_is_directory (file)) {
+        gint count;
+        if (nemo_file_get_directory_item_count (file, &count, NULL)) {
+            add_child = count > 0;
+        } else {
+            add_child = nemo_dir_has_children_now (nemo_file_get_location (file), NULL);
+        }
+    }
 
-		gtk_tree_model_row_has_child_toggled (GTK_TREE_MODEL (model),
-						      path, &iter);
-	}
+    if (add_child) {
+        file_entry->files = g_sequence_new ((GDestroyNotify)file_entry_free);
+
+        add_dummy_row (model, file_entry);
+
+        gtk_tree_model_row_has_child_toggled (GTK_TREE_MODEL (model),
+                                                      path, &iter);
+    }
+
 	gtk_tree_path_free (path);
-	
+
 	return TRUE;
 }
 
@@ -1040,10 +1055,10 @@ nemo_list_model_file_changed (NemoListModel *model, NemoFile *file,
 		return;
 	}
 
-	
 	pos_before = g_sequence_iter_get_position (ptr);
-		
-	g_sequence_sort_changed (ptr, nemo_list_model_file_entry_compare_func, model);
+
+    if (!model->details->temp_unsorted)
+        g_sequence_sort_changed (ptr, nemo_list_model_file_entry_compare_func, model);
 
 	pos_after = g_sequence_iter_get_position (ptr);
 
@@ -1371,7 +1386,7 @@ nemo_list_model_get_attribute_from_sort_column_id (NemoListModel *model,
 	NemoColumn *column;
 	int index;
 	GQuark attribute;
-	
+
 	index = sort_column_id - NEMO_LIST_MODEL_NUM_COLUMNS;
 
 	if (index < 0 || index >= model->details->columns->len) {
@@ -1692,4 +1707,19 @@ nemo_list_model_set_highlight_for_files (NemoListModel *model,
 		                refresh_row, model);
 
 	}
+}
+
+void
+nemo_list_model_set_temporarily_disable_sort (NemoListModel *model, gboolean disable)
+{
+    model->details->temp_unsorted = disable;
+
+    if (!disable)
+        nemo_list_model_sort (model);
+}
+
+gboolean
+nemo_list_model_get_temporarily_disable_sort (NemoListModel *model)
+{
+    return model->details->temp_unsorted;
 }

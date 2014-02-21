@@ -11,7 +11,8 @@ G_BEGIN_DECLS
 
 /* Names for Nemo's different zoom levels, from tiniest items to largest items */
 typedef enum {
-	NEMO_ZOOM_LEVEL_SMALLEST,
+    NEMO_ZOOM_LEVEL_NULL = -1,
+	NEMO_ZOOM_LEVEL_SMALLEST = 0,
 	NEMO_ZOOM_LEVEL_SMALLER,
 	NEMO_ZOOM_LEVEL_SMALL,
 	NEMO_ZOOM_LEVEL_STANDARD,
@@ -79,6 +80,7 @@ void                  nemo_icon_info_clear_caches                 (void);
 
 /* Relationship between zoom levels and icons sizes. */
 guint nemo_get_icon_size_for_zoom_level          (NemoZoomLevel  zoom_level);
+guint nemo_get_list_icon_size_for_zoom_level     (NemoZoomLevel  zoom_level);
 
 gint  nemo_get_icon_size_for_stock_size          (GtkIconSize        size);
 guint nemo_icon_get_emblem_size_for_icon_size    (guint              size);
