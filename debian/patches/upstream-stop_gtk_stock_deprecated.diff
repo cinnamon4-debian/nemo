@@ -1,0 +1,18 @@
+commit ec95b5461c3e88e96e1049ef2650a28d347c13ba
+Author: leigh123linux <leigh123linux@fedoraproject.org>
+Date:   Sat Nov 2 22:29:35 2013 +0000
+
+    Stop GTK_STOCK deprecated errors for gtk-3.10
+
+diff --git a/configure.in b/configure.in
+index 0e7498e..557b6c6 100644
+--- a/configure.in
++++ b/configure.in
+@@ -296,7 +296,6 @@ PKG_CHECK_MODULES(NEMO, [
+ AC_SUBST(NEMO_CFLAGS)
+ AC_SUBST(NEMO_LIBS)
+ 
+-DISABLE_DEPRECATED_CFLAGS="-DG_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED -DGDK_DISABLE_DEPRECATED -DGDK_PIXBUF_DISABLE_DEPRECATED"
+ AC_SUBST(DISABLE_DEPRECATED_CFLAGS)
+ 
+ dnl Multimedia keys

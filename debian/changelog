@@ -2,6 +2,7 @@ nemo (2.0.8-1) UNRELEASED; urgency=medium
 
   * New upstream release.
   * Update build dependencies.
+  * New patch: upstream-stop_gtk_stock_deprecated.diff
 
  -- Maximiliano Curia <maxy@debian.org>  Fri, 21 Feb 2014 17:09:19 +0100
 
