@@ -12,6 +12,7 @@ nemo (2.2.0-1~) UNRELEASED; urgency=medium
   [ Margarita Manterola ]
   * New upstream release 2.2.0
   * Add myself to uploaders.
+  * Remove unneeded upstream patch.
 
  -- Maximiliano Curia <maxy@debian.org>  Fri, 21 Feb 2014 18:56:33 +0100
 
