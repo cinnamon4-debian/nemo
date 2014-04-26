@@ -1,5 +1,6 @@
-nemo (2.0.8-1~) UNRELEASED; urgency=medium
+nemo (2.2.0-1~) UNRELEASED; urgency=medium
 
+  [ Maximiliano Curia ]
   * New upstream release.
   * New maintainers (Closes: #745909)
   * Update build dependencies.
@@ -7,6 +8,10 @@ nemo (2.0.8-1~) UNRELEASED; urgency=medium
   * New patch: disable_po_check
   * Add autopkgtests.
   * Add abi-compliance-checker info.
+
+  [ Margarita Manterola ]
+  * New upstream release 2.2.0
+  * Add myself to uploaders.
 
  -- Maximiliano Curia <maxy@debian.org>  Fri, 21 Feb 2014 18:56:33 +0100
 
