@@ -1,6 +1,7 @@
 nemo (2.0.8-1~) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * New maintainers (Closes: #745909)
   * Update build dependencies.
   * New patch: upstream-stop_gtk_stock_deprecated.diff
   * New patch: disable_po_check
