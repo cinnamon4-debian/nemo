@@ -27,7 +27,9 @@ Build-Depends: debhelper (>= 9),
                libxt-dev,
                python-dev,
                shared-mime-info (>= 0.50),
-               x11proto-core-dev
+               x11proto-core-dev,
+               python-gi,
+               python-polib
 Standards-Version: 3.9.5
 XS-Testsuite: autopkgtest
 Homepage: http://cinnamon.linuxmint.com/
