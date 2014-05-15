@@ -344,8 +344,8 @@ nemo_list_model_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter, int colu
             if (s < icon_size)
                 icon_size = s;
 
-            bad_ratio = nemo_icon_get_emblem_size_for_icon_size (icon_size) > w ||
-                        nemo_icon_get_emblem_size_for_icon_size (icon_size) > h;
+            bad_ratio = nemo_icon_get_emblem_size_for_icon_size (icon_size) * icon_scale > w ||
+                        nemo_icon_get_emblem_size_for_icon_size (icon_size) * icon_scale > h;
 
 			gicon = G_ICON (pixbuf);
 
@@ -1039,7 +1039,7 @@ nemo_list_model_add_file (NemoListModel *model, NemoFile *file,
         if (nemo_file_get_directory_item_count (file, &count, NULL)) {
             add_child = count > 0;
         } else {
-            add_child = nemo_dir_has_children_now (nemo_file_get_location (file), NULL);
+            add_child = TRUE;
         }
     }
 
