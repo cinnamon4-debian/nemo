@@ -2,6 +2,7 @@ nemo (2.2.1-1~) UNRELEASED; urgency=medium
 
   * Update VCS fields.
   * New upstream release.
+  * New patch: update_po_POTFILES.in
 
  -- Maximiliano Curia <maxy@debian.org>  Fri, 16 May 2014 20:17:39 +0200
 
