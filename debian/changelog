@@ -1,11 +1,11 @@
-nemo (2.2.1-1~) UNRELEASED; urgency=medium
+nemo (2.2.1-1) experimental; urgency=medium
 
   * Update VCS fields.
   * New upstream release.
   * New patch: update_po_POTFILES.in
   * New patch: ignore_files_dir_check
 
- -- Maximiliano Curia <maxy@debian.org>  Fri, 16 May 2014 20:17:39 +0200
+ -- Maximiliano Curia <maxy@debian.org>  Mon, 19 May 2014 13:55:06 +0200
 
 nemo (2.2.0-1) experimental; urgency=medium
 
