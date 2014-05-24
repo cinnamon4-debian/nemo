@@ -30,5 +30,8 @@ override_dh_makeshlibs:
 override_dh_python2:
 	dh_python2 -p nemo-data /usr/share/nemo
 
+override_dh_install:
+	dh_install --list-missing
+
 override_dh_installmime:
 	dh_installmime -pnemo-data
