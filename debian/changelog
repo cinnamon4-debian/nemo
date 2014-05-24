@@ -1,4 +1,4 @@
-nemo (2.2.2-1~) UNRELEASED; urgency=medium
+nemo (2.2.2-1~1) UNRELEASED; urgency=medium
 
   * New upstream release.
   * Install missing usr/share/polkit-1/actions/org.nemo.root.policy.
