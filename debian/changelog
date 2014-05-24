@@ -1,6 +1,7 @@
 nemo (2.2.2-1~) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Install missing usr/share/polkit-1/actions/org.nemo.root.policy.
 
  -- Margarita Manterola <marga@debian.org>  Sat, 24 May 2014 15:54:45 +0200
 

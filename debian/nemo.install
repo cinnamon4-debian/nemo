@@ -3,3 +3,4 @@ usr/lib/*/nemo/nemo-convert-metadata
 usr/share/applications/nemo*
 usr/share/dbus-1/services/org.*Nemo*.service
 usr/share/man/*/nemo*
+usr/share/polkit-1/actions/org.nemo.root.policy
