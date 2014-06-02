@@ -1,10 +1,3 @@
-nemo (2.2.2-2) UNRELEASED; urgency=medium
-
-  [ Fabio Fantoni ]
-  * mention closing of #730469, #724828 by 2.2.0-1
-
- -- Margarita Manterola <marga@debian.org>  Mon, 02 Jun 2014 09:30:20 +0200
-
 nemo (2.2.2-1) experimental; urgency=medium
 
   * New upstream release.
@@ -24,7 +17,7 @@ nemo (2.2.1-1) experimental; urgency=medium
 nemo (2.2.0-1) experimental; urgency=medium
 
   [ Maximiliano Curia ]
-  * New upstream release. (Closes: #730469, #724828)
+  * New upstream release.
   * New maintainers (Closes: #745909)
   * Update build dependencies.
   * New patch: upstream-stop_gtk_stock_deprecated.diff
