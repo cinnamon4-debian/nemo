@@ -48,7 +48,11 @@ Depends: desktop-file-utils (>= 0.7),
          shared-mime-info (>= 0.50),
          ${misc:Depends},
          ${shlibs:Depends}
-Recommends: eject, gvfs-backends, librsvg2-common, nemo-fileroller
+Recommends: eject,
+            gvfs-backends,
+            librsvg2-common,
+            nemo-fileroller,
+            cinnamon-translations
 Suggests: eog, evince | pdf-viewer, totem | mp3-decoder, xdg-user-dirs
 Description: File manager and graphical shell for Cinnamon
  Nemo is the official file manager for the Cinnamon desktop. It allows

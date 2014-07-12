@@ -1,6 +1,7 @@
 nemo (2.2.3-2~) UNRELEASED; urgency=medium
 
   * Added patch to handle translations correctly.
+  * Added cinnamon-translations to Recommends.
 
  -- Margarita Manterola <marga@debian.org>  Sat, 12 Jul 2014 13:30:39 +0200
 
