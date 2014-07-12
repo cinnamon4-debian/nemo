@@ -1,11 +1,12 @@
-nemo (2.2.3-1~) UNRELEASED; urgency=medium
+nemo (2.2.3-1) experimental; urgency=medium
 
+  [ Fabio Fantoni ]
   * New upstream release.
   * Removed patches applied upstream:
     - ignore_files_dir_check
     - update_po_POTFILES.in
 
- -- Fabio Fantoni <fantonifabio@tiscali.it>  Fri, 27 Jun 2014 18:31:31 +0200
+ -- Margarita Manterola <marga@debian.org>  Sat, 12 Jul 2014 12:47:13 +0200
 
 nemo (2.2.2-1) experimental; urgency=medium
 
