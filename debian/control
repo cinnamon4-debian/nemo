@@ -53,7 +53,7 @@ Recommends: eject,
             gvfs-backends,
             librsvg2-common,
             nemo-fileroller,
-            cinnamon-translations
+            cinnamon-l10n
 Suggests: eog, evince | pdf-viewer, totem | mp3-decoder, xdg-user-dirs
 Description: File manager and graphical shell for Cinnamon
  Nemo is the official file manager for the Cinnamon desktop. It allows
