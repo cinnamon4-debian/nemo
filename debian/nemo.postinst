@@ -1,0 +1,7 @@
+#!/bin/sh
+
+set -e
+
+dpkg-maintscript-helper rm_conffile /etc/xdg/autostart/nemo-autostart.desktop 2.2.3-2 -- "$@"
+
+#DEBHELPER#

@@ -1,3 +1,10 @@
+nemo (2.2.3-3~) UNRELEASED; urgency=medium
+
+  * Remove obsolete conffile: /etc/xdg/autostart/nemo-autostart.desktop.
+    (Closes: #755764)
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Thu, 24 Jul 2014 11:40:36 +0200
+
 nemo (2.2.3-2) unstable; urgency=medium
 
   [ Margarita Manterola ]
