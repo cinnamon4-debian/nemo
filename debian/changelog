@@ -1,9 +1,14 @@
 nemo (2.2.4-1~) UNRELEASED; urgency=medium
 
+  [ Fabio Fantoni ]
   * New upstream release.
   * Remove obsolete conffile: /etc/xdg/autostart/nemo-autostart.desktop.
     (Closes: #755764)
   * debian/control: cinnamon-translations->cinnamon-l10n.
+
+  [ Maximiliano Curia ]
+  * New patch: clang_FTBFS (Closes: #741866) Thanks to Nicolas Sévelin-
+    Radiguet.
 
  -- Fabio Fantoni <fantonifabio@tiscali.it>  Tue, 12 Aug 2014 14:11:58 +0200
 
