@@ -1,4 +1,4 @@
-nemo (2.2.4-1~) UNRELEASED; urgency=medium
+nemo (2.2.4-1) unstable; urgency=medium
 
   [ Fabio Fantoni ]
   * New upstream release.
@@ -10,7 +10,7 @@ nemo (2.2.4-1~) UNRELEASED; urgency=medium
   * New patch: clang_FTBFS (Closes: #741866) Thanks to Nicolas Sévelin-
     Radiguet.
 
- -- Fabio Fantoni <fantonifabio@tiscali.it>  Tue, 12 Aug 2014 14:11:58 +0200
+ -- Maximiliano Curia <maxy@debian.org>  Wed, 13 Aug 2014 14:18:16 +0200
 
 nemo (2.2.3-2) unstable; urgency=medium
 
