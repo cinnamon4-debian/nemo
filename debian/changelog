@@ -1,3 +1,10 @@
+nemo (2.4.0-1~) UNRELEASED; urgency=medium
+
+  * New upstream release.
+  * debian/patches: removed 2 patches applied upstream.
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Sun, 02 Nov 2014 15:13:46 +0100
+
 nemo (2.2.4-2) unstable; urgency=low
 
   * Install typelib into multiarch libdir. (Closes: #762837)
