@@ -1,9 +1,9 @@
-nemo (2.4.0-1~) UNRELEASED; urgency=medium
+nemo (2.4.2-1~) UNRELEASED; urgency=medium
 
   * New upstream release.
   * debian/patches: removed 2 patches applied upstream.
 
- -- Fabio Fantoni <fantonifabio@tiscali.it>  Sun, 02 Nov 2014 15:13:46 +0100
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Thu, 13 Nov 2014 12:45:18 +0100
 
 nemo (2.2.4-2) unstable; urgency=low
 
