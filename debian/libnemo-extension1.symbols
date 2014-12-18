@@ -43,7 +43,11 @@ libnemo-extension.so.1 libnemo-extension1 #MINVER#
  nemo_menu_item_get_type@Base 1.1.2
  nemo_menu_item_list_free@Base 1.1.2
  nemo_menu_item_new@Base 1.1.2
+ nemo_menu_item_new_separator@Base 2.4.4
+ nemo_menu_item_new_widget@Base 2.4.4
  nemo_menu_item_set_submenu@Base 1.1.2
+ nemo_menu_item_set_widget_a@Base 2.4.4
+ nemo_menu_item_set_widget_b@Base 2.4.4
  nemo_menu_new@Base 1.1.2
  nemo_menu_provider_emit_items_updated_signal@Base 1.1.2
  nemo_menu_provider_get_background_items@Base 1.1.2
@@ -54,3 +58,8 @@ libnemo-extension.so.1 libnemo-extension1 #MINVER#
  nemo_property_page_new@Base 1.1.2
  nemo_property_page_provider_get_pages@Base 1.1.2
  nemo_property_page_provider_get_type@Base 1.1.2
+ nemo_simple_button_get_type@Base 2.4.4
+ nemo_simple_button_new@Base 2.4.4
+ nemo_simple_button_new_from_file@Base 2.4.4
+ nemo_simple_button_new_from_icon_name@Base 2.4.4
+ nemo_simple_button_new_from_stock@Base 2.4.4
