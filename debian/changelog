@@ -1,4 +1,4 @@
-nemo (2.4.5-1~) UNRELEASED; urgency=medium
+nemo (2.4.5-1) experimental; urgency=medium
 
   [ Fabio Fantoni ]
   * New upstream release.
@@ -9,7 +9,7 @@ nemo (2.4.5-1~) UNRELEASED; urgency=medium
   * Bump Standards-Version to 3.9.6, no changes needed.
   * Update build dependencies.
 
- -- Fabio Fantoni <fantonifabio@tiscali.it>  Thu, 13 Nov 2014 12:45:18 +0100
+ -- Maximiliano Curia <maxy@debian.org>  Mon, 02 Mar 2015 15:54:36 +0100
 
 nemo (2.2.4-2) unstable; urgency=low
 
