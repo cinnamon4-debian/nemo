@@ -7,6 +7,7 @@ nemo (2.4.5-1~) UNRELEASED; urgency=medium
   [ Maximiliano Curia ]
   * Update copyright information.
   * Bump Standards-Version to 3.9.6, no changes needed.
+  * Update build dependencies.
 
  -- Fabio Fantoni <fantonifabio@tiscali.it>  Thu, 13 Nov 2014 12:45:18 +0100
 
