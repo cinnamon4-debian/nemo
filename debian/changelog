@@ -1,7 +1,11 @@
 nemo (2.4.5-1~) UNRELEASED; urgency=medium
 
+  [ Fabio Fantoni ]
   * New upstream release.
   * debian/patches: removed 2 patches applied upstream.
+
+  [ Maximiliano Curia ]
+  * Update copyright information.
 
  -- Fabio Fantoni <fantonifabio@tiscali.it>  Thu, 13 Nov 2014 12:45:18 +0100
 
