@@ -7,6 +7,7 @@ Uploaders: Maximiliano Curia <maxy@debian.org>,
            Fabio Fantoni <fantonifabio@tiscali.it>
 Build-Depends: debhelper (>= 9),
                dh-autoreconf,
+               dh-python,
                gnome-pkg-tools (>= 0.13),
                gobject-introspection (>= 0.9.12-4~),
                gtk-doc-tools (>= 1.4),
@@ -123,7 +124,7 @@ Description: libraries for nemo components - gir bindings
 
 Package: nemo-data
 Architecture: all
-Depends: ${misc:Depends}, ${python:Depends}
+Depends: ${misc:Depends}, ${python:Depends}, python
 Suggests: nemo
 Description: File manager and graphical shell for Cinnamon (data files)
  Nemo is the official file manager for the Cinnamon desktop. It allows
