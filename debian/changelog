@@ -1,7 +1,8 @@
-nemo (2.4.5-2~) UNRELEASED; urgency=medium
+nemo (2.6.3-1~) UNRELEASED; urgency=medium
 
   * Drop eject from recommends. (Closes: #785513)
   * Added strict libnemo-extension1 dependency to nemo. (Closes: #785486)
+  * New upstream release.
 
  -- Fabio Fantoni <fantonifabio@tiscali.it>  Sat, 23 May 2015 14:40:43 +0200
 
