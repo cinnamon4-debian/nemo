@@ -1,5 +1,6 @@
 usr/bin/nemo*
 usr/lib/*/nemo/nemo-convert-metadata
+usr/lib/*/nemo/nemo-extensions-list
 usr/share/applications/nemo*
 usr/share/dbus-1/services/org.*Nemo*.service
 usr/share/man/*/nemo*
