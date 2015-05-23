@@ -47,8 +47,7 @@ Depends: desktop-file-utils (>= 0.7),
          shared-mime-info (>= 0.50),
          ${misc:Depends},
          ${shlibs:Depends}
-Recommends: eject,
-            gvfs-backends,
+Recommends: gvfs-backends,
             librsvg2-common,
             nemo-fileroller,
             cinnamon-l10n
