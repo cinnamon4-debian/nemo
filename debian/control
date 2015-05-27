@@ -42,6 +42,7 @@ Pre-Depends: ${misc:Pre-Depends}
 Depends: desktop-file-utils (>= 0.7),
          gsettings-desktop-schemas,
          gvfs (>= 1.3.2),
+         libcinnamon-desktop4 (>= 2.6.1),
          libnemo-extension1 (= ${binary:Version}),
          libglib2.0-data,
          nemo-data (= ${source:Version}),
