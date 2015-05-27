@@ -61,6 +61,7 @@
 #include <libnemo-private/nemo-signaller.h>
 #include <libnemo-private/nemo-ui-utilities.h>
 #include <libnemo-private/nemo-undo-manager.h>
+#include <libnemo-private/nemo-thumbnails.h>
 #include <libnemo-extension/nemo-menu-provider.h>
 
 #define DEBUG_FLAG NEMO_DEBUG_APPLICATION
@@ -1356,6 +1357,7 @@ nemo_application_get_singleton (void)
                          "application-id", "org.Nemo",
                          "flags", G_APPLICATION_HANDLES_OPEN,
                          "inactivity-timeout", 12000,
+                         "register-session", TRUE,
                          NULL);
 }
 
