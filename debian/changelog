@@ -1,10 +1,13 @@
-nemo (2.6.5-1~) UNRELEASED; urgency=medium
+nemo (2.6.5-1) unstable; urgency=medium
 
+  [ Fabio Fantoni ]
   * Drop eject from recommends. (Closes: #785513)
   * Added strict libnemo-extension1 dependency to nemo. (Closes: #785486)
   * New upstream release.
 
- -- Fabio Fantoni <fantonifabio@tiscali.it>  Sat, 23 May 2015 14:40:43 +0200
+  [ Maximiliano Curia ]
+
+ -- Maximiliano Curia <maxy@debian.org>  Wed, 03 Jun 2015 21:46:22 +0200
 
 nemo (2.4.5-1) experimental; urgency=medium
 
