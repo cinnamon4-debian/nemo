@@ -3,7 +3,7 @@ usr/share/glib-2.0/schemas/org.nemo.gschema.xml
 usr/share/gtksourceview-*/*/nemo_*
 usr/share/icons/*/*/*/location-symbolic.svg
 usr/share/icons/*/*/*/nemo*
-usr/share/icons/*/*/*/progress-*-symbolic.svg
+usr/share/icons/*/*/*/progress-*.png
 usr/share/icons/*/*/*/sidebar-*-symbolic.svg
 usr/share/icons/*/*/*/view-compact-symbolic.svg
 usr/share/mime/packages/nemo.xml
