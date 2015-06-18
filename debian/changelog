@@ -1,4 +1,4 @@
-nemo (2.6.6-1~) UNRELEASED; urgency=medium
+nemo (2.6.6-1) unstable; urgency=medium
 
   [ Fabio Fantoni ]
   * New upstream release.
@@ -6,7 +6,9 @@ nemo (2.6.6-1~) UNRELEASED; urgency=medium
   [ Margarita Manterola ]
   * Added patch imported from Ubuntu to add more files to POTFILES.in
 
- -- Fabio Fantoni <fantonifabio@tiscali.it>  Sun, 14 Jun 2015 14:54:52 +0200
+  [ Maximiliano Curia ]
+
+ -- Maximiliano Curia <maxy@debian.org>  Thu, 18 Jun 2015 13:31:04 +0200
 
 nemo (2.6.5-1) unstable; urgency=medium
 
