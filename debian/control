@@ -75,8 +75,8 @@ Description: File manager and graphical shell for Cinnamon (Debugging symbols)
  extension library.
 
 Package: libnemo-extension1
-Architecture: any
 Section: libs
+Architecture: any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -89,8 +89,8 @@ Description: Nemo component system facilities
  This package contains the shared library needed by the nemo extensions.
 
 Package: libnemo-extension-dev
-Architecture: any
 Section: libdevel
+Architecture: any
 Depends: gir1.2-nemo-3.0 (= ${binary:Version}),
          libglib2.0-dev (>= 2.31.9),
          libgtk-3-dev (>= 3.3.18),
@@ -105,8 +105,8 @@ Description: Nemo component system facilities (development files)
  This package contains the files needed to compile and link nemo extensions.
 
 Package: gir1.2-nemo-3.0
-Architecture: any
 Section: introspection
+Architecture: any
 Depends: ${gir:Depends}, ${misc:Depends}
 Description: libraries for nemo components - gir bindings
  Nemo is the official file manager for the Cinnamon desktop. It allows
