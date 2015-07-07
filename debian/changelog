@@ -1,8 +1,11 @@
-nemo (2.6.7-1~) UNRELEASED; urgency=medium
+nemo (2.6.7-1) unstable; urgency=medium
 
+  [ Fabio Fantoni ]
   * New upstream release.
 
- -- Fabio Fantoni <fantonifabio@tiscali.it>  Wed, 24 Jun 2015 13:20:46 +0200
+  [ Maximiliano Curia ]
+
+ -- Maximiliano Curia <maxy@debian.org>  Tue, 07 Jul 2015 15:12:33 +0200
 
 nemo (2.6.6-1) unstable; urgency=medium
 
