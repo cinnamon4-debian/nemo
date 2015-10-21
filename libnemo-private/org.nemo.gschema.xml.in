@@ -85,6 +85,11 @@
       <_summary>Enables the classic Nemo behavior, where all windows are browsers</_summary>
       <_description>If set to true, then all Nemo windows will be browser windows. This is how Nemo used to behave before version 2.6, and some people prefer this behavior.</_description>
     </key>
+    <key name="quick-renames-with-pause-in-between" type="b">
+      <default>false</default>
+      <_summary>Enables renaming of icons by two times clicking with pause between clicks</_summary>
+      <_description>If set to true, then icons in all Nemo windows will be able to get renamed quickly. Users should click two times on icons with a pause time more than double-click time of their system.</_description>
+    </key>
     <key name="show-location-entry" type="b">
       <default>false</default>
       <_summary>Show the location entry by default</_summary>
@@ -350,6 +355,10 @@
       <default>false</default>
       <_summary>Don't show the explainer message when turning off the main menu</_summary>
       <_description>If true, you will no longer recieve a popup explaining how to reactivate the main menu once you've hidden it</_description>
+    </key>
+    <key name="last-server-connect-method" type="i">
+      <default>2</default>
+      <_summary>Last server connect method used</_summary>
     </key>
   </schema>
 
