@@ -1,3 +1,9 @@
+nemo (2.8.0-1~) UNRELEASED; urgency=medium
+
+  * New upstream release (2.8.0).
+
+ -- Maximiliano Curia <maxy@debian.org>  Wed, 21 Oct 2015 12:58:32 +0200
+
 nemo (2.6.7-1) unstable; urgency=medium
 
   [ Fabio Fantoni ]
