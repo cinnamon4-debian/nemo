@@ -22,10 +22,13 @@
 #include <config.h>
 
 #include "nemo-job-queue.h"
+#include "nemo-global-preferences.h"
 
 struct _NemoJobQueuePriv {
 	GList *queued_jobs;
     GList *running_jobs;
+    gulong pref_changed_id;
+    gboolean skip_queue;
 };
 
 enum {
@@ -56,6 +59,11 @@ nemo_job_queue_finalize (GObject *obj)
 		g_list_free_full (self->priv->queued_jobs, g_object_unref);
 	}
 
+    if (self->priv->pref_changed_id != 0) {
+        g_signal_handler_disconnect (nemo_preferences, self->priv->pref_changed_id);
+        self->priv->pref_changed_id = 0;
+    }
+
 	G_OBJECT_CLASS (nemo_job_queue_parent_class)->finalize (obj);
 }
 
@@ -80,6 +88,13 @@ nemo_job_queue_constructor (GType type,
 }
 
 static void
+pref_changed_cb (NemoJobQueue *self)
+{
+    self->priv->skip_queue = g_settings_get_boolean (nemo_preferences,
+                                                     NEMO_PREFERENCES_NEVER_QUEUE_FILE_OPS);
+}
+
+static void
 nemo_job_queue_init (NemoJobQueue *self)
 {
 	self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, NEMO_TYPE_JOB_QUEUE,
@@ -87,6 +102,12 @@ nemo_job_queue_init (NemoJobQueue *self)
 
     self->priv->queued_jobs = NULL;
     self->priv->running_jobs = NULL;
+
+    self->priv->pref_changed_id = g_signal_connect_swapped (nemo_preferences,
+                                                    "changed::" NEMO_PREFERENCES_NEVER_QUEUE_FILE_OPS,
+                                                    G_CALLBACK (pref_changed_cb), self);
+
+    pref_changed_cb (self);
 }
 
 static void
@@ -142,6 +163,8 @@ job_finished_cb (NemoJobQueue *self,
     self->priv->running_jobs = g_list_remove (self->priv->running_jobs, job);
     self->priv->queued_jobs = g_list_remove (self->priv->queued_jobs, job);
 
+    g_slice_free (Job, job);
+
     nemo_job_queue_start_next_job (self);
 }
 
@@ -154,19 +177,19 @@ nemo_job_queue_get (void)
 }
 
 void
-nemo_job_queue_add_new_job (NemoJobQueue *self,
-                            GIOSchedulerJobFunc job_func,
-                            gpointer user_data,
-                            GCancellable *cancellable,
-                            NemoProgressInfo *info,
-                            gboolean skip_queue)
+nemo_job_queue_add_new_job (NemoJobQueue         *self,
+                            GIOSchedulerJobFunc   job_func,
+                            gpointer              user_data,
+                            GCancellable         *cancellable,
+                            NemoProgressInfo     *info,
+                            gboolean              start_immediately)
 {
 	if (g_list_find_custom (self->priv->queued_jobs, user_data, (GCompareFunc) compare_job_data_func) != NULL) {
 		g_warning ("Adding the same file job object to the job queue");
 		return;
 	}
 
-    Job *new_job = g_new0 (Job, 1);
+    Job *new_job = g_slice_new0 (Job);
     new_job->job_func = job_func;
     new_job->user_data = user_data;
     new_job->cancellable = cancellable;
@@ -180,7 +203,7 @@ nemo_job_queue_add_new_job (NemoJobQueue *self,
 	g_signal_connect_swapped (info, "finished",
                               G_CALLBACK (job_finished_cb), self);
 
-    if (skip_queue)
+    if (self->priv->skip_queue || start_immediately)
         start_job (self, new_job);
     else
         nemo_job_queue_start_next_job (self);
