@@ -62,7 +62,7 @@ void nemo_job_queue_add_new_job (NemoJobQueue *self,
                                  gpointer user_data,
                                  GCancellable *cancellable,
                                  NemoProgressInfo *info,
-                                 gboolean skip_queue);
+                                 gboolean start_immediately);
 
 void nemo_job_queue_start_next_job (NemoJobQueue *self);
 
