@@ -2,9 +2,9 @@ Description: "make check" in po/ checks that all files are listed for translatio
 Author: Iain Lane <iain.lane@canonical.com>
 Forwarded: no
 ===================================================================
---- nemo.orig/po/POTFILES.in	2015-06-09 19:05:36.604232253 +0200
-+++ nemo/po/POTFILES.in	2015-06-14 18:22:32.905750013 +0200
-@@ -95,3 +95,11 @@
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -94,3 +94,11 @@
  src/nemo-window-private.h
  src/nemo-window-slot.c
  src/nemo-x-content-bar.c
