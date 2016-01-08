@@ -1,9 +1,9 @@
-nemo (2.8.6-1~) UNRELEASED; urgency=medium
+nemo (2.8.6-1) unstable; urgency=medium
 
   * New upstream release.
   * Update install files.
 
- -- Maximiliano Curia <maxy@debian.org>  Tue, 10 Nov 2015 15:42:30 +0100
+ -- Maximiliano Curia <maxy@debian.org>  Fri, 08 Jan 2016 20:19:31 +0100
 
 nemo (2.6.7-1) unstable; urgency=medium
 
