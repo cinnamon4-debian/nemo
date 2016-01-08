@@ -1,6 +1,7 @@
 nemo (2.8.6-1~) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Update install files.
 
  -- Maximiliano Curia <maxy@debian.org>  Tue, 10 Nov 2015 15:42:30 +0100
 

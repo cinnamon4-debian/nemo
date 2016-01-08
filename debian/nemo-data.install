@@ -1,6 +1,8 @@
 debian/nemo.xpm /usr/share/pixmaps
 usr/share/glib-2.0/schemas/org.nemo.gschema.xml
 usr/share/gtksourceview-*/*/nemo_*
+usr/share/icons/*/*/*/collapse-menu-symbolic.svg
+usr/share/icons/*/*/*/expand-menu-symbolic.svg
 usr/share/icons/*/*/*/location-symbolic.svg
 usr/share/icons/*/*/*/nemo*
 usr/share/icons/*/*/*/progress-*.png
