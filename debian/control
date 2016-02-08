@@ -60,20 +60,6 @@ Description: File manager and graphical shell for Cinnamon
  Several icon themes and components for viewing different kinds of files
  are available in separate packages.
 
-Package: nemo-dbg
-Section: debug
-Priority: extra
-Architecture: any
-Depends: nemo (= ${binary:Version}), ${misc:Depends}
-Description: File manager and graphical shell for Cinnamon (Debugging symbols)
- Nemo is the official file manager for the Cinnamon desktop. It allows
- to browse directories, preview files and launch applications associated
- with them. It is also responsible for handling the icons on the Cinnamon
- desktop. It works on local and remote filesystems.
- .
- This development package contains the debugging symbols of nemo and its
- extension library.
-
 Package: libnemo-extension1
 Section: libs
 Architecture: any
