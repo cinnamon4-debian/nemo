@@ -1,6 +1,6 @@
 nemo (2.8.6-2~) UNRELEASED; urgency=medium
 
-  * Updated patch missing-files-potfiles.in for fix "make check". 
+  * Updated patch missing-files-potfiles.in for fix "make check".
 
  -- Fabio Fantoni <fantonifabio@tiscali.it>  Sun, 07 Feb 2016 15:40:55 +0100
 
