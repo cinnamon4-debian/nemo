@@ -1,0 +1,33 @@
+From: Maximiliano Curia <maxy@gnuservers.com.ar>
+Date: Mon, 21 Mar 2016 09:44:24 +0100
+Subject: Comment out url_drag_types (defined but not used)
+
+This is now an error by default in gcc-6. (Closes: #811935)
+Thanks to Martin Michlmay for reporting.
+---
+ src/nemo-notebook.c | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/nemo-notebook.c b/src/nemo-notebook.c
+index f0ba989..87ee5b7 100644
+--- a/src/nemo-notebook.c
++++ b/src/nemo-notebook.c
+@@ -51,11 +51,13 @@ static int  nemo_notebook_insert_page	 (GtkNotebook *notebook,
+ static void nemo_notebook_remove	 (GtkContainer *container,
+ 					  GtkWidget *tab_widget);
+ 
+-static const GtkTargetEntry url_drag_types[] =
+-{
+-	{ NEMO_ICON_DND_GNOME_ICON_LIST_TYPE, 0, NEMO_ICON_DND_GNOME_ICON_LIST },
+-	{ NEMO_ICON_DND_URI_LIST_TYPE, 0, NEMO_ICON_DND_URI_LIST },
+-};
++/*
++ * static const GtkTargetEntry url_drag_types[] =
++ * {
++ *         { NEMO_ICON_DND_GNOME_ICON_LIST_TYPE, 0, NEMO_ICON_DND_GNOME_ICON_LIST },
++ *         { NEMO_ICON_DND_URI_LIST_TYPE, 0, NEMO_ICON_DND_URI_LIST },
++ * };
++ */
+ 
+ enum
+ {

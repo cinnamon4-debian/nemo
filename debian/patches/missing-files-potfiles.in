@@ -1,10 +1,21 @@
+From: Debian Cinnamon Team <pkg-cinnamon-team@lists.alioth.debian.org>
+Date: Mon, 21 Mar 2016 09:39:57 +0100
+Subject: missing-files-potfiles.in
+
 Description: "make check" in po/ checks that all files are listed for translation or skipped. These are missing.
 Author: Iain Lane <iain.lane@canonical.com>
 Forwarded: no
+
 ===================================================================
+---
+ po/POTFILES.in | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index dca4d01..b3d82a5 100644
 --- a/po/POTFILES.in
 +++ b/po/POTFILES.in
-@@ -22,6 +22,7 @@
+@@ -22,6 +22,7 @@ libnemo-private/nemo-bookmark.c
  libnemo-private/nemo-clipboard.c
  libnemo-private/nemo-column-chooser.c
  libnemo-private/nemo-column-utilities.c
@@ -12,7 +23,7 @@ Forwarded: no
  libnemo-private/nemo-desktop-directory-file.c
  libnemo-private/nemo-desktop-icon-file.c
  libnemo-private/nemo-desktop-link.c
-@@ -46,10 +47,12 @@
+@@ -46,10 +47,12 @@ libnemo-private/nemo-tree-view-drag-dest.c
  libnemo-private/nemo-undo-signal-handlers.c
  libnemo-private/nemo-vfs-file.c
  libnemo-private/org.nemo.gschema.xml.in
@@ -25,7 +36,7 @@ Forwarded: no
  src/nemo-connect-server-dialog.c
  src/nemo-connect-server-dialog-main.c
  src/nemo-desktop-icon-view.c
-@@ -58,12 +61,14 @@
+@@ -58,12 +61,14 @@ src/nemo-desktop-item-properties.c
  src/nemo-desktop-window.c
  src/nemo-directory-view-ui.xml
  src/nemo-error-reporting.c
@@ -40,7 +51,7 @@ Forwarded: no
  src/nemo-list-model.c
  src/nemo-list-view.c
  src/nemo-list-view-ui.xml
-@@ -72,14 +77,17 @@
+@@ -72,14 +77,17 @@ src/nemo-location-entry.c
  src/nemo-main.c
  src/nemo-mime-actions.c
  src/nemo-notebook.c
