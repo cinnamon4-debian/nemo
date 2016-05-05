@@ -818,7 +818,7 @@ clicked_within_double_click_interval (NemoListView *view)
               "gtk-double-click-time", &interval,
               NULL);
 
-    current_time = eel_get_system_time ();
+    current_time = g_get_monotonic_time ();
     if (current_time - last_click_time < interval * 1000) {
         click_count++;
     } else {
@@ -856,7 +856,7 @@ clicked_within_slow_click_interval_on_text (NemoListView *view, GtkTreePath *pat
 
     interval = double_click_interval + 2000;
 
-    current_time = eel_get_system_time ();
+    current_time = g_get_monotonic_time ();
     if (current_time - last_slow_click_time < interval * 1000) {
         slow_click_count = 1;
     } else {
@@ -1242,9 +1242,10 @@ unload_file_timeout (gpointer data)
 			}
 			gtk_tree_path_free (path);
 		}
-	}
 
-	eel_remove_weak_pointer (&unload_data->view);
+		g_object_remove_weak_pointer (G_OBJECT (unload_data->view),
+					      (gpointer *) &unload_data->view);
+	}
 	
 	if (unload_data->directory) {
 		nemo_directory_unref (unload_data->directory);
@@ -1289,7 +1290,8 @@ row_collapsed_callback (GtkTreeView *treeview, GtkTreeIter *iter, GtkTreePath *p
 	unload_data->file = file;
 	unload_data->directory = directory;
 
-	eel_add_weak_pointer (&unload_data->view);
+	g_object_add_weak_pointer (G_OBJECT (unload_data->view),
+				   (gpointer *) &unload_data->view);
 	
 	g_timeout_add_seconds (COLLAPSE_TO_UNLOAD_DELAY,
 			       unload_file_timeout,
@@ -1867,10 +1869,12 @@ column_header_clicked (GtkWidget *column_button,
 		if (g_hash_table_lookup (visible_columns_hash, lowercase) != NULL) {
 			gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (menu_item),
 			                                TRUE);
-        /*  Don't allow hiding the only visible column */
-            if (g_hash_table_size (visible_columns_hash) == 1)
-                gtk_widget_set_sensitive (GTK_WIDGET (menu_item), FALSE);
 		}
+
+        /* Don't allow hiding the filename */
+        if (g_strcmp0 (lowercase, "name") == 0) {
+            gtk_widget_set_sensitive (GTK_WIDGET (menu_item), FALSE);
+        }
 
 		g_signal_connect (menu_item,
 		                  "toggled",

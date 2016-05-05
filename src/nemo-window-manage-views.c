@@ -124,7 +124,7 @@ set_displayed_location (NemoWindowSlot *slot, GFile *location)
 
         slot->last_location_bookmark = slot->current_location_bookmark;
         slot->current_location_bookmark = (location == NULL) ?
-                            NULL : nemo_bookmark_new (location, NULL, NULL);
+                            NULL : nemo_bookmark_new (location, NULL, NULL, NULL);
     }
 }
 
@@ -459,7 +459,10 @@ nemo_window_slot_open_location_full (NemoWindowSlot *slot,
 		    (flags & NEMO_WINDOW_OPEN_FLAG_NEW_TAB) != 0));
 
 	/* and if the flags specify so, this is overridden */
-	if ((flags & NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW) != 0) {
+	if ((flags & NEMO_WINDOW_OPEN_FLAG_SEARCH) != 0) {
+		use_same = TRUE;
+	}
+	else if ((flags & NEMO_WINDOW_OPEN_FLAG_NEW_WINDOW) != 0) {
 		use_same = FALSE;
 	}
 

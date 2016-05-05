@@ -3311,6 +3311,16 @@ done_loading (NemoView *view,
 
 	g_signal_emit (view, signals[END_LOADING], 0, all_files_seen);
 
+    if (g_getenv("NEMO_TIME_STARTUP")) {
+        gint64 current = g_get_monotonic_time ();
+        gint64 diff = (current - nemo_startup_time) / 1000;
+
+        gint64 milli_remainder = diff % 1000;
+        gint64 seconds = diff / 1000;
+
+        g_printerr ("Nemo startup time: %ld.%ld seconds\n", seconds, milli_remainder);
+    }
+
 	view->details->loading = FALSE;
 }
 
@@ -5130,6 +5140,29 @@ reset_move_copy_to_menu (NemoView *view)
                                   &view->details->copy_move_action_groups[i]);
         g_free (id);
     }
+
+    GtkAction *action;
+
+    mount_uri = nemo_get_home_directory_uri ();
+    file = nemo_file_get_existing_by_uri (mount_uri);
+    g_free (mount_uri);
+
+    action = gtk_action_group_get_action (view->details->dir_action_group, NEMO_ACTION_COPY_TO_HOME);
+    gtk_action_set_gicon (action, nemo_file_get_emblemed_icon (file, NEMO_FILE_ICON_FLAGS_NONE));
+    action = gtk_action_group_get_action (view->details->dir_action_group, NEMO_ACTION_MOVE_TO_HOME);
+    gtk_action_set_gicon (action, nemo_file_get_emblemed_icon (file, NEMO_FILE_ICON_FLAGS_NONE));
+
+    g_object_unref (file);
+    mount_uri = nemo_get_desktop_directory_uri ();
+    file = nemo_file_get_existing_by_uri (mount_uri);
+    g_free (mount_uri);
+
+    action = gtk_action_group_get_action (view->details->dir_action_group, NEMO_ACTION_COPY_TO_DESKTOP);
+    gtk_action_set_gicon (action, nemo_file_get_emblemed_icon (file, NEMO_FILE_ICON_FLAGS_NONE));
+    action = gtk_action_group_get_action (view->details->dir_action_group, NEMO_ACTION_MOVE_TO_DESKTOP);
+    gtk_action_set_gicon (action, nemo_file_get_emblemed_icon (file, NEMO_FILE_ICON_FLAGS_NONE));
+
+    g_object_unref (file);
 
     if (view->details->showing_bookmarks_in_to_menus) {
         bookmark_count = nemo_bookmark_list_length (view->details->bookmarks);
@@ -7212,6 +7245,15 @@ invoke_external_bulk_rename_utility (NemoView *view,
 		g_free (quoted_parameter);
 	}
 
+    gint i = 0;
+
+	// Escape percents
+	for (i = 0; i < strlen(cmd->str); i++) {
+		if (cmd->str[i] == '%') {
+			g_string_insert_c(cmd, i++, '%');
+		}
+	}
+
 	/* spawning and error handling */
 	nemo_launch_application_from_command (gtk_widget_get_screen (GTK_WIDGET (view)),
 						  cmd->str, FALSE, NULL);
@@ -8353,19 +8395,19 @@ static const GtkActionEntry directory_view_entries[] = {
   /* name, stock id, label */  {NEMO_ACTION_MOVE_TO_NEXT_PANE, NULL, N_("_Other pane"),
 				NULL, N_("Move the current selection to the other pane in the window"),
 				G_CALLBACK (action_move_to_next_pane_callback) },
-  /* name, stock id, label */  {NEMO_ACTION_COPY_TO_HOME, NEMO_ICON_HOME,
+  /* name, stock id, label */  {NEMO_ACTION_COPY_TO_HOME, NULL,
 				N_("_Home"), NULL,
 				N_("Copy the current selection to the home folder"),
 				G_CALLBACK (action_copy_to_home_callback) },
-  /* name, stock id, label */  {NEMO_ACTION_MOVE_TO_HOME, NEMO_ICON_HOME,
+  /* name, stock id, label */  {NEMO_ACTION_MOVE_TO_HOME, NULL,
 				N_("_Home"), NULL,
 				N_("Move the current selection to the home folder"),
 				G_CALLBACK (action_move_to_home_callback) },
-  /* name, stock id, label */  {NEMO_ACTION_COPY_TO_DESKTOP, NEMO_ICON_DESKTOP,
+  /* name, stock id, label */  {NEMO_ACTION_COPY_TO_DESKTOP, NULL,
 				N_("_Desktop"), NULL,
 				N_("Copy the current selection to the desktop"),
 				G_CALLBACK (action_copy_to_desktop_callback) },
-  /* name, stock id, label */  {NEMO_ACTION_MOVE_TO_DESKTOP, NEMO_ICON_DESKTOP,
+  /* name, stock id, label */  {NEMO_ACTION_MOVE_TO_DESKTOP, NULL,
 				N_("_Desktop"), NULL,
 				N_("Move the current selection to the desktop"),
 				G_CALLBACK (action_move_to_desktop_callback) },

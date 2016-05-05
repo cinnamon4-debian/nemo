@@ -214,7 +214,9 @@ typedef enum
 #define NEMO_PREFERENCES_LOCKDOWN_COMMAND_LINE         "disable-command-line"
 
 /* Desktop background */
-#define NEMO_PREFERENCES_SHOW_DESKTOP		   "show-desktop-icons"
+#define NEMO_PREFERENCES_DESKTOP_LAYOUT "desktop-layout"
+#define NEMO_PREFERENCES_SHOW_ORPHANED_DESKTOP_ICONS "show-orphaned-desktop-icons"
+#define NEMO_PREFERENCES_SHOW_DESKTOP   "show-desktop-icons"    /* DEPRECATED */
 
 /* File size unit prefix */
 #define NEMO_PREFERENCES_SIZE_PREFIXES			"size-prefixes"
@@ -269,6 +271,8 @@ GSettings *gnome_background_preferences;
 GSettings *gnome_media_handling_preferences;
 GSettings *gnome_terminal_preferences;
 GSettings *cinnamon_privacy_preferences;
+
+gint64 nemo_startup_time;
 
 G_END_DECLS
 
