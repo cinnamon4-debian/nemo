@@ -60,6 +60,7 @@
 #include "nemo-desktop-link-monitor.h"
 #include "nemo-global-preferences.h"
 #include "nemo-link.h"
+#include "nemo-desktop-utils.h"
 #include "nemo-trash-monitor.h"
 #include "nemo-file-utilities.h"
 #include "nemo-file-conflict-dialog.h"
@@ -87,6 +88,7 @@ typedef struct {
 	GTimer *time;
 	GtkWindow *parent_window;
 	int screen_num;
+    int monitor_num;
 	int inhibit_cookie;
 	NemoProgressInfo *progress;
 	GCancellable *cancellable;
@@ -1069,16 +1071,20 @@ init_common (gsize job_size,
 
 	if (parent_window) {
 		common->parent_window = parent_window;
-		eel_add_weak_pointer (&common->parent_window);
+		g_object_add_weak_pointer (G_OBJECT (common->parent_window),
+					   (gpointer *) &common->parent_window);
+
 	}
 	common->progress = nemo_progress_info_new ();
 	common->cancellable = nemo_progress_info_get_cancellable (common->progress);
 	common->time = g_timer_new ();
 	common->inhibit_cookie = -1;
 	common->screen_num = 0;
+    common->monitor_num = 0;
 	if (parent_window) {
 		screen = gtk_widget_get_screen (GTK_WIDGET (parent_window));
 		common->screen_num = gdk_screen_get_number (screen);
+        common->monitor_num = nemo_desktop_utils_get_monitor_for_widget (GTK_WIDGET (parent_window));
 	}
 	
 	return common;
@@ -1095,7 +1101,12 @@ finalize_common (CommonJob *common)
 
 	common->inhibit_cookie = -1;
 	g_timer_destroy (common->time);
-	eel_remove_weak_pointer (&common->parent_window);
+
+	if (common->parent_window) {
+		g_object_remove_weak_pointer (G_OBJECT (common->parent_window),
+					      (gpointer *) &common->parent_window);
+	}
+
 	if (common->skip_files) {
 		g_hash_table_destroy (common->skip_files);
 	}
@@ -2217,7 +2228,7 @@ unmount_mount_callback (GObject *source_object,
 	if (error != NULL) {
 		g_error_free (error);
 	}
-	
+
 	unmount_data_free (data);
 }
 
@@ -2416,7 +2427,8 @@ nemo_file_operations_unmount_mount_full (GtkWindow                      *parent_
 	data->callback_data = callback_data;
 	if (parent_window) {
 		data->parent_window = parent_window;
-		eel_add_weak_pointer (&data->parent_window);
+		g_object_add_weak_pointer (G_OBJECT (data->parent_window),
+					   (gpointer *) &data->parent_window);
 		
 	}
 
@@ -4313,7 +4325,7 @@ copy_move_file (CopyMoveJob *copy_job,
 
 		if (debuting_files) {
 			if (position) {
-				nemo_file_changes_queue_schedule_position_set (dest, *position, job->screen_num);
+				nemo_file_changes_queue_schedule_position_set (dest, *position, job->screen_num, job->monitor_num);
 			} else {
 				nemo_file_changes_queue_schedule_position_remove (dest);
 			}
@@ -4962,7 +4974,7 @@ move_file_prepare (CopyMoveJob *move_job,
 		nemo_file_changes_queue_file_moved (src, dest);
 
 		if (position) {
-			nemo_file_changes_queue_schedule_position_set (dest, *position, job->screen_num);
+			nemo_file_changes_queue_schedule_position_set (dest, *position, job->screen_num, job->monitor_num);
 		} else {
 			nemo_file_changes_queue_schedule_position_remove (dest);
 		}
@@ -5457,7 +5469,7 @@ link_file (CopyMoveJob *job,
 		
 		nemo_file_changes_queue_file_added (dest);
 		if (position) {
-			nemo_file_changes_queue_schedule_position_set (dest, *position, common->screen_num);
+			nemo_file_changes_queue_schedule_position_set (dest, *position, common->screen_num, common->monitor_num);
 		} else {
 			nemo_file_changes_queue_schedule_position_remove (dest);
 		}
@@ -6193,7 +6205,7 @@ create_job (GIOSchedulerJob *io_job,
 		job->created_file = g_object_ref (dest);
 		nemo_file_changes_queue_file_added (dest);
 		if (job->has_position) {
-			nemo_file_changes_queue_schedule_position_set (dest, job->position, common->screen_num);
+			nemo_file_changes_queue_schedule_position_set (dest, job->position, common->screen_num, common->monitor_num);
 		} else {
 			nemo_file_changes_queue_schedule_position_remove (dest);
 		}
@@ -6434,6 +6446,7 @@ nemo_file_operations_new_file (GtkWidget *parent_view,
 static void
 delete_trash_file (CommonJob *job,
 		   GFile *file,
+		   int *deletions_since_progress,
 		   gboolean del_file,
 		   gboolean del_children)
 {
@@ -6457,7 +6470,7 @@ delete_trash_file (CommonJob *job,
 			       (info = g_file_enumerator_next_file (enumerator, job->cancellable, NULL)) != NULL) {
 				child = g_file_get_child (file,
 							  g_file_info_get_name (info));
-				delete_trash_file (job, child, TRUE,
+				delete_trash_file (job, child, deletions_since_progress, TRUE,
 						   g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY);
 				g_object_unref (child);
 				g_object_unref (info);
@@ -6469,6 +6482,11 @@ delete_trash_file (CommonJob *job,
 
 	if (!job_aborted (job) && del_file) {
 		g_file_delete (file, job->cancellable, NULL);
+
+		if ((*deletions_since_progress)++ > 100) {
+			nemo_progress_info_pulse_progress (job->progress);
+			*deletions_since_progress = 0;
+		}
 	}
 }
 
@@ -6499,6 +6517,7 @@ empty_trash_job (GIOSchedulerJob *io_job,
 	CommonJob *common;
 	GList *l;
 	gboolean confirmed;
+	int deletions_since_progress = 0;
 	
 	common = (CommonJob *)job;
 	common->io_job = io_job;
@@ -6511,10 +6530,13 @@ empty_trash_job (GIOSchedulerJob *io_job,
 		confirmed = TRUE;
 	}
 	if (confirmed) {
+		nemo_progress_info_set_status (common->progress, _("Emptying Trash"));
+		nemo_progress_info_set_details (common->progress, _("Emptying Trash"));
+
 		for (l = job->trash_dirs;
 		     l != NULL && !job_aborted (common);
 		     l = l->next) {
-			delete_trash_file (common, l->data, FALSE, TRUE);
+			delete_trash_file (common, l->data, &deletions_since_progress, FALSE, TRUE);
 		}
 	}
 
