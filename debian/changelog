@@ -1,11 +1,12 @@
-nemo (3.0.0-1~) UNRELEASED; urgency=medium
+nemo (3.0.1-1~) UNRELEASED; urgency=medium
 
   ** SNAPSHOT build @8bb79858c22d940159192b22e9abb1b9a94ffbe4 **
 
   * Add gcc-6 support patch (Comment-out-url_drag_types-defined-but-not-used) (Closes: #811935) Thanks to Martin Michlmayr for reporting
   * New upstream release (3.0.0).
+  * New upstream release (3.0.1).
 
- -- Maximiliano Curia <maxy@debian.org>  Thu, 05 May 2016 08:05:02 +0200
+ -- Maximiliano Curia <maxy@debian.org>  Wed, 11 May 2016 17:11:40 +0200
 
 nemo (2.8.7-1) unstable; urgency=medium
 
