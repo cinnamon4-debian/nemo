@@ -30,7 +30,7 @@ Build-Depends: debhelper (>= 9),
                python-gi,
                python-polib,
                x11proto-core-dev
-Standards-Version: 3.9.6
+Standards-Version: 3.9.8
 XS-Testsuite: autopkgtest
 Homepage: http://cinnamon.linuxmint.com/
 Vcs-Browser: https://anonscm.debian.org/git/pkg-cinnamon/nemo.git
