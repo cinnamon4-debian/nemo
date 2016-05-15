@@ -1,12 +1,22 @@
-nemo (3.0.1-1~) UNRELEASED; urgency=medium
+nemo (3.0.1-1) unstable; urgency=medium
 
-  ** SNAPSHOT build @8bb79858c22d940159192b22e9abb1b9a94ffbe4 **
-
+  [ Maximiliano Curia ]
   * Add gcc-6 support patch (Comment-out-url_drag_types-defined-but-not-used) (Closes: #811935) Thanks to Martin Michlmayr for reporting
   * New upstream release (3.0.0).
   * New upstream release (3.0.1).
+  * debian/control: Update Vcs-Browser and Vcs-Git fields
+  * Add a .gitattributes file to use dpkg-mergechangelogs
+  * Bump Standards-Version to 3.9.8
+  * Drop upstream applied patch
+  * Python scripts migrated to python3
+  * Update symbols files, drops old eel exported symbols, not affecting current packages
+  * Update patch: missing-files-potfiles.in
+  * Add dh-python dependency
 
- -- Maximiliano Curia <maxy@debian.org>  Wed, 11 May 2016 17:11:40 +0200
+  [ Fabio Fantoni ]
+  * Updated patch missing-files-potfiles.in for fix "make check"
+
+ -- Maximiliano Curia <maxy@debian.org>  Sun, 15 May 2016 10:13:55 +0200
 
 nemo (2.8.7-1) unstable; urgency=medium
 
