@@ -1,3 +1,10 @@
+nemo (3.0.1-2) UNRELEASED; urgency=medium
+
+  * Add gvfs-fuse as a recommends. (Closes: #797821) Thanks to Christian Hawkins
+    for reporting.
+
+ -- Margarita Manterola <marga@debian.org>  Fri, 27 May 2016 23:38:05 +0200
+
 nemo (3.0.1-1) unstable; urgency=medium
 
   [ Maximiliano Curia ]
