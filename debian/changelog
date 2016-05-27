@@ -8,7 +8,8 @@ nemo (3.0.1-2) UNRELEASED; urgency=medium
 nemo (3.0.1-1) unstable; urgency=medium
 
   [ Maximiliano Curia ]
-  * Add gcc-6 support patch (Comment-out-url_drag_types-defined-but-not-used) (Closes: #811935) Thanks to Martin Michlmayr for reporting
+  * Add gcc-6 support patch (Comment-out-url_drag_types-defined-but-not-used)
+   (Closes: #811935) Thanks to Martin Michlmayr for reporting
   * New upstream release (3.0.0).
   * New upstream release (3.0.1).
   * debian/control: Update Vcs-Browser and Vcs-Git fields
@@ -30,16 +31,12 @@ nemo (2.8.7-1) unstable; urgency=medium
   [ Fabio Fantoni ]
   * New upstream release.
 
-  [ Maximiliano Curia ]
-
  -- Maximiliano Curia <maxy@debian.org>  Sun, 13 Mar 2016 22:51:41 +0100
 
 nemo (2.8.6-2) unstable; urgency=medium
 
   [ Fabio Fantoni ]
   * Updated patch missing-files-potfiles.in for fix "make check".
-
-  [ Maximiliano Curia ]
 
  -- Maximiliano Curia <maxy@debian.org>  Mon, 08 Feb 2016 17:59:40 +0100
 
@@ -55,8 +52,6 @@ nemo (2.6.7-1) unstable; urgency=medium
   [ Fabio Fantoni ]
   * New upstream release.
 
-  [ Maximiliano Curia ]
-
  -- Maximiliano Curia <maxy@debian.org>  Tue, 07 Jul 2015 15:12:33 +0200
 
 nemo (2.6.6-1) unstable; urgency=medium
@@ -67,8 +62,6 @@ nemo (2.6.6-1) unstable; urgency=medium
   [ Margarita Manterola ]
   * Added patch imported from Ubuntu to add more files to POTFILES.in
 
-  [ Maximiliano Curia ]
-
  -- Maximiliano Curia <maxy@debian.org>  Thu, 18 Jun 2015 13:31:04 +0200
 
 nemo (2.6.5-1) unstable; urgency=medium
@@ -77,8 +70,6 @@ nemo (2.6.5-1) unstable; urgency=medium
   * Drop eject from recommends. (Closes: #785513)
   * Added strict libnemo-extension1 dependency to nemo. (Closes: #785486)
   * New upstream release.
-
-  [ Maximiliano Curia ]
 
  -- Maximiliano Curia <maxy@debian.org>  Wed, 03 Jun 2015 21:46:22 +0200
 
