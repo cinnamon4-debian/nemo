@@ -68,6 +68,7 @@
 #define EXPANDER_PAD_COLUMN_WIDTH 4
 #define EJECT_COLUMN_WIDTH 22
 #define DRAG_EXPAND_CATEGORY_DELAY 500
+#define EJECT_PAD_COLUMN_WIDTH 14
 
 typedef struct {
 	GtkScrolledWindow  parent;
@@ -273,6 +274,27 @@ static GtkTreeStore *nemo_shortcuts_model_new (NemoPlacesSidebar *sidebar);
 
 G_DEFINE_TYPE (NemoPlacesSidebar, nemo_places_sidebar, GTK_TYPE_SCROLLED_WINDOW);
 
+static gint overlay_scrolling_enabled = -1;
+
+static gboolean get_overlay_scrolling_enabled (void)
+{
+    if (overlay_scrolling_enabled > -1) {
+        return overlay_scrolling_enabled == 1;
+    }
+
+    gchar *val = NULL;
+
+    val = g_getenv ("GTK_OVERLAY_SCROLLING");
+
+    if (val == NULL || g_strcmp0 (val, "0") == 0) {
+        overlay_scrolling_enabled = 0;
+    } else {
+        overlay_scrolling_enabled = 1;
+    }
+
+    return overlay_scrolling_enabled == 1;
+}
+
 static void
 breakpoint_changed_cb (NemoPlacesSidebar *sidebar)
 {
@@ -319,7 +341,7 @@ get_eject_icon (NemoPlacesSidebar *sidebar,
     scale = gtk_widget_get_scale_factor (GTK_WIDGET (sidebar));
 	icon_theme = gtk_icon_theme_get_default ();
 	icon_size = nemo_get_icon_size_for_stock_size (GTK_ICON_SIZE_MENU);
-	icon = g_themed_icon_new_with_default_fallbacks ("nemo-eject");
+	icon = g_themed_icon_new ("nemo-eject");
 	icon_info = gtk_icon_theme_lookup_by_gicon_for_scale (icon_theme, icon, icon_size, scale, 0);
 
 	style = gtk_widget_get_style_context (GTK_WIDGET (sidebar));
@@ -4123,6 +4145,21 @@ nemo_places_sidebar_init (NemoPlacesSidebar *sidebar)
     gtk_tree_view_append_column (tree_view, expander_col);
 	gtk_tree_view_append_column (tree_view, col);
     gtk_tree_view_append_column (tree_view, eject_col);
+
+    if (gtk_get_major_version () == 3 && gtk_get_minor_version () >= 16) {
+        if (get_overlay_scrolling_enabled ()) {
+            GtkTreeViewColumn *eject_pad_col;
+
+            eject_pad_col = GTK_TREE_VIEW_COLUMN (gtk_tree_view_column_new());
+            cell = gtk_cell_renderer_text_new ();
+
+            gtk_tree_view_column_pack_start (eject_pad_col, cell, FALSE);
+            gtk_tree_view_column_set_sizing (eject_pad_col, GTK_TREE_VIEW_COLUMN_FIXED);
+            gtk_tree_view_column_set_fixed_width (eject_pad_col, EJECT_PAD_COLUMN_WIDTH);
+
+            gtk_tree_view_append_column (tree_view, eject_pad_col);
+        }
+    }
 
     gtk_tree_view_set_expander_column (tree_view, expander_col);
 
