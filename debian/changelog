@@ -1,7 +1,7 @@
 nemo (3.0.3-1) UNRELEASED; urgency=medium
 
-  * Add gvfs-fuse as a recommends. (Closes: #797821) Thanks to Christian Hawkins
-    for reporting.
+  * Add gvfs-fuse as a recommends.
+    (Closes: #797821) Thanks to Christian Hawkins for reporting.
   * New upstream release.
 
  -- Margarita Manterola <marga@debian.org>  Sat, 28 May 2016 15:47:05 +0200
