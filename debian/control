@@ -57,7 +57,7 @@ Recommends: cinnamon-l10n,
             nemo-fileroller
 Suggests: eog, evince | pdf-viewer, totem | mp3-decoder, xdg-user-dirs
 Description: File manager and graphical shell for Cinnamon
- Nemo is the official file manager for the Cinnamon desktop. It allows
+ Nemo is the official file manager for the Cinnamon desktop. It allows one
  to browse directories, preview files and launch applications associated
  with them. It is also responsible for handling the icons on the Cinnamon
  desktop. It works on local and remote filesystems.
@@ -72,7 +72,7 @@ Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: Nemo component system facilities
- Nemo is the official file manager for the Cinnamon desktop. It allows
+ Nemo is the official file manager for the Cinnamon desktop. It allows one
  to browse directories, preview files and launch applications associated
  with them. It is also responsible for handling the icons on the Cinnamon
  desktop. It works on local and remote filesystems.
@@ -88,7 +88,7 @@ Depends: gir1.2-nemo-3.0 (= ${binary:Version}),
          libnemo-extension1 (= ${binary:Version}),
          ${misc:Depends}
 Description: Nemo component system facilities (development files)
- Nemo is the official file manager for the Cinnamon desktop. It allows
+ Nemo is the official file manager for the Cinnamon desktop. It allows one
  to browse directories, preview files and launch applications associated
  with them. It is also responsible for handling the icons on the Cinnamon
  desktop. It works on local and remote filesystems.
@@ -100,7 +100,7 @@ Section: introspection
 Architecture: any
 Depends: ${gir:Depends}, ${misc:Depends}
 Description: libraries for nemo components - gir bindings
- Nemo is the official file manager for the Cinnamon desktop. It allows
+ Nemo is the official file manager for the Cinnamon desktop. It allows one
  to browse directories, preview files and launch applications associated
  with them. It is also responsible for handling the icons on the Cinnamon
  desktop. It works on local and remote filesystems.
@@ -113,7 +113,7 @@ Architecture: all
 Depends: python, ${misc:Depends}, ${python:Depends}
 Suggests: nemo
 Description: File manager and graphical shell for Cinnamon (data files)
- Nemo is the official file manager for the Cinnamon desktop. It allows
+ Nemo is the official file manager for the Cinnamon desktop. It allows one
  to browse directories, preview files and launch applications associated
  with them. It is also responsible for handling the icons on the Cinnamon
  desktop. It works on local and remote filesystems.
