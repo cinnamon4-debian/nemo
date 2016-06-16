@@ -1,7 +1,12 @@
 nemo (3.0.5-1) UNRELEASED; urgency=medium
 
+  [ Margarita Manterola ]
   * Fix dbgsym migration rules
   * New upstream release.
+
+  [ Maximiliano Curia ]
+  * New patch: do_reap_child.diff (Closes: 825757) Thanks to Tony
+    Sultana for reporting
 
  -- Margarita Manterola <marga@debian.org>  Tue, 31 May 2016 19:36:49 +0200
 
