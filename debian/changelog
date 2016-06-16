@@ -1,4 +1,4 @@
-nemo (3.0.5-1) UNRELEASED; urgency=medium
+nemo (3.0.5-1~) UNRELEASED; urgency=medium
 
   [ Margarita Manterola ]
   * Fix dbgsym migration rules
