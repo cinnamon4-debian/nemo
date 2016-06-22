@@ -8,6 +8,9 @@ nemo (3.0.5-1~) UNRELEASED; urgency=medium
   * New patch: do_reap_child.diff (Closes: 825757) Thanks to Tony
     Sultana for reporting
 
+  [ Fabio Fantoni ]
+  * Add cinnamon-l10n as build-dep, needed for action files translation.
+
  -- Margarita Manterola <marga@debian.org>  Tue, 31 May 2016 19:36:49 +0200
 
 nemo (3.0.3-1) unstable; urgency=medium

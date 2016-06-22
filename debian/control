@@ -5,7 +5,8 @@ Maintainer: Debian Cinnamon Team <pkg-cinnamon-team@lists.alioth.debian.org>
 Uploaders: Maximiliano Curia <maxy@debian.org>,
            Margarita Manterola <marga@debian.org>,
            Fabio Fantoni <fantonifabio@tiscali.it>
-Build-Depends: debhelper (>= 9),
+Build-Depends: cinnamon-l10n (>= 3.0),
+               debhelper (>= 9),
                dh-autoreconf,
                dh-python,
                gobject-introspection,
