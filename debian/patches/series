@@ -1,2 +1,3 @@
 missing-files-potfiles.in
 do_reap_child.diff
+Migrate-away-from-gnome-common-deprecated-vars-and-macros.patch

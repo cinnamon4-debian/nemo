@@ -1,6 +1,16 @@
+From: Debian Cinnamon Team <pkg-cinnamon-team@lists.alioth.debian.org>
+Date: Tue, 2 Aug 2016 14:32:36 +0200
+Subject: do_reap_child
+
+---
+ src/nemo-view.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/nemo-view.c b/src/nemo-view.c
+index e8f8206..8002b0e 100644
 --- a/src/nemo-view.c
 +++ b/src/nemo-view.c
-@@ -7061,15 +7061,23 @@
+@@ -7061,15 +7061,23 @@ paste_into (NemoView *view,
  }
  
  static void
