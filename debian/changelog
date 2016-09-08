@@ -1,3 +1,13 @@
+nemo (3.0.6-2) unstable; urgency=medium
+
+  * Import upstream patches:
+    window-remove-custom-get_preferred_width-height-impl.patch,
+    pathbar-avoid-gtk-warnings.patch and
+    pathbar-remove-hardcoded-width-for-sliders.patch.
+    Thanks to johu for reporting (Closes: 836922)
+
+ -- Maximiliano Curia <maxy@debian.org>  Thu, 08 Sep 2016 18:34:15 +0200
+
 nemo (3.0.6-1) unstable; urgency=medium
 
   [ Margarita Manterola ]
