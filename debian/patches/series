@@ -4,3 +4,4 @@ Migrate-away-from-gnome-common-deprecated-vars-and-macros.patch
 window-remove-custom-get_preferred_width-height-impl.patch
 pathbar-avoid-gtk-warnings.patch
 pathbar-remove-hardcoded-width-for-sliders.patch
+fix-desktop-redraw

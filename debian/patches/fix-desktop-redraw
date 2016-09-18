@@ -1,0 +1,56 @@
+Subject: Fix GTK 3.21.3 desktop redraw issue
+From: leigh123linux <leigh123linux@googlemail.com>
+Date: Sat, 23 Jul 2016 18:05:14 +0100
+Origin: upstream, https://github.com/linuxmint/nemo/commit/f20ec9beee2a3592e723f5140664e2137ab5a7be
+Bug: https://github.com/linuxmint/nemo/issues/1231
+Last-Update: 2016-09-18
+
+---
+ libnemo-private/nemo-icon-container.c |    2 ++
+ src/nemo-desktop-icon-view.c          |    5 +++++
+ src/nemo-style-application.css        |    5 +++++
+ 3 files changed, 12 insertions(+)
+
+--- nemo-debian.git.orig/libnemo-private/nemo-icon-container.c
++++ nemo-debian.git/libnemo-private/nemo-icon-container.c
+@@ -4249,11 +4249,13 @@
+ 
+ 	container = NEMO_ICON_CONTAINER (widget);
+ 
++#if !GTK_CHECK_VERSION(3, 21, 0)
+ 	/* Ensure that the desktop window is native so the background
+ 	   set on it is drawn by X. */
+ 	if (container->details->is_desktop) {
+ 		gdk_x11_window_get_xid (gtk_layout_get_bin_window (GTK_LAYOUT (widget)));
+ 	}
++#endif
+ 
+ 	/* Set up DnD.  */
+ 	nemo_icon_dnd_init (container);
+--- nemo-debian.git.orig/src/nemo-desktop-icon-view.c
++++ nemo-debian.git/src/nemo-desktop-icon-view.c
+@@ -155,6 +155,11 @@
+ 	vclass->update_menus = real_update_menus;
+ 	vclass->get_view_id = real_get_id;
+ 
++#if GTK_CHECK_VERSION(3, 21, 0)
++	GtkWidgetClass *wclass = GTK_WIDGET_CLASS (class);
++	gtk_widget_class_set_css_name (wclass, "nemo-desktop-icon-view");
++#endif
++
+ 	g_type_class_add_private (class, sizeof (NemoDesktopIconViewDetails));
+ }
+ 
+--- nemo-debian.git.orig/src/nemo-style-application.css
++++ nemo-debian.git/src/nemo-style-application.css
+@@ -1,5 +1,10 @@
+ /* Desktop text stuff */
+ 
++.nemo-window.nemo-desktop-window notebook,
++.nemo-window.nemo-desktop-window paned {
++	background-color: transparent;
++}
++
+ .nemo-canvas-item {
+     border-radius: 3px;
+ }

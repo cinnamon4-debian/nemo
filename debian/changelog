@@ -1,3 +1,11 @@
+nemo (3.0.6-3) UNRELEASED; urgency=medium
+
+  * Fix desktop redraw issues with gtk >= 3.21. (Closes: #836908)
+    Apply upstream patch f20ec9beee2a3592e723f5140664e2137ab5a7be
+    Thanks to Norbert Preining for reporting and importing the patch.
+
+ -- Margarita Manterola <marga@debian.org>  Sun, 18 Sep 2016 14:00:32 +0200
+
 nemo (3.0.6-2) unstable; urgency=medium
 
   * Import upstream patches:
