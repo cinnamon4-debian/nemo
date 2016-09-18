@@ -1,3 +1,11 @@
+nemo (3.0.6-4~1.gbp12638c) UNRELEASED; urgency=medium
+
+  ** SNAPSHOT build @12638c9762249f9d7fe90c2fa834d5981676e032 **
+
+  * Add new patch: Make-AX_-macros-optional.patch
+
+ -- Maximiliano Curia <maxy@gnuservers.com.ar>  Sun, 18 Sep 2016 17:42:40 +0200
+
 nemo (3.0.6-3) unstable; urgency=medium
 
   * Fix desktop redraw issues with gtk >= 3.21. (Closes: #836908)
