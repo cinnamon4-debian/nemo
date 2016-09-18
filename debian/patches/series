@@ -5,3 +5,4 @@ window-remove-custom-get_preferred_width-height-impl.patch
 pathbar-avoid-gtk-warnings.patch
 pathbar-remove-hardcoded-width-for-sliders.patch
 fix-desktop-redraw
+Make-AX_-macros-optional.patch
