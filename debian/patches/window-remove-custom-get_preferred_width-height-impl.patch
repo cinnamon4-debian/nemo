@@ -1,9 +1,8 @@
-From 2c60a3edaef10e9ef331740d55d3c45dd366c5db Mon Sep 17 00:00:00 2001
 From: itzexor <itzexor@gmail.com>
 Date: Sat, 11 Jun 2016 17:07:05 -0700
-Subject: [PATCH] window: remove custom get_preferred_width/height
- implementation We already take care of the default size when we create the
- window, and these only break assumptions of the default GtkWindow's handlers.
+Subject: window: remove custom get_preferred_width/height implementation We
+ already take care of the default size when we create the window,
+ and these only break assumptions of the default GtkWindow's handlers.
 
 from https://github.com/GNOME/nautilus/commit/da06dfc438e578405d616c48e8e3809d37c908bb
 
@@ -71,6 +70,3 @@ index eb8d1fa..c209700 100644
  	wclass->realize = nemo_window_realize;
  	wclass->key_press_event = nemo_window_key_press_event;
      wclass->key_release_event = nemo_window_key_release_event;
--- 
-2.9.3
-

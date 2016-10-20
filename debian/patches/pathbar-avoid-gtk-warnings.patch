@@ -1,7 +1,6 @@
-From 64599a379d72bbbe6c37473fcc5b8d6f73bf90f8 Mon Sep 17 00:00:00 2001
 From: itzexor <itzexor@gmail.com>
 Date: Sun, 12 Jun 2016 14:52:21 -0700
-Subject: [PATCH] pathbar: avoid gtk+ warnings
+Subject: pathbar: avoid gtk+ warnings
 
 If we don't request the slider preferred size in allocation, gtk+
 triggers a warning.
@@ -29,6 +28,3 @@ index 0d0db13..a6c76cb 100644
      gtk_widget_get_preferred_size (BUTTON_DATA (path_bar->priv->button_list->data)->button,
                         NULL, &child_requisition);
      width = child_requisition.width;
--- 
-2.9.3
-
