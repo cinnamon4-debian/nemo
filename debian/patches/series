@@ -6,3 +6,4 @@ pathbar-avoid-gtk-warnings.patch
 pathbar-remove-hardcoded-width-for-sliders.patch
 fix-desktop-redraw
 Make-AX_-macros-optional.patch
+remove-text-icon-preview.patch

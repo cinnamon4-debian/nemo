@@ -1,0 +1,1662 @@
+Description: remove "Show text in icon" preference
+Author: itzexor
+Origin: upstream
+Bug: https://github.com/linuxmint/nemo/issues/954
+Applied-Upstream: https://github.com/linuxmint/nemo/commit/f7b9fd7e8903a0e4b19cb32499659803b1e82e95
+Last-Update: 2016-10-23
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: nemo/libnemo-private/nemo-directory-async.c
+===================================================================
+--- nemo.orig/libnemo-private/nemo-directory-async.c	2016-10-23 12:22:14.022438002 +0200
++++ nemo/libnemo-private/nemo-directory-async.c	2016-10-23 12:22:37.311067157 +0200
+@@ -58,13 +58,6 @@
+ /* Keep async. jobs down to this number for all directories. */
+ #define MAX_ASYNC_JOBS 10
+ 
+-struct TopLeftTextReadState {
+-	NemoDirectory *directory;
+-	NemoFile *file;
+-	gboolean large;
+-	GCancellable *cancellable;
+-};
+-
+ struct LinkInfoReadState {
+ 	NemoDirectory *directory;
+ 	GCancellable *cancellable;
+@@ -519,18 +512,6 @@
+ }
+ 
+ static void
+-top_left_cancel (NemoDirectory *directory)
+-{
+-	if (directory->details->top_left_read_state != NULL) {
+-		g_cancellable_cancel (directory->details->top_left_read_state->cancellable);
+-		directory->details->top_left_read_state->directory = NULL;
+-		directory->details->top_left_read_state = NULL;
+-		
+-		async_job_end (directory, "top left");
+-	}
+-}
+-
+-static void
+ link_info_cancel (NemoDirectory *directory)
+ {
+ 	if (directory->details->link_info_read_state != NULL) {
+@@ -686,16 +667,6 @@
+ 		REQUEST_SET_TYPE (request, REQUEST_FILE_INFO);
+ 		REQUEST_SET_TYPE (request, REQUEST_LINK_INFO);
+ 	}
+-	
+-	if (file_attributes & NEMO_FILE_ATTRIBUTE_TOP_LEFT_TEXT) {
+-		REQUEST_SET_TYPE (request, REQUEST_TOP_LEFT_TEXT);
+-		REQUEST_SET_TYPE (request, REQUEST_FILE_INFO);
+-	}
+-	
+-	if (file_attributes & NEMO_FILE_ATTRIBUTE_LARGE_TOP_LEFT_TEXT) {
+-		REQUEST_SET_TYPE (request, REQUEST_LARGE_TOP_LEFT_TEXT);
+-		REQUEST_SET_TYPE (request, REQUEST_FILE_INFO);
+-	}
+ 
+ 	if ((file_attributes & NEMO_FILE_ATTRIBUTE_EXTENSION_INFO) != 0) {
+ 		REQUEST_SET_TYPE (request, REQUEST_EXTENSION_INFO);
+@@ -1575,11 +1546,6 @@
+ 		directory->details->get_info_file = NULL;
+ 		changed = TRUE;
+ 	}
+-	if (directory->details->top_left_read_state != NULL
+-	    && directory->details->top_left_read_state->file == file) {
+-		directory->details->top_left_read_state->file = NULL;
+-		changed = TRUE;
+-	}
+ 	if (directory->details->link_info_read_state != NULL &&
+ 	    directory->details->link_info_read_state->file == file) {
+ 		directory->details->link_info_read_state->file = NULL;
+@@ -1629,22 +1595,6 @@
+ }
+ 
+ static gboolean
+-lacks_top_left (NemoFile *file)
+-{
+-	return file->details->file_info_is_up_to_date &&
+-		!file->details->top_left_text_is_up_to_date 
+-		&& nemo_file_should_get_top_left_text (file);
+-}
+-
+-static gboolean
+-lacks_large_top_left (NemoFile *file)
+-{
+-	return file->details->file_info_is_up_to_date &&
+-		(!file->details->top_left_text_is_up_to_date ||
+-		 file->details->got_large_top_left_text != file->details->got_top_left_text)
+-		&& nemo_file_should_get_top_left_text (file);
+-}
+-static gboolean
+ lacks_info (NemoFile *file)
+ {
+ 	return !file->details->file_info_is_up_to_date
+@@ -1772,18 +1722,6 @@
+ 		}
+ 	}
+ 
+-	if (REQUEST_WANTS_TYPE (request, REQUEST_TOP_LEFT_TEXT)) {
+-		if (has_problem (directory, file, lacks_top_left)) {
+-			return FALSE;
+-		}
+-	}
+-		
+-	if (REQUEST_WANTS_TYPE (request, REQUEST_LARGE_TOP_LEFT_TEXT)) {
+-		if (has_problem (directory, file, lacks_large_top_left)) {
+-			return FALSE;
+-		}
+-	}
+-
+ 	if (REQUEST_WANTS_TYPE (request, REQUEST_DEEP_COUNT)) {
+ 		if (has_problem (directory, file, lacks_deep_count)) {
+ 			return FALSE;
+@@ -3235,185 +3173,6 @@
+ }
+ 
+ static void
+-top_left_stop (NemoDirectory *directory)
+-{
+-	NemoFile *file;
+-
+-	if (directory->details->top_left_read_state != NULL) {
+-		file = directory->details->top_left_read_state->file;
+-		if (file != NULL) {
+-			g_assert (NEMO_IS_FILE (file));
+-			g_assert (file->details->directory == directory);
+-			if (is_needy (file,
+-				      lacks_top_left,
+-				      REQUEST_TOP_LEFT_TEXT) ||
+-			    is_needy (file,
+-				      lacks_large_top_left,
+-				      REQUEST_LARGE_TOP_LEFT_TEXT)) {
+-				return;
+-			}
+-		}
+-
+-		/* The top left is not wanted, so stop it. */
+-		top_left_cancel (directory);
+-	}
+-}
+-
+-static void
+-top_left_read_state_free (TopLeftTextReadState *state)
+-{
+-	g_object_unref (state->cancellable);
+-	g_free (state);
+-}
+-
+-static void
+-top_left_read_callback (GObject *source_object,
+-			GAsyncResult *res,
+-			gpointer callback_data)
+-{
+-	TopLeftTextReadState *state;
+-	NemoDirectory *directory;
+-	NemoFileDetails *file_details;
+-	gsize file_size;
+-	char *file_contents;
+-
+-	state = callback_data;
+-
+-	if (state->directory == NULL) {
+-		/* Operation was cancelled. Bail out */
+-		top_left_read_state_free (state);
+-		return;
+-	}
+-	
+-	directory = nemo_directory_ref (state->directory);
+-	
+-	file_details = state->file->details;
+-
+-	file_details->top_left_text_is_up_to_date = TRUE;
+-	g_free (file_details->top_left_text);
+-
+-	if (g_file_load_partial_contents_finish (G_FILE (source_object),
+-						 res,
+-						 &file_contents, &file_size,
+-						 NULL, NULL)) {
+-		file_details->top_left_text = nemo_extract_top_left_text (file_contents, state->large, file_size);
+-		file_details->got_top_left_text = TRUE;
+-		file_details->got_large_top_left_text = state->large;
+-		g_free (file_contents);
+-	} else {
+-		file_details->top_left_text = NULL;
+-		file_details->got_top_left_text = FALSE;
+-		file_details->got_large_top_left_text = FALSE;
+-	}
+-
+-	nemo_file_changed (state->file);
+-
+-	directory->details->top_left_read_state = NULL;
+-	async_job_end (directory, "top left");
+-
+-	top_left_read_state_free (state);
+-	
+-	nemo_directory_async_state_changed (directory);
+-
+-	nemo_directory_unref (directory);
+-}
+-
+-static int
+-count_lines (const char *text, int length)
+-{
+-	int count, i;
+-
+-	count = 0;
+-	for (i = 0; i < length; i++) {
+-		count += *text++ == '\n';
+-	}
+-	return count;
+-}
+-
+-static gboolean
+-top_left_read_more_callback (const char *file_contents,
+-			     goffset bytes_read,
+-			     gpointer callback_data)
+-{
+-	TopLeftTextReadState *state;
+-
+-	state = callback_data;
+-
+-	/* Stop reading when we have enough. */
+-	if (state->large) {
+-		return bytes_read < NEMO_FILE_LARGE_TOP_LEFT_TEXT_MAXIMUM_BYTES &&
+-			count_lines (file_contents, bytes_read) <= NEMO_FILE_LARGE_TOP_LEFT_TEXT_MAXIMUM_LINES;
+-	} else {
+-		return bytes_read < NEMO_FILE_TOP_LEFT_TEXT_MAXIMUM_BYTES &&
+-			count_lines (file_contents, bytes_read) <= NEMO_FILE_TOP_LEFT_TEXT_MAXIMUM_LINES;
+-	}
+-}
+-
+-static void
+-top_left_start (NemoDirectory *directory,
+-		NemoFile *file,
+-		gboolean *doing_io)
+-{
+-	GFile *location;
+-	gboolean needs_large;
+-	TopLeftTextReadState *state;
+-
+-	if (directory->details->top_left_read_state != NULL) {
+- 		*doing_io = TRUE;
+-		return;
+-	}
+-	
+-	needs_large = FALSE;
+-
+-	if (is_needy (file,
+-		      lacks_large_top_left,
+-		      REQUEST_LARGE_TOP_LEFT_TEXT)) {
+-		needs_large = TRUE;
+-	}
+-
+-	/* Figure out which file to read the top left for. */
+-	if (!(needs_large ||
+-	      is_needy (file,
+-			lacks_top_left,
+-			REQUEST_TOP_LEFT_TEXT))) {
+-		return;
+-	}
+-	*doing_io = TRUE;
+-
+-	if (!nemo_file_contains_text (file)) {
+-		g_free (file->details->top_left_text);
+-		file->details->top_left_text = NULL;
+-		file->details->got_top_left_text = FALSE;
+-		file->details->got_large_top_left_text = FALSE;
+-		file->details->top_left_text_is_up_to_date = TRUE;
+-
+-		nemo_directory_async_state_changed (directory);
+-		return;
+-	}
+-
+-	if (!async_job_start (directory, "top left")) {
+-		return;
+-	}
+-
+-	/* Start reading. */
+-	state = g_new0 (TopLeftTextReadState, 1);
+-	state->directory = directory;
+-	state->cancellable = g_cancellable_new ();
+-	state->large = needs_large;
+-	state->file = file;
+-
+-	directory->details->top_left_read_state = state;
+-
+-	location = nemo_file_get_location (file);
+-	g_file_load_partial_contents_async (location,
+-					    state->cancellable,
+-					    top_left_read_more_callback,
+-					    top_left_read_callback,
+-					    state);
+-	g_object_unref (location);
+-}
+-
+-static void
+ get_info_state_free (GetInfoState *state)
+ {
+ 	g_object_unref (state->cancellable);
+@@ -4544,7 +4303,6 @@
+ 	directory_count_stop (directory);
+ 	deep_count_stop (directory);
+ 	mime_list_stop (directory);
+-	top_left_stop (directory);
+ 	link_info_stop (directory);
+ 	extension_info_stop (directory);
+ 	mount_stop (directory);
+@@ -4576,7 +4334,6 @@
+ 		directory_count_start (directory, file, &doing_io);
+ 		deep_count_start (directory, file, &doing_io);
+ 		mime_list_start (directory, file, &doing_io);
+-		top_left_start (directory, file, &doing_io);
+ 		thumbnail_start (directory, file, &doing_io);
+ 		filesystem_info_start (directory, file, &doing_io);
+ 
+@@ -4646,7 +4403,6 @@
+ 	link_info_cancel (directory);
+ 	mime_list_cancel (directory);
+ 	new_files_cancel (directory);
+-	top_left_cancel (directory);
+ 	extension_info_cancel (directory);
+ 	thumbnail_cancel (directory);
+ 	mount_cancel (directory);
+@@ -4691,16 +4447,6 @@
+ }
+ 
+ static void
+-cancel_top_left_text_for_file (NemoDirectory *directory,
+-			       NemoFile      *file)
+-{
+-	if (directory->details->top_left_read_state != NULL &&
+-	    directory->details->top_left_read_state->file == file) {
+-		top_left_cancel (directory);
+-	}
+-}
+-
+-static void
+ cancel_file_info_for_file (NemoDirectory *directory,
+ 			   NemoFile      *file)
+ {
+@@ -4767,9 +4513,6 @@
+ 	if (REQUEST_WANTS_TYPE (request, REQUEST_MIME_LIST)) {
+ 		mime_list_cancel (directory);
+ 	}
+-	if (REQUEST_WANTS_TYPE (request, REQUEST_TOP_LEFT_TEXT)) {
+-		top_left_cancel (directory);
+-	}
+ 	if (REQUEST_WANTS_TYPE (request, REQUEST_FILE_INFO)) {
+ 		file_info_cancel (directory);
+ 	}
+@@ -4815,9 +4558,6 @@
+ 	if (REQUEST_WANTS_TYPE (request, REQUEST_MIME_LIST)) {
+ 		cancel_mime_list_for_file (directory, file);
+ 	}
+-	if (REQUEST_WANTS_TYPE (request, REQUEST_TOP_LEFT_TEXT)) {
+-		cancel_top_left_text_for_file (directory, file);
+-	}
+ 	if (REQUEST_WANTS_TYPE (request, REQUEST_FILE_INFO)) {
+ 		cancel_file_info_for_file (directory, file);
+ 	}
+Index: nemo/libnemo-private/nemo-directory-private.h
+===================================================================
+--- nemo.orig/libnemo-private/nemo-directory-private.h	2016-10-23 12:22:14.022438002 +0200
++++ nemo/libnemo-private/nemo-directory-private.h	2016-10-23 12:22:37.311067157 +0200
+@@ -32,7 +32,6 @@
+ #include <libxml/tree.h>
+ 
+ typedef struct LinkInfoReadState LinkInfoReadState;
+-typedef struct TopLeftTextReadState TopLeftTextReadState;
+ typedef struct FileMonitors FileMonitors;
+ typedef struct DirectoryLoadState DirectoryLoadState;
+ typedef struct DirectoryCountState DirectoryCountState;
+@@ -51,8 +50,6 @@
+ 	REQUEST_FILE_INFO,
+ 	REQUEST_FILE_LIST, /* always FALSE if file != NULL */
+ 	REQUEST_MIME_LIST,
+-	REQUEST_TOP_LEFT_TEXT,
+-	REQUEST_LARGE_TOP_LEFT_TEXT,
+ 	REQUEST_EXTENSION_INFO,
+ 	REQUEST_THUMBNAIL,
+ 	REQUEST_MOUNT,
+@@ -128,8 +125,6 @@
+ 	MountState *mount_state;
+ 
+ 	FilesystemInfoState *filesystem_info_state;
+-	
+-	TopLeftTextReadState *top_left_read_state;
+ 
+ 	LinkInfoReadState *link_info_read_state;
+ 
+Index: nemo/libnemo-private/nemo-directory.c
+===================================================================
+--- nemo.orig/libnemo-private/nemo-directory.c	2016-10-23 12:22:14.022438002 +0200
++++ nemo/libnemo-private/nemo-directory.c	2016-10-23 12:22:37.311067157 +0200
+@@ -154,7 +154,6 @@
+ 
+ 	nemo_directory_cancel (directory);
+ 	g_assert (directory->details->count_in_progress == NULL);
+-	g_assert (directory->details->top_left_read_state == NULL);
+ 
+ 	if (directory->details->monitor_list != NULL) {
+ 		g_warning ("destroying a NemoDirectory while it's being monitored");
+@@ -305,10 +304,6 @@
+ 				  G_CALLBACK(filtering_changed_callback),
+ 				  NULL);
+ 	g_signal_connect_swapped (nemo_preferences,
+-				  "changed::" NEMO_PREFERENCES_SHOW_TEXT_IN_ICONS,
+-				  G_CALLBACK (async_data_preference_changed_callback),
+-				  NULL);
+-	g_signal_connect_swapped (nemo_preferences,
+ 				  "changed::" NEMO_PREFERENCES_SHOW_DIRECTORY_ITEM_COUNTS,
+ 				  G_CALLBACK (async_data_preference_changed_callback),
+ 				  NULL);
+@@ -1038,7 +1033,6 @@
+ 			 * a changed signal.
+ 			 */
+ 			file->details->file_info_is_up_to_date = FALSE;
+-			file->details->top_left_text_is_up_to_date = FALSE;
+ 			file->details->link_info_is_up_to_date = FALSE;
+ 			nemo_file_invalidate_extension_info_internal (file);
+ 
+Index: nemo/libnemo-private/nemo-file-private.h
+===================================================================
+--- nemo.orig/libnemo-private/nemo-file-private.h	2016-10-23 12:22:14.022438002 +0200
++++ nemo/libnemo-private/nemo-file-private.h	2016-10-23 12:22:37.311067157 +0200
+@@ -32,14 +32,6 @@
+ #include <eel/eel-glib-extensions.h>
+ #include <eel/eel-string.h>
+ 
+-#define NEMO_FILE_LARGE_TOP_LEFT_TEXT_MAXIMUM_CHARACTERS_PER_LINE 80
+-#define NEMO_FILE_LARGE_TOP_LEFT_TEXT_MAXIMUM_LINES               24
+-#define NEMO_FILE_LARGE_TOP_LEFT_TEXT_MAXIMUM_BYTES               10000
+-
+-#define NEMO_FILE_TOP_LEFT_TEXT_MAXIMUM_CHARACTERS_PER_LINE 10
+-#define NEMO_FILE_TOP_LEFT_TEXT_MAXIMUM_LINES               5
+-#define NEMO_FILE_TOP_LEFT_TEXT_MAXIMUM_BYTES               1024
+-
+ #define NEMO_FILE_DEFAULT_ATTRIBUTES				\
+ 	"standard::*,access::*,mountable::*,time::*,unix::*,owner::*,selinux::*,thumbnail::*,id::filesystem,trash::orig-path,trash::deletion-date,metadata::*"
+ 
+@@ -111,7 +103,6 @@
+     double thumbnail_scale;
+ 
+ 	GList *mime_list; /* If this is a directory, the list of MIME types in it. */
+-	char *top_left_text;
+ 
+ 	/* Info you might get from a link (.desktop, .directory or nemo link) */
+ 	GIcon *custom_icon;
+@@ -177,10 +168,6 @@
+ 	eel_boolean_bit mime_list_is_up_to_date       : 1;
+ 
+ 	eel_boolean_bit mount_is_up_to_date           : 1;
+-	
+-	eel_boolean_bit got_top_left_text             : 1;
+-	eel_boolean_bit got_large_top_left_text       : 1;
+-	eel_boolean_bit top_left_text_is_up_to_date   : 1;
+ 
+ 	eel_boolean_bit got_link_info                 : 1;
+ 	eel_boolean_bit link_info_is_up_to_date       : 1;
+@@ -250,9 +237,7 @@
+ 							    GFileInfo              *info);
+ void          nemo_file_emit_changed                   (NemoFile           *file);
+ void          nemo_file_mark_gone                      (NemoFile           *file);
+-char *        nemo_extract_top_left_text               (const char             *text,
+-							    gboolean                large,
+-							    int                     length);
++
+ void          nemo_file_set_directory                  (NemoFile           *file,
+ 							    NemoDirectory      *directory);
+ gboolean      nemo_file_get_date                       (NemoFile           *file,
+@@ -283,11 +268,6 @@
+ void          nemo_file_set_mount                      (NemoFile           *file,
+ 							    GMount                 *mount);
+ 
+-/* Return true if the top lefts of files in this directory should be
+- * fetched, according to the preference settings.
+- */
+-gboolean      nemo_file_should_get_top_left_text       (NemoFile           *file);
+-
+ /* Mark specified attributes for this file out of date without canceling current
+  * I/O or kicking off new I/O.
+  */
+Index: nemo/libnemo-private/nemo-file.c
+===================================================================
+--- nemo.orig/libnemo-private/nemo-file.c	2016-10-23 12:22:14.026438110 +0200
++++ nemo/libnemo-private/nemo-file.c	2016-10-23 12:22:37.311067157 +0200
+@@ -806,7 +806,6 @@
+ 	eel_ref_str_unref (file->details->group);
+ 	g_free (file->details->selinux_context);
+ 	g_free (file->details->description);
+-	g_free (file->details->top_left_text);
+ 	g_free (file->details->activation_uri);
+ 	g_clear_object (&file->details->custom_icon);
+ 
+@@ -4108,7 +4107,7 @@
+ 	GIcon *icon, *mount_icon = NULL, *emblemed_icon;
+ 	GEmblem *emblem;
+ 	int i;
+-	gboolean is_folder = FALSE, is_preview = FALSE, is_inode_directory = FALSE;
++	gboolean is_folder = FALSE, is_inode_directory = FALSE;
+ 
+ 	if (file == NULL) {
+ 		return NULL;
+@@ -4134,8 +4133,7 @@
+ 			}
+ 		}
+ 
+-		if (((flags & NEMO_FILE_ICON_FLAGS_EMBEDDING_TEXT) ||
+-		     (flags & NEMO_FILE_ICON_FLAGS_FOR_DRAG_ACCEPT) ||
++		if (((flags & NEMO_FILE_ICON_FLAGS_FOR_DRAG_ACCEPT) ||
+ 		     (flags & NEMO_FILE_ICON_FLAGS_FOR_OPEN_FOLDER) ||
+ 		     (flags & NEMO_FILE_ICON_FLAGS_USE_MOUNT_ICON) ||
+ 		     (flags & NEMO_FILE_ICON_FLAGS_USE_MOUNT_ICON_AS_EMBLEM) ||
+@@ -4154,18 +4152,11 @@
+ 				if (strcmp (name, "inode-directory") == 0) {
+ 					is_inode_directory = TRUE;
+ 				}
+-				if (strcmp (name, "text-x-generic") == 0 &&
+-				    (flags & NEMO_FILE_ICON_FLAGS_EMBEDDING_TEXT)) {
+-					is_preview = TRUE;
+-				}
+ 			}
+ 
+ 			/* Here, we add icons in reverse order of precedence,
+ 			 * because they are later prepended */
+-			if (is_preview) {
+-				g_ptr_array_add (prepend_array, "text-x-preview");
+-			}
+-			
++
+ 			/* "folder" should override "inode-directory", not the other way around */
+ 			if (is_inode_directory) {
+ 				g_ptr_array_add (prepend_array, "folder");
+@@ -4261,23 +4252,6 @@
+     return emblemed_icon;
+ }
+ 
+-static GIcon *
+-get_default_file_icon (NemoFileIconFlags flags)
+-{
+-	static GIcon *fallback_icon = NULL;
+-	static GIcon *fallback_icon_preview = NULL;
+-	if (fallback_icon == NULL) {
+-		fallback_icon = g_themed_icon_new ("text-x-generic");
+-		fallback_icon_preview = g_themed_icon_new ("text-x-preview");
+-		g_themed_icon_append_name (G_THEMED_ICON (fallback_icon_preview), "text-x-generic");
+-	}
+-	if (flags & NEMO_FILE_ICON_FLAGS_EMBEDDING_TEXT) {
+-		return fallback_icon_preview;
+-	} else {
+-		return fallback_icon;
+-	}
+-}
+-
+ static gint
+ get_throttle_count (NemoFile *file)
+ {
+@@ -4408,12 +4382,12 @@
+ 		icon = nemo_icon_info_lookup (gicon, size, scale);
+ 		if (nemo_icon_info_is_fallback (icon)) {
+ 			g_object_unref (icon);
+-			icon = nemo_icon_info_lookup (get_default_file_icon (flags), size, scale);
++			icon = nemo_icon_info_lookup (g_themed_icon_new ("text-x-generic"), size, scale);
+ 		}
+ 		g_object_unref (gicon);
+ 		return icon;
+ 	} else {
+-		return nemo_icon_info_lookup (get_default_file_icon (flags), size, scale);
++		return nemo_icon_info_lookup (g_themed_icon_new ("text-x-generic"), size, scale);
+ 	}
+ }
+ 
+@@ -4728,13 +4702,6 @@
+ }
+ 
+ static NemoSpeedTradeoffValue show_directory_item_count;
+-static NemoSpeedTradeoffValue show_text_in_icons;
+-
+-static void
+-show_text_in_icons_changed_callback (gpointer callback_data)
+-{
+-	show_text_in_icons = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_SHOW_TEXT_IN_ICONS);
+-}
+ 
+ static void
+ show_directory_item_count_changed_callback (gpointer callback_data)
+@@ -4821,36 +4788,6 @@
+ 	return ret;
+ }
+ 
+-gboolean
+-nemo_file_should_get_top_left_text (NemoFile *file)
+-{
+-	static gboolean show_text_in_icons_callback_added = FALSE;
+-	
+-	g_return_val_if_fail (NEMO_IS_FILE (file), FALSE);
+-
+-	/* Add the callback once for the life of our process */
+-	if (!show_text_in_icons_callback_added) {
+-		g_signal_connect_swapped (nemo_preferences,
+-					  "changed::" NEMO_PREFERENCES_SHOW_TEXT_IN_ICONS,
+-					  G_CALLBACK (show_text_in_icons_changed_callback),
+-					  NULL);
+-		show_text_in_icons_callback_added = TRUE;
+-
+-		/* Peek for the first time */
+-		show_text_in_icons_changed_callback (NULL);
+-	}
+-	
+-	if (show_text_in_icons == NEMO_SPEED_TRADEOFF_ALWAYS) {
+-		return TRUE;
+-	}
+-	
+-	if (show_text_in_icons == NEMO_SPEED_TRADEOFF_NEVER) {
+-		return FALSE;
+-	}
+-
+-	return get_speed_tradeoff_preference_for_file (file, show_text_in_icons);
+-}
+-
+ /**
+  * nemo_file_get_directory_item_count
+  * 
+@@ -7226,66 +7163,6 @@
+ 	return file->details->can_execute;
+ }
+ 
+-/**
+- * nemo_file_peek_top_left_text
+- * 
+- * Peek at the text from the top left of the file.
+- * @file: NemoFile representing the file in question.
+- * 
+- * Returns: NULL if there is no text readable, otherwise, the text.
+- *          This string is owned by the file object and should not
+- *          be kept around or freed.
+- * 
+- **/
+-char *
+-nemo_file_peek_top_left_text (NemoFile *file,
+-				  gboolean  need_large_text,
+-				  gboolean *needs_loading)
+-{
+-	g_return_val_if_fail (NEMO_IS_FILE (file), NULL);
+-
+-	if (!nemo_file_should_get_top_left_text (file)) {
+-		if (needs_loading) {
+-			*needs_loading = FALSE;
+-		}
+-		return NULL;
+-	}
+-	
+-	if (needs_loading) {
+-		*needs_loading = !file->details->top_left_text_is_up_to_date;
+-		if (need_large_text) {
+-			*needs_loading |= file->details->got_top_left_text != file->details->got_large_top_left_text;
+-		}
+-	}
+-
+-	/* Show " ..." in the file until we read the contents in. */
+-	if (!file->details->got_top_left_text) {
+-		
+-		if (nemo_file_contains_text (file)) {
+-			return " ...";
+-		}
+-		return NULL;
+-	}
+-	
+-	/* Show what we read in. */
+-	return file->details->top_left_text;
+-}
+-
+-/**
+- * nemo_file_get_top_left_text
+- * 
+- * Get the text from the top left of the file.
+- * @file: NemoFile representing the file in question.
+- * 
+- * Returns: NULL if there is no text readable, otherwise, the text.
+- * 
+- **/
+-char *
+-nemo_file_get_top_left_text (NemoFile *file)
+-{
+-	return g_strdup (nemo_file_peek_top_left_text (file, FALSE, NULL));
+-}
+-
+ char *
+ nemo_file_get_filesystem_id (NemoFile *file)
+ {
+@@ -7660,12 +7537,6 @@
+ }
+ 
+ static void
+-invalidate_top_left_text (NemoFile *file)
+-{
+-	file->details->top_left_text_is_up_to_date = FALSE;
+-}
+-
+-static void
+ invalidate_file_info (NemoFile *file)
+ {
+ 	file->details->file_info_is_up_to_date = FALSE;
+@@ -7731,9 +7602,6 @@
+ 	if (REQUEST_WANTS_TYPE (request, REQUEST_FILE_INFO)) {
+ 		invalidate_file_info (file);
+ 	}
+-	if (REQUEST_WANTS_TYPE (request, REQUEST_TOP_LEFT_TEXT)) {
+-		invalidate_top_left_text (file);
+-	}
+ 	if (REQUEST_WANTS_TYPE (request, REQUEST_LINK_INFO)) {
+ 		invalidate_link_info (file);
+ 	}
+@@ -7820,8 +7688,6 @@
+ 		NEMO_FILE_ATTRIBUTE_DEEP_COUNTS |
+ 		NEMO_FILE_ATTRIBUTE_DIRECTORY_ITEM_COUNT | 
+ 		NEMO_FILE_ATTRIBUTE_DIRECTORY_ITEM_MIME_TYPES | 
+-		NEMO_FILE_ATTRIBUTE_TOP_LEFT_TEXT | 
+-		NEMO_FILE_ATTRIBUTE_LARGE_TOP_LEFT_TEXT |
+ 		NEMO_FILE_ATTRIBUTE_EXTENSION_INFO |
+ 		NEMO_FILE_ATTRIBUTE_THUMBNAIL |
+ 		NEMO_FILE_ATTRIBUTE_MOUNT;
+@@ -8184,136 +8050,6 @@
+ 	}
+ }
+ 
+-static char *
+-try_to_make_utf8 (const char *text, int *length)
+-{
+-	static const char *encodings_to_try[2];
+-	static int n_encodings_to_try = 0;
+-        gsize converted_length;
+-        GError *conversion_error;
+-	char *utf8_text;
+-	int i;
+-	
+-	if (n_encodings_to_try == 0) {
+-		const char *charset;
+-		gboolean charset_is_utf8;
+-		
+-		charset_is_utf8 = g_get_charset (&charset);
+-		if (!charset_is_utf8) {
+-			encodings_to_try[n_encodings_to_try++] = charset;
+-		}
+-        
+-		if (g_ascii_strcasecmp (charset, "ISO-8859-1") != 0) {
+-			encodings_to_try[n_encodings_to_try++] = "ISO-8859-1";
+-		}
+-	}
+-
+-        utf8_text = NULL;
+-	for (i = 0; i < n_encodings_to_try; i++) {
+-		conversion_error = NULL;
+-		utf8_text = g_convert (text, *length, 
+-					   "UTF-8", encodings_to_try[i],
+-					   NULL, &converted_length, &conversion_error);
+-		if (utf8_text != NULL) {
+-			*length = converted_length;
+-			break;
+-		}
+-		g_error_free (conversion_error);
+-	}
+-	
+-	return utf8_text;
+-}
+-
+-
+-
+-/* Extract the top left part of the read-in text. */
+-char *
+-nemo_extract_top_left_text (const char *text,
+-				gboolean large,
+-				int length)
+-{
+-        GString* buffer;
+-	const gchar *in;
+-	const gchar *end;
+-	int line, i;
+-	gunichar c;
+-	char *text_copy;
+-	const char *utf8_end;
+-	gboolean validated;
+-	int max_bytes, max_lines, max_cols;
+-
+-	if (large) {
+-		max_bytes = NEMO_FILE_LARGE_TOP_LEFT_TEXT_MAXIMUM_BYTES;
+-		max_lines = NEMO_FILE_LARGE_TOP_LEFT_TEXT_MAXIMUM_LINES;
+-		max_cols = NEMO_FILE_LARGE_TOP_LEFT_TEXT_MAXIMUM_CHARACTERS_PER_LINE;
+-	} else {
+-		max_bytes = NEMO_FILE_TOP_LEFT_TEXT_MAXIMUM_BYTES;
+-		max_lines = NEMO_FILE_TOP_LEFT_TEXT_MAXIMUM_LINES;
+-		max_cols = NEMO_FILE_TOP_LEFT_TEXT_MAXIMUM_CHARACTERS_PER_LINE;
+-	}
+-			
+-	
+-
+-        text_copy = NULL;
+-        if (text != NULL) {
+-		/* Might be a partial utf8 character at the end if we didn't read whole file */
+-		validated = g_utf8_validate (text, length, &utf8_end);
+-		if (!validated &&
+-		    !(length >= max_bytes &&
+-		      text + length - utf8_end < 6)) {
+-			text_copy = try_to_make_utf8 (text, &length);
+-			text = text_copy;
+-		} else if (!validated) {
+-			length = utf8_end - text;
+-		}
+-        }
+-
+-	if (text == NULL || length == 0) {
+-		return NULL;
+-	}
+-
+-	buffer = g_string_new ("");
+-	end = text + length; in = text;
+-
+-	for (line = 0; line < max_lines; line++) {
+-		/* Extract one line. */
+-		for (i = 0; i < max_cols; ) {
+-			if (*in == '\n') {
+-				break;
+-			}
+-			
+-			c = g_utf8_get_char (in);
+-			
+-			if (g_unichar_isprint (c)) {
+-				g_string_append_unichar (buffer, c);
+-				i++;
+-			}
+-			
+-			in = g_utf8_next_char (in);
+-			if (in == end) {
+-				goto done;
+-			}
+-		}
+-
+-		/* Skip the rest of the line. */
+-		while (*in != '\n') {
+-			if (++in == end) {
+-				goto done;
+-			}
+-		}
+-		if (++in == end) {
+-			goto done;
+-		}
+-
+-		/* Put a new-line separator in. */
+-		g_string_append_c(buffer, '\n');
+-	}
+- done:
+-	g_free (text_copy);
+-
+-	return g_string_free(buffer, FALSE);
+-}
+-
+ static void
+ thumbnail_limit_changed_callback (gpointer user_data)
+ {
+Index: nemo/libnemo-private/nemo-file.h
+===================================================================
+--- nemo.orig/libnemo-private/nemo-file.h	2016-10-23 12:22:14.026438110 +0200
++++ nemo/libnemo-private/nemo-file.h	2016-10-23 12:22:37.311067157 +0200
+@@ -233,10 +233,6 @@
+ GList *                 nemo_file_get_keywords                      (NemoFile                   *file);
+ GList *                 nemo_file_get_emblem_icons                  (NemoFile                   *file,
+ 									 char                          **exclude);
+-char *                  nemo_file_get_top_left_text                 (NemoFile                   *file);
+-char *                  nemo_file_peek_top_left_text                (NemoFile                   *file,
+-									 gboolean                        need_large_text,
+-									 gboolean                       *got_top_left_text);
+ gboolean                nemo_file_get_directory_item_mime_types     (NemoFile                   *file,
+ 									 GList                         **mime_list);
+ 
+Index: nemo/libnemo-private/nemo-global-preferences.h
+===================================================================
+--- nemo.orig/libnemo-private/nemo-global-preferences.h	2016-10-23 12:22:14.026438110 +0200
++++ nemo/libnemo-private/nemo-global-preferences.h	2016-10-23 12:22:37.319067374 +0200
+@@ -189,7 +189,6 @@
+ 	NEMO_SPEED_TRADEOFF_NEVER
+ } NemoSpeedTradeoffValue;
+ 
+-#define NEMO_PREFERENCES_SHOW_TEXT_IN_ICONS		"show-icon-text"
+ #define NEMO_PREFERENCES_SHOW_DIRECTORY_ITEM_COUNTS "show-directory-item-counts"
+ #define NEMO_PREFERENCES_SHOW_IMAGE_FILE_THUMBNAILS	"show-image-thumbnails"
+ #define NEMO_PREFERENCES_IMAGE_FILE_THUMBNAIL_LIMIT	"thumbnail-limit"
+Index: nemo/libnemo-private/org.nemo.gschema.xml.in
+===================================================================
+--- nemo.orig/libnemo-private/org.nemo.gschema.xml.in	2016-10-23 12:22:14.030438218 +0200
++++ nemo/libnemo-private/org.nemo.gschema.xml.in	2016-10-23 12:22:37.319067374 +0200
+@@ -175,12 +175,6 @@
+       <_summary>Whether to swap the hotkeys for Trash and Delete</_summary>
+       <_description>If set to true, the Delete key will permanently delete a file, and the Shift-Delete key will only trash a file.</_description>
+     </key>
+-    <key name="show-icon-text" enum="org.nemo.SpeedTradeoff">
+-      <aliases><alias value='local_only' target='local-only'/></aliases>
+-      <default>'local-only'</default>
+-      <_summary>When to show preview text in icons</_summary>
+-      <_description>Speed tradeoff for when to show a preview of text file contents in the file's icon. If set to "always" then always show previews,  even if the folder is on a remote server. If set to "local-only" then only show previews for local file systems. If set to "never" then never bother to read preview data.</_description>
+-    </key>
+     <key name="show-directory-item-counts"  enum="org.nemo.SpeedTradeoff">
+       <aliases><alias value='local_only' target='local-only'/></aliases>
+       <default>'local-only'</default>
+Index: nemo/src/nemo-file-management-properties.c
+===================================================================
+--- nemo.orig/src/nemo-file-management-properties.c	2016-10-23 12:22:14.030438218 +0200
++++ nemo/src/nemo-file-management-properties.c	2016-10-23 12:22:37.319067374 +0200
+@@ -47,7 +47,6 @@
+ #define NEMO_FILE_MANAGEMENT_PROPERTIES_LIST_VIEW_ZOOM_WIDGET "list_view_zoom_combobox"
+ #define NEMO_FILE_MANAGEMENT_PROPERTIES_SORT_ORDER_WIDGET "sort_order_combobox"
+ #define NEMO_FILE_MANAGEMENT_PROPERTIES_DATE_FORMAT_WIDGET "date_format_combobox"
+-#define NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_TEXT_WIDGET "preview_text_combobox"
+ #define NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_IMAGE_WIDGET "preview_image_combobox"
+ #define NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_FOLDER_WIDGET "preview_folder_combobox"
+ #define NEMO_FILE_MANAGEMENT_PROPERTIES_SIZE_PREFIXES_WIDGET "size_prefixes_combobox"
+@@ -778,7 +777,7 @@
+ 							       3);
+ 	nemo_file_management_properties_size_group_create (builder,
+ 							       "preview_label",
+-							       4);
++							       3);
+ 	create_date_format_menu (builder);
+ 
+ 
+@@ -878,10 +877,6 @@
+ 			   NEMO_PREFERENCES_DEFAULT_SORT_ORDER,
+ 			   (const char **) sort_order_values);
+ 	bind_builder_enum (builder, nemo_preferences,
+-			   NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_TEXT_WIDGET,
+-			   NEMO_PREFERENCES_SHOW_TEXT_IN_ICONS,
+-			   (const char **) preview_values);
+-	bind_builder_enum (builder, nemo_preferences,
+ 			   NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_IMAGE_WIDGET,
+ 			   NEMO_PREFERENCES_SHOW_IMAGE_FILE_THUMBNAILS,
+ 			   (const char **) preview_values);
+Index: nemo/src/nemo-file-management-properties.glade
+===================================================================
+--- nemo.orig/src/nemo-file-management-properties.glade	2016-10-23 12:22:14.030438218 +0200
++++ nemo/src/nemo-file-management-properties.glade	2016-10-23 12:22:37.319067374 +0200
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+-<!-- Generated with glade 3.16.1 -->
++<!-- Generated with glade 3.20.0 -->
+ <interface>
+-  <requires lib="gtk+" version="3.0"/>
++  <requires lib="gtk+" version="3.10"/>
+   <object class="GtkListStore" id="model1">
+     <columns>
+       <!-- column-name gchararray -->
+@@ -253,14 +253,10 @@
+     <property name="window_position">center</property>
+     <property name="default_width">800</property>
+     <property name="default_height">600</property>
+-    <style>
+-      <class name="nemo-properties-dialog"/>
+-    </style>
+     <property name="type_hint">dialog</property>
+     <child internal-child="vbox">
+       <object class="GtkBox" id="dialog-vbox1">
+         <property name="visible">True</property>
+-        <property name="border_width">0</property>
+         <property name="can_focus">False</property>
+         <property name="orientation">vertical</property>
+         <property name="spacing">2</property>
+@@ -296,30 +292,31 @@
+           <object class="GtkToolbar" id="toolbar1">
+             <property name="visible">True</property>
+             <property name="can_focus">False</property>
+-            <style>
+-              <class name="primary-toolbar"/>
+-            </style>
+             <property name="toolbar_style">icons</property>
+             <child>
+               <object class="GtkToolItem" id="toolbutton1">
+                 <property name="visible">True</property>
+                 <property name="can_focus">False</property>
+-                <style>
+-                  <class name="raised"/>
+-                </style>
+                 <child>
+                   <object class="GtkStackSwitcher" id="stack-switcher">
+-                    <property name="halign">center</property>
+                     <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="halign">center</property>
+                     <property name="stack">stack1</property>
+                   </object>
+                 </child>
++                <style>
++                  <class name="raised"/>
++                </style>
+               </object>
+               <packing>
+                 <property name="expand">True</property>
+                 <property name="homogeneous">True</property>
+               </packing>
+             </child>
++            <style>
++              <class name="primary-toolbar"/>
++            </style>
+           </object>
+           <packing>
+             <property name="expand">False</property>
+@@ -334,14 +331,12 @@
+             <property name="margin_left">5</property>
+             <property name="margin_right">5</property>
+             <property name="margin_top">5</property>
+-            <style>
+-              <class name="view"/>
+-            </style>
++            <property name="label_xalign">0</property>
+             <child>
+               <object class="GtkStack" id="stack1">
+                 <property name="visible">True</property>
+                 <property name="can_focus">True</property>
+-                <property name="transition-type">slide-left-right</property>
++                <property name="transition_type">slide-left-right</property>
+                 <child>
+                   <object class="GtkScrolledWindow" id="scrolledwindow2">
+                     <property name="visible">True</property>
+@@ -366,9 +361,9 @@
+                                   <object class="GtkLabel" id="label4">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Default View&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -396,10 +391,10 @@
+                                               <object class="GtkLabel" id="views_label_0">
+                                                 <property name="visible">True</property>
+                                                 <property name="can_focus">False</property>
+-                                                <property name="xalign">0</property>
+                                                 <property name="label" translatable="yes">View _new folders using:</property>
+                                                 <property name="use_underline">True</property>
+                                                 <property name="mnemonic_widget">default_view_combobox</property>
++                                                <property name="xalign">0</property>
+                                               </object>
+                                               <packing>
+                                                 <property name="expand">False</property>
+@@ -441,10 +436,10 @@
+                                               <object class="GtkLabel" id="views_label_1">
+                                                 <property name="visible">True</property>
+                                                 <property name="can_focus">False</property>
+-                                                <property name="xalign">0</property>
+                                                 <property name="label" translatable="yes">_Arrange items:</property>
+                                                 <property name="use_underline">True</property>
+                                                 <property name="mnemonic_widget">sort_order_combobox</property>
++                                                <property name="xalign">0</property>
+                                               </object>
+                                               <packing>
+                                                 <property name="expand">False</property>
+@@ -531,9 +526,9 @@
+                                   <object class="GtkLabel" id="label5">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Icon View Defaults&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -561,10 +556,10 @@
+                                               <object class="GtkLabel" id="views_label_2">
+                                                 <property name="visible">True</property>
+                                                 <property name="can_focus">False</property>
+-                                                <property name="xalign">0</property>
+                                                 <property name="label" translatable="yes">Default _zoom level:</property>
+                                                 <property name="use_underline">True</property>
+                                                 <property name="mnemonic_widget">icon_view_zoom_combobox</property>
++                                                <property name="xalign">0</property>
+                                               </object>
+                                               <packing>
+                                                 <property name="expand">False</property>
+@@ -667,9 +662,9 @@
+                                   <object class="GtkLabel" id="label">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Compact View Defaults&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -697,10 +692,10 @@
+                                               <object class="GtkLabel" id="views_label_4">
+                                                 <property name="visible">True</property>
+                                                 <property name="can_focus">False</property>
+-                                                <property name="xalign">0</property>
+                                                 <property name="label" translatable="yes">_Default zoom level:</property>
+                                                 <property name="use_underline">True</property>
+                                                 <property name="mnemonic_widget">compact_view_zoom_combobox</property>
++                                                <property name="xalign">0</property>
+                                               </object>
+                                               <packing>
+                                                 <property name="expand">False</property>
+@@ -787,9 +782,9 @@
+                                   <object class="GtkLabel" id="label6">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;List View Defaults&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -817,10 +812,10 @@
+                                               <object class="GtkLabel" id="views_label_3">
+                                                 <property name="visible">True</property>
+                                                 <property name="can_focus">False</property>
+-                                                <property name="xalign">0</property>
+                                                 <property name="label" translatable="yes">D_efault zoom level:</property>
+                                                 <property name="use_underline">True</property>
+                                                 <property name="mnemonic_widget">list_view_zoom_combobox</property>
++                                                <property name="xalign">0</property>
+                                               </object>
+                                               <packing>
+                                                 <property name="expand">False</property>
+@@ -891,9 +886,9 @@
+                                   <object class="GtkLabel" id="label25">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Tree View Defaults&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -978,9 +973,9 @@
+                                   <object class="GtkLabel" id="label10">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Behavior&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -1156,9 +1151,9 @@
+                                   <object class="GtkLabel" id="label12">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Executable Text Files&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -1266,9 +1261,9 @@
+                                   <object class="GtkLabel" id="label14">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Trash&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -1372,9 +1367,9 @@
+                                   <object class="GtkLabel" id="label214">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Media Handling&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -1495,9 +1490,9 @@
+                                   <object class="GtkLabel" id="label11">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Bulk Rename&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -1525,8 +1520,8 @@
+                                               <object class="GtkLabel" id="label13">
+                                                 <property name="visible">True</property>
+                                                 <property name="can_focus">False</property>
+-                                                <property name="xalign">0</property>
+                                                 <property name="label" translatable="yes">Command to invoke when renaming multiple items:</property>
++                                                <property name="xalign">0</property>
+                                               </object>
+                                               <packing>
+                                                 <property name="expand">False</property>
+@@ -1579,6 +1574,7 @@
+                   <packing>
+                     <property name="name">behavior</property>
+                     <property name="title" translatable="yes">Behavior</property>
++                    <property name="position">1</property>
+                   </packing>
+                 </child>
+                 <child>
+@@ -1605,9 +1601,9 @@
+                                   <object class="GtkLabel" id="label28">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Icon Captions&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -1630,9 +1626,9 @@
+                                           <object class="GtkLabel" id="label29">
+                                             <property name="visible">True</property>
+                                             <property name="can_focus">False</property>
+-                                            <property name="xalign">0</property>
+                                             <property name="label" translatable="yes">Choose the order of information to appear beneath icon names. More information will appear when zooming in closer.</property>
+                                             <property name="wrap">True</property>
++                                            <property name="xalign">0</property>
+                                           </object>
+                                           <packing>
+                                             <property name="expand">False</property>
+@@ -1781,9 +1777,9 @@
+                                   <object class="GtkLabel" id="label34">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Date&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -1864,9 +1860,9 @@
+                                   <object class="GtkLabel" id="label100">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Window and Tab Titles&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -1939,9 +1935,9 @@
+                                   <object class="GtkLabel" id="label7">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;File Size&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -2029,9 +2025,9 @@
+                                   <object class="GtkLabel" id="label9">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;File Properties&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -2104,9 +2100,9 @@
+                                   <object class="GtkLabel" id="label15">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Move/Copy To Menu&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -2181,6 +2177,7 @@
+                   <packing>
+                     <property name="name">display</property>
+                     <property name="title" translatable="yes">Display</property>
++                    <property name="position">2</property>
+                   </packing>
+                 </child>
+                 <child>
+@@ -2208,9 +2205,9 @@
+                                   <object class="GtkLabel" id="label31">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;List Columns&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -2233,9 +2230,9 @@
+                                           <object class="GtkLabel" id="label33">
+                                             <property name="visible">True</property>
+                                             <property name="can_focus">False</property>
+-                                            <property name="xalign">0</property>
+                                             <property name="label" translatable="yes">Choose the order of information to appear in the list view.</property>
+                                             <property name="wrap">True</property>
++                                            <property name="xalign">0</property>
+                                           </object>
+                                           <packing>
+                                             <property name="expand">False</property>
+@@ -2270,6 +2267,7 @@
+                   <packing>
+                     <property name="name">list-columns</property>
+                     <property name="title" translatable="yes">List Columns</property>
++                    <property name="position">3</property>
+                   </packing>
+                 </child>
+                 <child>
+@@ -2286,110 +2284,6 @@
+                             <property name="can_focus">False</property>
+                             <property name="orientation">vertical</property>
+                             <child>
+-                              <object class="GtkBox" id="vbox10">
+-                                <property name="visible">True</property>
+-                                <property name="can_focus">False</property>
+-                                <property name="border_width">6</property>
+-                                <property name="orientation">vertical</property>
+-                                <property name="spacing">6</property>
+-                                <child>
+-                                  <object class="GtkLabel" id="label16">
+-                                    <property name="visible">True</property>
+-                                    <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+-                                    <property name="label" translatable="yes">&lt;b&gt;Text Files&lt;/b&gt;</property>
+-                                    <property name="use_markup">True</property>
+-                                  </object>
+-                                  <packing>
+-                                    <property name="expand">False</property>
+-                                    <property name="fill">False</property>
+-                                    <property name="position">0</property>
+-                                  </packing>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkAlignment" id="alignment10">
+-                                    <property name="visible">True</property>
+-                                    <property name="can_focus">False</property>
+-                                    <property name="left_padding">40</property>
+-                                    <child>
+-                                      <object class="GtkBox" id="vbox20">
+-                                        <property name="visible">True</property>
+-                                        <property name="can_focus">False</property>
+-                                        <property name="orientation">vertical</property>
+-                                        <property name="spacing">6</property>
+-                                        <child>
+-                                          <object class="GtkBox" id="hbox24">
+-                                            <property name="visible">True</property>
+-                                            <property name="can_focus">False</property>
+-                                            <property name="spacing">12</property>
+-                                            <child>
+-                                              <object class="GtkLabel" id="preview_label_0">
+-                                                <property name="visible">True</property>
+-                                                <property name="can_focus">False</property>
+-                                                <property name="xalign">0</property>
+-                                                <property name="label" translatable="yes">Show te_xt in icons:</property>
+-                                                <property name="use_underline">True</property>
+-                                                <property name="mnemonic_widget">preview_text_combobox</property>
+-                                              </object>
+-                                              <packing>
+-                                                <property name="expand">False</property>
+-                                                <property name="fill">False</property>
+-                                                <property name="position">0</property>
+-                                              </packing>
+-                                            </child>
+-                                            <child>
+-                                              <object class="GtkComboBox" id="preview_text_combobox">
+-                                                <property name="visible">True</property>
+-                                                <property name="can_focus">False</property>
+-                                                <property name="model">model6</property>
+-                                                <child>
+-                                                  <object class="GtkCellRendererText" id="renderer6"/>
+-                                                  <attributes>
+-                                                    <attribute name="text">0</attribute>
+-                                                  </attributes>
+-                                                </child>
+-                                              </object>
+-                                              <packing>
+-                                                <property name="expand">False</property>
+-                                                <property name="fill">False</property>
+-                                                <property name="position">1</property>
+-                                              </packing>
+-                                            </child>
+-                                          </object>
+-                                          <packing>
+-                                            <property name="expand">False</property>
+-                                            <property name="fill">False</property>
+-                                            <property name="position">0</property>
+-                                          </packing>
+-                                        </child>
+-                                      </object>
+-                                    </child>
+-                                  </object>
+-                                  <packing>
+-                                    <property name="expand">False</property>
+-                                    <property name="fill">False</property>
+-                                    <property name="position">1</property>
+-                                  </packing>
+-                                </child>
+-                              </object>
+-                              <packing>
+-                                <property name="expand">False</property>
+-                                <property name="fill">True</property>
+-                                <property name="position">0</property>
+-                              </packing>
+-                            </child>
+-                            <child>
+-                              <object class="GtkSeparator" id="separator14">
+-                                <property name="visible">True</property>
+-                                <property name="can_focus">False</property>
+-                              </object>
+-                              <packing>
+-                                <property name="expand">False</property>
+-                                <property name="fill">True</property>
+-                                <property name="position">1</property>
+-                              </packing>
+-                            </child>
+-                            <child>
+                               <object class="GtkBox" id="vbox11">
+                                 <property name="visible">True</property>
+                                 <property name="can_focus">False</property>
+@@ -2400,9 +2294,9 @@
+                                   <object class="GtkLabel" id="label18">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+-                                    <property name="label" translatable="yes">&lt;b&gt;Other Previewable Files&lt;/b&gt;</property>
++                                    <property name="label" translatable="yes">&lt;b&gt;Previewable Files&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -2427,13 +2321,13 @@
+                                             <property name="can_focus">False</property>
+                                             <property name="spacing">12</property>
+                                             <child>
+-                                              <object class="GtkLabel" id="preview_label_1">
++                                              <object class="GtkLabel" id="preview_label_0">
+                                                 <property name="visible">True</property>
+                                                 <property name="can_focus">False</property>
+-                                                <property name="xalign">0</property>
+                                                 <property name="label" translatable="yes">Show _thumbnails:</property>
+                                                 <property name="use_underline">True</property>
+                                                 <property name="mnemonic_widget">preview_image_combobox</property>
++                                                <property name="xalign">0</property>
+                                               </object>
+                                               <packing>
+                                                 <property name="expand">False</property>
+@@ -2472,13 +2366,13 @@
+                                             <property name="can_focus">False</property>
+                                             <property name="spacing">12</property>
+                                             <child>
+-                                              <object class="GtkLabel" id="preview_label_2">
++                                              <object class="GtkLabel" id="preview_label_1">
+                                                 <property name="visible">True</property>
+                                                 <property name="can_focus">False</property>
+-                                                <property name="xalign">0</property>
+                                                 <property name="label" translatable="yes">_Only for files smaller than:</property>
+                                                 <property name="use_underline">True</property>
+                                                 <property name="mnemonic_widget">preview_image_size_combobox</property>
++                                                <property name="xalign">0</property>
+                                               </object>
+                                               <packing>
+                                                 <property name="expand">False</property>
+@@ -2524,7 +2418,7 @@
+                               <packing>
+                                 <property name="expand">False</property>
+                                 <property name="fill">True</property>
+-                                <property name="position">2</property>
++                                <property name="position">0</property>
+                               </packing>
+                             </child>
+                             <child>
+@@ -2535,7 +2429,7 @@
+                               <packing>
+                                 <property name="expand">False</property>
+                                 <property name="fill">True</property>
+-                                <property name="position">3</property>
++                                <property name="position">1</property>
+                               </packing>
+                             </child>
+                             <child>
+@@ -2549,9 +2443,9 @@
+                                   <object class="GtkLabel" id="label22">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Folders&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -2576,13 +2470,13 @@
+                                             <property name="can_focus">False</property>
+                                             <property name="spacing">12</property>
+                                             <child>
+-                                              <object class="GtkLabel" id="preview_label_3">
++                                              <object class="GtkLabel" id="preview_label_2">
+                                                 <property name="visible">True</property>
+                                                 <property name="can_focus">False</property>
+-                                                <property name="xalign">0</property>
+                                                 <property name="label" translatable="yes">Count _number of items:</property>
+                                                 <property name="use_underline">True</property>
+                                                 <property name="mnemonic_widget">preview_folder_combobox</property>
++                                                <property name="xalign">0</property>
+                                               </object>
+                                               <packing>
+                                                 <property name="expand">False</property>
+@@ -2628,7 +2522,7 @@
+                               <packing>
+                                 <property name="expand">False</property>
+                                 <property name="fill">True</property>
+-                                <property name="position">4</property>
++                                <property name="position">2</property>
+                               </packing>
+                             </child>
+                             <child>
+@@ -2639,7 +2533,7 @@
+                               <packing>
+                                 <property name="expand">False</property>
+                                 <property name="fill">True</property>
+-                                <property name="position">5</property>
++                                <property name="position">3</property>
+                               </packing>
+                             </child>
+                             <child>
+@@ -2653,9 +2547,9 @@
+                                   <object class="GtkLabel" id="label17">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Tooltips&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -2729,10 +2623,10 @@
+                                           <object class="GtkLabel" id="label19">
+                                             <property name="visible">True</property>
+                                             <property name="can_focus">False</property>
+-                                            <property name="xalign">0</property>
+                                             <property name="label" translatable="yes">&lt;i&gt;By default, a folder tooltip shows the item count, and files display their size.
+     Select additional information to display in the tooltip:&lt;/i&gt;</property>
+                                             <property name="use_markup">True</property>
++                                            <property name="xalign">0</property>
+                                           </object>
+                                           <packing>
+                                             <property name="expand">False</property>
+@@ -2836,7 +2730,7 @@
+                               <packing>
+                                 <property name="expand">False</property>
+                                 <property name="fill">True</property>
+-                                <property name="position">6</property>
++                                <property name="position">4</property>
+                               </packing>
+                             </child>
+                           </object>
+@@ -2847,6 +2741,7 @@
+                   <packing>
+                     <property name="name">preview</property>
+                     <property name="title" translatable="yes">Preview</property>
++                    <property name="position">4</property>
+                   </packing>
+                 </child>
+                 <child>
+@@ -2873,9 +2768,9 @@
+                                   <object class="GtkLabel" id="label39">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">False</property>
+-                                    <property name="xalign">0</property>
+                                     <property name="label" translatable="yes">&lt;b&gt;Options&lt;/b&gt;</property>
+                                     <property name="use_markup">True</property>
++                                    <property name="xalign">0</property>
+                                   </object>
+                                   <packing>
+                                     <property name="expand">False</property>
+@@ -3127,10 +3022,14 @@
+                   <packing>
+                     <property name="name">toolbar</property>
+                     <property name="title" translatable="yes">Toolbar</property>
++                    <property name="position">5</property>
+                   </packing>
+                 </child>
+               </object>
+             </child>
++            <style>
++              <class name="view"/>
++            </style>
+           </object>
+           <packing>
+             <property name="expand">True</property>
+@@ -3143,6 +3042,9 @@
+     <action-widgets>
+       <action-widget response="-7">closebutton1</action-widget>
+     </action-widgets>
++    <style>
++      <class name="nemo-properties-dialog"/>
++    </style>
+   </object>
+   <object class="GtkListStore" id="model9">
+     <columns>
+Index: nemo/src/nemo-icon-view-container.c
+===================================================================
+--- nemo.orig/src/nemo-icon-view-container.c	2016-10-23 12:22:14.030438218 +0200
++++ nemo/src/nemo-icon-view-container.c	2016-10-23 12:22:37.323067481 +0200
+@@ -48,6 +48,7 @@
+ 	return ((NemoIconViewContainer *)container)->view;
+ }
+ 
++
+ static NemoIconInfo *
+ nemo_icon_view_container_get_icon_images (NemoIconContainer *container,
+ 					      NemoIconData      *data,
+@@ -61,7 +62,6 @@
+ 	NemoIconView *icon_view;
+ 	char **emblems_to_ignore;
+ 	NemoFile *file;
+-	gboolean use_embedding;
+ 	NemoFileIconFlags flags;
+ 	NemoIconInfo *icon_info;
+ 	GdkPixbuf *pixbuf;
+@@ -75,21 +75,12 @@
+ 	g_assert (NEMO_IS_FILE (file));
+ 	icon_view = get_icon_view (container);
+ 	g_return_val_if_fail (icon_view != NULL, NULL);
+-
+-	use_embedding = FALSE;
+-	if (embedded_text) {
+-		*embedded_text = nemo_file_peek_top_left_text (file, need_large_embeddded_text, embedded_text_needs_loading);
+-		use_embedding = *embedded_text != NULL;
+-	}
+ 	
+ 	*has_window_open = nemo_file_has_open_window (file);
+ 
+ 	flags = NEMO_FILE_ICON_FLAGS_USE_MOUNT_ICON_AS_EMBLEM |
+ 			NEMO_FILE_ICON_FLAGS_USE_THUMBNAILS;
+ 
+-	if (use_embedding) {
+-		flags |= NEMO_FILE_ICON_FLAGS_EMBEDDING_TEXT;
+-	}
+ 	if (for_drag_accept) {
+ 		flags |= NEMO_FILE_ICON_FLAGS_FOR_DRAG_ACCEPT;
+ 	}

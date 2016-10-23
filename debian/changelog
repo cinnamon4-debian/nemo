@@ -1,8 +1,12 @@
-nemo (3.0.6-4~1.gbp12638c) UNRELEASED; urgency=medium
+nemo (3.0.6-4~2) UNRELEASED; urgency=medium
 
-  ** SNAPSHOT build @12638c9762249f9d7fe90c2fa834d5981676e032 **
-
+  [ Maximiliano Curia ]
   * Add new patch: Make-AX_-macros-optional.patch
+
+  [ Margarita Manterola ]
+  * Add new patch: debian/patches/remove-text-icon-preview.patch.
+    Removes preview from icons now that GTK doesn't support it anymore.
+    Thanks to John Kirk for reporting. (Closes: #838526)
 
  -- Maximiliano Curia <maxy@gnuservers.com.ar>  Sun, 18 Sep 2016 17:42:40 +0200
 
