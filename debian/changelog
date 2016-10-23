@@ -1,4 +1,4 @@
-nemo (3.0.6-4~3) UNRELEASED; urgency=medium
+nemo (3.0.6-4) unstable; urgency=medium
 
   [ Maximiliano Curia ]
   * Add new patch: Make-AX_-macros-optional.patch
@@ -10,7 +10,7 @@ nemo (3.0.6-4~3) UNRELEASED; urgency=medium
   * Replace dbus-launch with dbus-run-session for tests.
     Thanks to Simon McVittie for reporting (Closes: #836036)
 
- -- Maximiliano Curia <maxy@gnuservers.com.ar>  Sun, 18 Sep 2016 17:42:40 +0200
+ -- Margarita Manterola <marga@debian.org>  Sun, 23 Oct 2016 17:26:28 +0200
 
 nemo (3.0.6-3) unstable; urgency=medium
 
