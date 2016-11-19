@@ -1,7 +1,7 @@
 nemo (3.0.6-5~) UNRELEASED; urgency=medium
 
   [ Maximiliano Curia ]
-  * Add new upstream patch: desktop-Don-t-rebuild-the-desktop-any-time-_NET_WORKAREA-.patch.
+  * Add new upstream patch: no-over-rebuild-desktop.patch
     Thanks to Norbert Preining for reporting and following this upstream
     (Closes: 825589)
 
