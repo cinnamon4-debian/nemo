@@ -491,7 +491,11 @@ nemo_path_bar_get_preferred_width (GtkWidget *widget,
         *minimum = MAX (*minimum, child_min);
         *natural = MAX (*natural, child_nat);
     }
-    path_bar->priv->slider_width = MIN (height * 2 / 3 + 5, height);
+
+    gtk_widget_get_preferred_width (path_bar->priv->down_slider_button,
+                                    &path_bar->priv->slider_width,
+                                    NULL);
+
     *minimum += path_bar->priv->slider_width * 2;
     *natural += path_bar->priv->slider_width * 2;
 }
@@ -617,6 +621,10 @@ nemo_path_bar_size_allocate (GtkWidget     *widget,
         return;
     }
     direction = gtk_widget_get_direction (widget);
+
+    gtk_widget_get_preferred_width (path_bar->priv->up_slider_button,
+                                    &path_bar->priv->slider_width,
+                                    NULL);
 
     gtk_widget_get_preferred_size (BUTTON_DATA (path_bar->priv->button_list->data)->button,
                        NULL, &child_requisition);
@@ -1741,7 +1749,7 @@ button_drag_data_get_cb (GtkWidget          *widget,
     if (info == NEMO_ICON_DND_GNOME_ICON_LIST) {
         tmp = g_strdup_printf ("%s\r\n", uri_list[0]);
         gtk_selection_data_set (selection_data, gtk_selection_data_get_target (selection_data),
-                    8, tmp, strlen (tmp));
+                    8, (const guchar *) tmp, strlen (tmp));
         g_free (tmp);
     } else if (info == NEMO_ICON_DND_URI_LIST) {
         gtk_selection_data_set_uris (selection_data, uri_list);
