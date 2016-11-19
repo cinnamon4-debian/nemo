@@ -1,6 +1,4 @@
-nemo (3.0.6-4~1.gbp12638c) UNRELEASED; urgency=medium
-
-  ** SNAPSHOT build @12638c9762249f9d7fe90c2fa834d5981676e032 **
+nemo (3.0.6-4~) UNRELEASED; urgency=medium
 
   * Add new patch: Make-AX_-macros-optional.patch
   * Update changelog for 3.0.6-4~1.gbp12638c release
