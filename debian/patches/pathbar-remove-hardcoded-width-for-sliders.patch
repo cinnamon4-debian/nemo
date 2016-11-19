@@ -1,7 +1,6 @@
-From db9eda06aef1081268fd1b40355be70dbf705801 Mon Sep 17 00:00:00 2001
 From: itzexor <itzexor@gmail.com>
 Date: Sun, 12 Jun 2016 15:08:44 -0700
-Subject: [PATCH] pathbar: remove hardcoded width for sliders
+Subject: pathbar: remove hardcoded width for sliders
 
 from https://github.com/GNOME/nautilus/commit/6d87f24a8bc6bd5c376c0cb851fb24e440d766f6
 ---
@@ -25,6 +24,3 @@ index a6c76cb..11bd09a 100644
      *minimum += path_bar->priv->slider_width * 2;
      *natural += path_bar->priv->slider_width * 2;
  }
--- 
-2.9.3
-

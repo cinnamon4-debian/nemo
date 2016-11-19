@@ -7,3 +7,4 @@ pathbar-remove-hardcoded-width-for-sliders.patch
 fix-desktop-redraw
 Make-AX_-macros-optional.patch
 remove-text-icon-preview.patch
+desktop-Don-t-rebuild-the-desktop-any-time-_NET_WORKAREA-.patch
