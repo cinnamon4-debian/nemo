@@ -189,7 +189,6 @@ typedef enum
 	NEMO_SPEED_TRADEOFF_NEVER
 } NemoSpeedTradeoffValue;
 
-#define NEMO_PREFERENCES_SHOW_TEXT_IN_ICONS		"show-icon-text"
 #define NEMO_PREFERENCES_SHOW_DIRECTORY_ITEM_COUNTS "show-directory-item-counts"
 #define NEMO_PREFERENCES_SHOW_IMAGE_FILE_THUMBNAILS	"show-image-thumbnails"
 #define NEMO_PREFERENCES_IMAGE_FILE_THUMBNAIL_LIMIT	"thumbnail-limit"
@@ -207,6 +206,7 @@ typedef enum
 #define NEMO_PREFERENCES_DESKTOP_VOLUMES_VISIBLE	   "volumes-visible"
 #define NEMO_PREFERENCES_DESKTOP_NETWORK_VISIBLE       "network-icon-visible"
 #define NEMO_PREFERENCES_DESKTOP_BACKGROUND_FADE       "background-fade"
+#define NEMO_PREFERENCES_DESKTOP_IGNORED_DESKTOP_HANDLERS "ignored-desktop-handlers"
 
 /* bulk rename utility */
 #define NEMO_PREFERENCES_BULK_RENAME_TOOL              "bulk-rename-tool"
@@ -252,6 +252,8 @@ typedef enum
 
 /* File operations queue */
 #define NEMO_PREFERENCES_NEVER_QUEUE_FILE_OPS          "never-queue-file-ops"
+
+#define NEMO_PREFERENCES_CLICK_DOUBLE_PARENT_FOLDER    "click-double-parent-folder"
 
 void nemo_global_preferences_init                      (void);
 char *nemo_global_preferences_get_default_folder_viewer_preference_as_iid (void);

@@ -375,27 +375,13 @@ icon_set_position (NemoIcon *icon,
 	}
 
 	if (nemo_icon_container_get_is_fixed_size (container)) {
-		/*  FIXME: This should be:
-		    
-		container_x = GTK_WIDGET (container)->allocation.x;
-		container_y = GTK_WIDGET (container)->allocation.y;
-		container_width = GTK_WIDGET (container)->allocation.width;
-		container_height = GTK_WIDGET (container)->allocation.height;
+        GtkAllocation alloc;
 
-		But for some reason the widget allocation is sometimes not done
-		at startup, and the allocation is then only 45x60. which is
-		really bad.
-
-		For now, we have a cheesy workaround:
-		*/
-		container_x = 0;
-		container_y = 0;
-		container_width = gdk_screen_width () - container_x
-			- container->details->left_margin
-			- container->details->right_margin;
-		container_height = gdk_screen_height () - container_y
-			- container->details->top_margin
-			- container->details->bottom_margin;
+        gtk_widget_get_allocation (GTK_WIDGET (container), &alloc);
+		container_x = alloc.x;
+		container_y = alloc.y;
+		container_width = alloc.width - container->details->left_margin - container->details->right_margin;
+		container_height = alloc.height - container->details->top_margin - container->details->bottom_margin;
 		pixels_per_unit = EEL_CANVAS (container)->pixels_per_unit;
 		/* Clip the position of the icon within our desktop bounds */
 		container_left = container_x / pixels_per_unit;
@@ -1339,6 +1325,7 @@ lay_down_icons_horizontal (NemoIconContainer *container,
 	double max_text_width, max_icon_width;
 	int icon_width;
 	int i;
+	int num_columns;
 	GtkAllocation allocation;
 
 	g_assert (NEMO_IS_ICON_CONTAINER (container));
@@ -1368,7 +1355,11 @@ lay_down_icons_horizontal (NemoIconContainer *container,
 
 		grid_width = max_icon_width + max_text_width + ICON_PAD_LEFT + ICON_PAD_RIGHT;
 	} else {
-		grid_width = STANDARD_ICON_GRID_WIDTH;
+		num_columns = floor(canvas_width / STANDARD_ICON_GRID_WIDTH);
+		num_columns = fmax(num_columns, 1);
+		/* Minimum of one column */
+		grid_width = canvas_width / num_columns - 1;
+		/* -1 prevents jitter */
 	}
 
     gridded_layout = !nemo_icon_container_is_tighter_layout (container);
@@ -2069,7 +2060,7 @@ lay_down_icons_vertical_desktop (NemoIconContainer *container, GList *icons)
 						     icon,
 						     x, y,
 						     &x, &y);
-				
+
 				icon_set_position (icon, x, y);
 				icon->saved_ltr_x = x;
 				placement_grid_mark_icon (grid, icon);
@@ -2166,7 +2157,7 @@ lay_down_icons_vertical_desktop (NemoIconContainer *container, GList *icons)
 					x += column_width + DESKTOP_PAD_HORIZONTAL;
 					break;
 				}
-				
+
 				icon_set_position (icon,
 						   center_x - (icon_rect.x1 - icon_rect.x0) / 2,
 						   y);
@@ -4249,11 +4240,13 @@ realize (GtkWidget *widget)
 
 	container = NEMO_ICON_CONTAINER (widget);
 
+#if !GTK_CHECK_VERSION(3, 21, 0)
 	/* Ensure that the desktop window is native so the background
 	   set on it is drawn by X. */
 	if (container->details->is_desktop) {
 		gdk_x11_window_get_xid (gtk_layout_get_bin_window (GTK_LAYOUT (widget)));
 	}
+#endif
 
 	/* Set up DnD.  */
 	nemo_icon_dnd_init (container);
@@ -7237,7 +7230,6 @@ static void
 finish_adding_icon (NemoIconContainer *container,
 		    NemoIcon *icon)
 {
-	nemo_icon_container_update_icon (container, icon);
 	eel_canvas_item_show (EEL_CANVAS_ITEM (icon->item));
 
 	g_signal_connect_object (icon->item, "event",
@@ -7261,6 +7253,7 @@ finish_adding_new_icons (NemoIconContainer *container)
 	no_position_icons = semi_position_icons = NULL;
 	for (p = new_icons; p != NULL; p = p->next) {
 		icon = p->data;
+        nemo_icon_container_update_icon (container, icon);
 		if (icon->has_lazy_position) {
 			assign_icon_position (container, icon);
 			semi_position_icons = g_list_prepend (semi_position_icons, icon);

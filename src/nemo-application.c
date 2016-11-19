@@ -82,6 +82,7 @@
 #include <libnotify/notify.h>
 #include <gdk/gdkx.h>
 #include <gtk/gtk.h>
+#include <X11/Xatom.h>
 
 #define GNOME_DESKTOP_USE_UNSTABLE_API
 
@@ -456,6 +457,7 @@ open_window (NemoApplication *application,
 {
 	NemoWindow *window;
 	gchar *uri;
+	gboolean have_geometry;
 
 	uri = g_file_get_uri (location);
 	DEBUG ("Opening new window at uri %s", uri);
@@ -464,7 +466,9 @@ open_window (NemoApplication *application,
 						     screen);
 	nemo_window_go_to (window, location);
 
-	if (geometry != NULL && !gtk_widget_get_visible (GTK_WIDGET (window))) {
+	have_geometry = geometry != NULL && strcmp(geometry, "") != 0;
+
+	if (have_geometry && !gtk_widget_get_visible (GTK_WIDGET (window))) {
 		/* never maximize windows opened from shell if a
 		 * custom geometry has been requested.
 		 */
@@ -527,15 +531,13 @@ static void
 nemo_application_open (GApplication *app,
 			   GFile **files,
 			   gint n_files,
-			   const gchar *hint)
+			   const gchar *geometry)
 {
 	NemoApplication *self = NEMO_APPLICATION (app);
 
 	DEBUG ("Open called on the GApplication instance; %d files", n_files);
 
-	open_windows (self, files, n_files,
-		      gdk_screen_get_default (),
-		      self->priv->geometry);
+	open_windows (self, files, n_files, gdk_screen_get_default (), geometry);
 }
 
 static GObject *
@@ -681,7 +683,7 @@ nemo_application_local_command_line (GApplication *application,
 	gboolean browser = FALSE;
 	gboolean kill_shell = FALSE;
 	gboolean no_default_window = FALSE;
-    gboolean fix_cache = FALSE;
+	gboolean fix_cache = FALSE;
 	gchar **remaining = NULL;
 	NemoApplication *self = NEMO_APPLICATION (application);
 
@@ -813,10 +815,13 @@ nemo_application_local_command_line (GApplication *application,
 		files[0] = g_file_new_for_path (g_get_home_dir ());
 		files[1] = NULL;
 	}
-
 	/* Invoke "Open" to create new windows */
 	if (len > 0) {
-		g_application_open (application, files, len, "");
+		if (self->priv->geometry != NULL) {
+			g_application_open (application, files, len, self->priv->geometry);
+		} else {
+			g_application_open (application, files, len, "");
+		}
 	}
 
 	for (idx = 0; idx < len; idx++) {
@@ -1021,6 +1026,147 @@ menu_state_changed_callback (NemoApplication *self)
 
 }
 
+/* from libwnck/xutils.c, comes as LGPLv2+ */
+static char *
+latin1_to_utf8 (const char *latin1)
+{
+  GString *str;
+  const char *p;
+
+  str = g_string_new (NULL);
+
+  p = latin1;
+  while (*p)
+    {
+      g_string_append_unichar (str, (gunichar) *p);
+      ++p;
+    }
+
+  return g_string_free (str, FALSE);
+}
+
+/* derived from libwnck/xutils.c, comes as LGPLv2+ */
+static void
+_get_wmclass (Display *xdisplay,
+              Window   xwindow,
+              char   **res_class,
+              char   **res_name)
+{
+  XClassHint ch;
+
+  ch.res_name = NULL;
+  ch.res_class = NULL;
+
+  gdk_error_trap_push ();
+  XGetClassHint (xdisplay, xwindow, &ch);
+  gdk_error_trap_pop_ignored ();
+
+  if (res_class)
+    *res_class = NULL;
+
+  if (res_name)
+    *res_name = NULL;
+
+  if (ch.res_name)
+    {
+      if (res_name)
+        *res_name = latin1_to_utf8 (ch.res_name);
+
+      XFree (ch.res_name);
+    }
+
+  if (ch.res_class)
+    {
+      if (res_class)
+        *res_class = latin1_to_utf8 (ch.res_class);
+
+      XFree (ch.res_class);
+    }
+}
+
+static gboolean
+desktop_handler_is_ignored (GdkWindow *window)
+{
+    gboolean ret;
+    Window xw;
+    Display *xd;
+    guint i;
+
+    gchar **ignored = g_settings_get_strv (nemo_desktop_preferences,
+                                           NEMO_PREFERENCES_DESKTOP_IGNORED_DESKTOP_HANDLERS);
+
+    if (ignored == NULL) {
+        return FALSE;
+    }
+
+    ret = FALSE;
+
+    xw = gdk_x11_window_get_xid (GDK_X11_WINDOW (window));
+    xd = gdk_x11_display_get_xdisplay (gdk_display_get_default ());
+
+    for (i = 0; i < g_strv_length (ignored); i++) {
+        gchar *wmclass, *wm_class_casefolded, *match_string_casefolded;
+
+        _get_wmclass (xd, xw, &wmclass, NULL);
+
+        if (wmclass != NULL) {
+            wm_class_casefolded = g_utf8_casefold (wmclass, -1);
+            match_string_casefolded = g_utf8_casefold (ignored[i], -1);
+
+            if (g_strstr_len (wm_class_casefolded, -1, match_string_casefolded) != NULL) {
+                ret = TRUE;
+            }
+
+            g_free (wm_class_casefolded);
+            g_free (match_string_casefolded);
+
+            g_free (wmclass);
+        }
+
+        if (ret == TRUE)
+            break;
+    }
+
+    g_strfreev (ignored);
+
+    return ret;
+}
+
+static gboolean
+desktop_already_managed (void)
+{
+    GdkScreen *screen;
+    GList *windows, *iter;
+    gboolean ret;
+
+    screen = gdk_screen_get_default ();
+
+    windows = gdk_screen_get_window_stack (screen);
+
+    ret = FALSE;
+
+    for (iter = windows; iter != NULL; iter = iter->next) {
+        GdkWindow *window = GDK_WINDOW (iter->data);
+
+        if (gdk_window_get_type_hint (window) == GDK_WINDOW_TYPE_HINT_DESKTOP) {
+            if (!desktop_handler_is_ignored (window)) {
+                ret = TRUE;
+            }
+
+            break;
+        }
+    }
+
+    g_list_free_full (windows, (GDestroyNotify) g_object_unref);
+
+    if (ret) {
+        g_warning ("Desktop already managed by another application, skipping desktop setup.\n"
+                   "To change this, modify org.nemo.desktop 'ignored-desktop-handlers'.\n");
+    }
+
+    return ret;
+}
+
 static void
 nemo_application_startup (GApplication *app)
 {
@@ -1099,7 +1245,9 @@ nemo_application_startup (GApplication *app)
             self->priv->cache_problem = TRUE;
     }
 
-    if (geteuid() != 0)
+    self->priv->desktop_manager = NULL;
+
+    if (geteuid () != 0 && !desktop_already_managed ())
         init_desktop (self);
 }
 
