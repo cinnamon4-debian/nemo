@@ -1,4 +1,4 @@
-nemo (3.2.0-1) UNRELEASED; urgency=medium
+nemo (3.2.0-1~) UNRELEASED; urgency=medium
 
   [ Maximiliano Curia ]
   * Add new upstream patch: no-over-rebuild-desktop.patch
