@@ -4,6 +4,18 @@ nemo (3.2.0-1~) UNRELEASED; urgency=medium
   * Add new upstream patch: no-over-rebuild-desktop.patch
     Thanks to Norbert Preining for reporting and following this upstream
     (Closes: 825589)
+  * Drop upstream applied patch: do_reap_child.diff
+  * Drop upstream applied patch: Migrate-away-from-gnome-common-
+    deprecated-vars-and-macros.patch
+  * Drop upstream applied patch: window-remove-custom-get_preferred_width-
+    height-impl.patch
+  * Drop upstream applied patch: pathbar-avoid-gtk-warnings.patch
+  * Drop upstream applied patch: pathbar-remove-hardcoded-width-for-
+    sliders.patch
+  * Drop upstream applied patch: fix-desktop-redraw
+  * Drop upstream applied patch: Make-AX_-macros-optional.patch
+  * Drop upstream applied patch: remove-text-icon-preview.patch
+  * Drop upstream applied patch: no-over-rebuild-desktop.patch
 
   [ Margarita Manterola ]
   * New upstream release.

@@ -1,10 +1,1 @@
 missing-files-potfiles.in
-do_reap_child.diff
-Migrate-away-from-gnome-common-deprecated-vars-and-macros.patch
-window-remove-custom-get_preferred_width-height-impl.patch
-pathbar-avoid-gtk-warnings.patch
-pathbar-remove-hardcoded-width-for-sliders.patch
-fix-desktop-redraw
-Make-AX_-macros-optional.patch
-remove-text-icon-preview.patch
-no-over-rebuild-desktop.patch
