@@ -1,4 +1,4 @@
-nemo (3.2.2-1~) UNRELEASED; urgency=medium
+nemo (3.2.2-1) experimental; urgency=medium
 
   [ Maximiliano Curia ]
   * Add new upstream patch: no-over-rebuild-desktop.patch
@@ -21,7 +21,7 @@ nemo (3.2.2-1~) UNRELEASED; urgency=medium
   [ Margarita Manterola ]
   * New upstream release.
 
- -- Maximiliano Curia <maxy@debian.org>  Sat, 17 Dec 2016 19:43:02 +0100
+ -- Maximiliano Curia <maxy@debian.org>  Sat, 17 Dec 2016 20:07:53 +0100
 
 nemo (3.0.6-4) unstable; urgency=medium
 
