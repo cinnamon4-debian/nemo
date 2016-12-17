@@ -1,4 +1,4 @@
-nemo (3.2.0-1~) UNRELEASED; urgency=medium
+nemo (3.2.2-1~) UNRELEASED; urgency=medium
 
   [ Maximiliano Curia ]
   * Add new upstream patch: no-over-rebuild-desktop.patch
@@ -16,11 +16,12 @@ nemo (3.2.0-1~) UNRELEASED; urgency=medium
   * Drop upstream applied patch: Make-AX_-macros-optional.patch
   * Drop upstream applied patch: remove-text-icon-preview.patch
   * Drop upstream applied patch: no-over-rebuild-desktop.patch
+  * New upstream release (3.2.2).
 
   [ Margarita Manterola ]
   * New upstream release.
 
- -- Margarita Manterola <marga@debian.org>  Sat, 19 Nov 2016 12:26:54 +0100
+ -- Maximiliano Curia <maxy@debian.org>  Sat, 17 Dec 2016 19:43:02 +0100
 
 nemo (3.0.6-4) unstable; urgency=medium
 
