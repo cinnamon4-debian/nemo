@@ -1,3 +1,9 @@
+nemo (3.2.2-3) unstable; urgency=medium
+
+  * Release to unstable
+
+ -- Margarita Manterola <marga@debian.org>  Tue, 20 Dec 2016 20:24:24 -0300
+
 nemo (3.2.2-2) experimental; urgency=medium
 
   * Explicitly depend on automake, as some buildds sometimes pull
