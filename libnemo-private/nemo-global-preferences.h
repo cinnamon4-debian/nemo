@@ -1,4 +1,4 @@
-/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
+/* -*- Mode: C; indent-tabs-mode: f; c-basic-offset: 4; tab-width: 4 -*- */
 
 /* nemo-global-preferences.h - Nemo specific preference keys and
                                    functions.
@@ -26,7 +26,6 @@
 #ifndef NEMO_GLOBAL_PREFERENCES_H
 #define NEMO_GLOBAL_PREFERENCES_H
 
-#include <libnemo-private/nemo-global-preferences.h>
 #include <gio/gio.h>
 
 G_BEGIN_DECLS
@@ -142,7 +141,8 @@ enum
 #define NEMO_ICON_VIEW_IID		"OAFIID:Nemo_File_Manager_Icon_View"
 #define NEMO_COMPACT_VIEW_IID	"OAFIID:Nemo_File_Manager_Compact_View"
 #define NEMO_LIST_VIEW_IID		"OAFIID:Nemo_File_Manager_List_View"
-
+#define NEMO_DESKTOP_ICON_VIEW_IID  "OAFIID:Nemo_File_Manager_Desktop_Icon_View"
+#define NEMO_DESKTOP_ICON_GRID_VIEW_IID  "OAFIID:Nemo_File_Manager_Desktop_Icon_Grid_View"
 
 /* Icon View */
 #define NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ZOOM_LEVEL		"default-zoom-level"
@@ -218,6 +218,9 @@ typedef enum
 #define NEMO_PREFERENCES_DESKTOP_LAYOUT "desktop-layout"
 #define NEMO_PREFERENCES_SHOW_ORPHANED_DESKTOP_ICONS "show-orphaned-desktop-icons"
 #define NEMO_PREFERENCES_SHOW_DESKTOP   "show-desktop-icons"    /* DEPRECATED */
+#define NEMO_PREFERENCES_USE_DESKTOP_GRID "use-desktop-grid"
+#define NEMO_PREFERENCES_DESKTOP_HORIZONTAL_GRID_ADJUST "horizontal-grid-adjust"
+#define NEMO_PREFERENCES_DESKTOP_VERTICAL_GRID_ADJUST "vertical-grid-adjust"
 
 /* File size unit prefix */
 #define NEMO_PREFERENCES_SIZE_PREFIXES			"size-prefixes"
@@ -256,7 +259,9 @@ typedef enum
 #define NEMO_PREFERENCES_CLICK_DOUBLE_PARENT_FOLDER    "click-double-parent-folder"
 
 void nemo_global_preferences_init                      (void);
+void nemo_global_preferences_finalize                  (void);
 char *nemo_global_preferences_get_default_folder_viewer_preference_as_iid (void);
+char *nemo_global_preferences_get_desktop_iid (void);
 gboolean nemo_global_preferences_get_ignore_view_metadata (void);
 gint nemo_global_preferences_get_tooltip_flags (void);
 gboolean nemo_global_preferences_should_load_plugin (const gchar *name, const gchar *key);
@@ -274,8 +279,11 @@ GSettings *gnome_background_preferences;
 GSettings *gnome_media_handling_preferences;
 GSettings *gnome_terminal_preferences;
 GSettings *cinnamon_privacy_preferences;
+GSettings *cinnamon_interface_preferences;
 
-gint64 nemo_startup_time;
+GTimer    *nemo_startup_timer;
+
+gchar    **file_roller_mimetypes;
 
 G_END_DECLS
 

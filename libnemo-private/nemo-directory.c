@@ -1397,7 +1397,6 @@ nemo_directory_schedule_position_set (GList *position_setting_list)
 	GList *p;
 	const NemoFileChangesQueuePosition *item;
 	NemoFile *file;
-	char str[64];
 	time_t now;
 
 	time (&now);
@@ -1406,37 +1405,20 @@ nemo_directory_schedule_position_set (GList *position_setting_list)
 		item = (NemoFileChangesQueuePosition *) p->data;
 
 		file = nemo_file_get (item->location);
-		
-		if (item->set) {
-			g_snprintf (str, sizeof (str), "%d,%d", item->point.x, item->point.y);
-		} else {
-			str[0] = 0;
-		}
-		nemo_file_set_metadata
-			(file,
-			 NEMO_METADATA_KEY_ICON_POSITION,
-			 NULL,
-			 str);
 
 		if (item->set) {
-			nemo_file_set_time_metadata
-				(file,
-				 NEMO_METADATA_KEY_ICON_POSITION_TIMESTAMP,
-				 now);
+            nemo_file_set_position (file, item->point.x, item->point.y);
 		} else {
-			nemo_file_set_time_metadata
-				(file,
-				 NEMO_METADATA_KEY_ICON_POSITION_TIMESTAMP,
-				 UNDEFINED_TIME);
+            nemo_file_set_position (file, -1, -1);
 		}
 
         if (item->set) {
-            g_snprintf (str, sizeof (str), "%d", item->monitor);
+            nemo_file_set_monitor_number (file, item->monitor);
         } else {
-            str[0] = 0;
+            nemo_file_set_monitor_number (file, -1);
         }
 
-        nemo_file_set_metadata (file, NEMO_METADATA_KEY_MONITOR, NULL, str);
+        nemo_file_set_time_metadata (file, NEMO_METADATA_KEY_ICON_POSITION_TIMESTAMP, UNDEFINED_TIME);
 
 		nemo_file_unref (file);
 	}

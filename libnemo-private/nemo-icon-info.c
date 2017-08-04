@@ -1,4 +1,4 @@
-/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
+/* -*- Mode: C; indent-tabs-mode: f; c-basic-offset: 4; tab-width: 4 -*- */
 /* nemo-icon-info.c
  * Copyright (C) 2007  Red Hat, Inc.,  Alexander Larsson <alexl@redhat.com>
  *
@@ -337,9 +337,10 @@ nemo_icon_info_lookup (GIcon *icon,
                int scale)
 {
 	NemoIconInfo *icon_info;
-	GdkPixbuf *pixbuf;
 	
 	if (G_IS_LOADABLE_ICON (icon)) {
+        GdkPixbuf *pixbuf;
+
 		LoadableIconKey lookup_key;
 		LoadableIconKey *key;
 		GInputStream *stream;
@@ -377,6 +378,8 @@ nemo_icon_info_lookup (GIcon *icon,
 
 		key = loadable_icon_key_new (icon, size);
 		g_hash_table_insert (loadable_icon_cache, key, icon_info);
+
+        g_clear_object (&pixbuf);
 
 		return g_object_ref (icon_info);
 	} else if (G_IS_THEMED_ICON (icon)) {
@@ -432,29 +435,27 @@ nemo_icon_info_lookup (GIcon *icon,
 
 		return g_object_ref (icon_info);
 	} else {
-                GdkPixbuf *pixbuf;
-                GtkIconInfo *gtk_icon_info;
+        GdkPixbuf *pixbuf;
+        GtkIconInfo *gtk_icon_info;
 
-                gtk_icon_info = gtk_icon_theme_lookup_by_gicon_for_scale (gtk_icon_theme_get_default (),
-                                                                          icon,
-                                                                          size,
-                                                                          scale,
-                                                                          0);
-                if (gtk_icon_info != NULL) {
-                        pixbuf = gtk_icon_info_load_icon (gtk_icon_info, NULL);
-                        g_object_unref (gtk_icon_info);
-                } else {
-                        pixbuf = NULL;
-                }
-
-		icon_info = nemo_icon_info_new_for_pixbuf (pixbuf, scale);
-
-		if (pixbuf != NULL) {
-			g_object_unref (pixbuf);
-		}
-
-		return icon_info;
+        gtk_icon_info = gtk_icon_theme_lookup_by_gicon_for_scale (gtk_icon_theme_get_default (),
+                                                                  icon,
+                                                                  size,
+                                                                  scale,
+                                                                  0);
+        if (gtk_icon_info != NULL) {
+                pixbuf = gtk_icon_info_load_icon (gtk_icon_info, NULL);
+                g_object_unref (gtk_icon_info);
+        } else {
+                pixbuf = NULL;
         }
+
+        icon_info = nemo_icon_info_new_for_pixbuf (pixbuf, scale);
+
+        g_clear_object (&pixbuf);
+
+        return icon_info;
+    }
 }
 
 NemoIconInfo *
@@ -585,6 +586,37 @@ nemo_icon_info_get_pixbuf_at_size (NemoIconInfo  *icon,
 	return scaled_pixbuf;
 }
 
+GdkPixbuf *
+nemo_icon_info_get_desktop_pixbuf_at_size (NemoIconInfo  *icon,
+                                           gsize          max_height,
+                                           gsize          max_width)
+{
+    GdkPixbuf *pixbuf, *scaled_pixbuf;
+    int w, h;
+    double scale;
+
+    pixbuf = nemo_icon_info_get_pixbuf (icon);
+
+    w = gdk_pixbuf_get_width (pixbuf) / icon->orig_scale;
+    h = gdk_pixbuf_get_height (pixbuf) / icon->orig_scale;
+
+    if (w == max_width || h == max_height) {
+        return pixbuf;
+    }
+
+    scale = (gdouble) max_height / h;
+
+    if (w * scale > max_width) {
+        scale = (gdouble) max_width / w;
+    }
+
+    scaled_pixbuf = gdk_pixbuf_scale_simple (pixbuf,
+                         MAX (w * scale, 1), MAX (h * scale, 1),
+                         GDK_INTERP_BILINEAR);
+    g_object_unref (pixbuf);
+    return scaled_pixbuf;
+}
+
 gboolean
 nemo_icon_info_get_embedded_rect (NemoIconInfo  *icon,
 				      GdkRectangle      *rectangle)
@@ -642,6 +674,25 @@ nemo_get_icon_size_for_zoom_level (NemoZoomLevel zoom_level)
     default:
         g_return_val_if_reached (NEMO_ICON_SIZE_STANDARD);
 	}
+}
+
+guint
+nemo_get_desktop_icon_size_for_zoom_level (NemoZoomLevel zoom_level)
+{
+    switch (zoom_level) {
+        case NEMO_ZOOM_LEVEL_SMALL:
+            return NEMO_DESKTOP_ICON_SIZE_SMALL;
+        case NEMO_ZOOM_LEVEL_STANDARD:
+            return NEMO_DESKTOP_ICON_SIZE_STANDARD;
+        case NEMO_ZOOM_LEVEL_LARGE:
+            return NEMO_DESKTOP_ICON_SIZE_LARGE;
+        case NEMO_ZOOM_LEVEL_SMALLEST:
+        case NEMO_ZOOM_LEVEL_SMALLER:
+        case NEMO_ZOOM_LEVEL_LARGER:
+        case NEMO_ZOOM_LEVEL_LARGEST:
+        default:
+            g_return_val_if_reached (NEMO_ICON_SIZE_STANDARD);
+    }
 }
 
 guint

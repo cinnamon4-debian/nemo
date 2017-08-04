@@ -1,4 +1,4 @@
-/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
+/* -*- Mode: C; indent-tabs-mode: f; c-basic-offset: 4; tab-width: 4 -*- */
 
 /* gnome-icon-container.h - Icon container widget.
 
@@ -28,6 +28,7 @@
 
 #include <eel/eel-canvas.h>
 #include <libnemo-private/nemo-icon-info.h>
+#include <libnemo-private/nemo-icon.h>
 
 #define NEMO_TYPE_ICON_CONTAINER nemo_icon_container_get_type()
 #define NEMO_ICON_CONTAINER(obj) \
@@ -41,14 +42,8 @@
 #define NEMO_ICON_CONTAINER_GET_CLASS(obj) \
   (G_TYPE_INSTANCE_GET_CLASS ((obj), NEMO_TYPE_ICON_CONTAINER, NemoIconContainerClass))
 
-
-#define NEMO_ICON_CONTAINER_ICON_DATA(pointer) \
-	((NemoIconData *) (pointer))
-
-typedef struct NemoIconData NemoIconData;
-
-typedef void (* NemoIconCallback) (NemoIconData *icon_data,
-				       gpointer callback_data);
+/* Initial unpositioned icon value */
+#define ICON_UNPOSITIONED_VALUE -1
 
 typedef struct {
 	int x;
@@ -80,6 +75,7 @@ typedef struct {
 
 typedef struct {
 	EelCanvasClass parent_slot;
+    gboolean is_grid_container;
 
 	/* Operations on the container. */
 	int          (* button_press) 	          (NemoIconContainer *container,
@@ -155,12 +151,11 @@ typedef struct {
 						   char **editable_text,
 						   char **additional_text,
 						   gboolean include_invisible);
+    void         (* update_icon)              (NemoIconContainer *container,
+                                               NemoIcon          *icon);
 	char *       (* get_icon_description)     (NemoIconContainer *container,
 						   NemoIconData *data);
 	int          (* compare_icons)            (NemoIconContainer *container,
-						   NemoIconData *icon_a,
-						   NemoIconData *icon_b);
-	int          (* compare_icons_by_name)    (NemoIconContainer *container,
 						   NemoIconData *icon_a,
 						   NemoIconData *icon_b);
 	void         (* freeze_updates)           (NemoIconContainer *container);
@@ -174,6 +169,8 @@ typedef struct {
 						   gconstpointer client);
 	void         (* prioritize_thumbnailing)  (NemoIconContainer *container,
 						   NemoIconData *data);
+    gint         (* get_max_layout_lines_for_pango) (NemoIconContainer *container);
+    gint         (* get_max_layout_lines)           (NemoIconContainer *container);
 
 	/* Queries on icons for subclass/client.
 	 * These must be implemented => These are signals !
@@ -182,9 +179,6 @@ typedef struct {
 	gboolean     (* can_accept_item)	  (NemoIconContainer *container,
 						   NemoIconData *target, 
 						   const char *item_uri);
-	gboolean     (* get_stored_icon_position) (NemoIconContainer *container,
-						   NemoIconData *data,
-						   NemoIconPosition *position);
 	char *       (* get_icon_uri)             (NemoIconContainer *container,
 						   NemoIconData *data);
 	char *       (* get_icon_drop_target_uri) (NemoIconContainer *container,
@@ -208,6 +202,18 @@ typedef struct {
 						 NemoIconData *data,
 						 const time_t *time);
 
+    void         (*lay_down_icons) (NemoIconContainer *container, GList *icons, double start_y);
+    void         (*icon_set_position) (NemoIconContainer *container, NemoIcon *icon, double x, double y);
+    void         (*move_icon) (NemoIconContainer *container, NemoIcon *icon, int x, int y,
+                               double scale, gboolean raise, gboolean snap, gboolean update_position);
+    void         (*align_icons) (NemoIconContainer *container);
+    void         (*finish_adding_new_icons) (NemoIconContainer *container);
+    void         (*reload_icon_positions) (NemoIconContainer *container);
+    void         (*icon_get_bounding_box) (NemoIcon *icon,
+                                           int *x1_return, int *y1_return,
+                                           int *x2_return, int *y2_return,
+                                           NemoIconCanvasItemBoundsUsage usage);
+    void         (*set_zoom_level)        (NemoIconContainer *container, gint new_level);
 	/* Notifications for the whole container. */
 	void	     (* band_select_started)	  (NemoIconContainer *container);
 	void	     (* band_select_ended)	  (NemoIconContainer *container);
@@ -245,6 +251,9 @@ GtkWidget *       nemo_icon_container_new                           (void);
 
 /* adding, removing, and managing icons */
 void              nemo_icon_container_clear                         (NemoIconContainer  *view);
+gboolean          nemo_icon_container_icon_is_new_for_monitor       (NemoIconContainer *container,
+                                                                     NemoIcon          *icon,
+                                                                     gint               current_monitor);
 gboolean          nemo_icon_container_add                           (NemoIconContainer  *view,
 									 NemoIconData       *data);
 void              nemo_icon_container_layout_now                    (NemoIconContainer *container);
@@ -255,6 +264,7 @@ void              nemo_icon_container_for_each                      (NemoIconCon
 									 gpointer                callback_data);
 void              nemo_icon_container_request_update                (NemoIconContainer  *view,
 									 NemoIconData       *data);
+void              nemo_icon_container_invalidate_labels             (NemoIconContainer  *container);
 void              nemo_icon_container_request_update_all            (NemoIconContainer  *container);
 void              nemo_icon_container_reveal                        (NemoIconContainer  *container,
 									 NemoIconData       *data);
@@ -275,22 +285,23 @@ void              nemo_icon_container_set_auto_layout               (NemoIconCon
 gboolean          nemo_icon_container_is_tighter_layout             (NemoIconContainer  *container);
 void              nemo_icon_container_set_tighter_layout            (NemoIconContainer  *container,
                                      gboolean                tighter_layout);
- 
-
-
 
 gboolean          nemo_icon_container_is_keep_aligned               (NemoIconContainer  *container);
 void              nemo_icon_container_set_keep_aligned              (NemoIconContainer  *container,
 									 gboolean                keep_aligned);
 void              nemo_icon_container_set_layout_mode               (NemoIconContainer  *container,
 									 NemoIconLayoutMode  mode);
+void              nemo_icon_container_set_horizontal_layout (NemoIconContainer *container,
+                                                             gboolean           horizontal);
+gboolean          nemo_icon_container_get_horizontal_layout (NemoIconContainer *container);
+
 void              nemo_icon_container_set_label_position            (NemoIconContainer  *container,
 									 NemoIconLabelPosition pos);
 void              nemo_icon_container_sort                          (NemoIconContainer  *container);
 void              nemo_icon_container_freeze_icon_positions         (NemoIconContainer  *container);
 
-int               nemo_icon_container_get_max_layout_lines           (NemoIconContainer  *container);
-int               nemo_icon_container_get_max_layout_lines_for_pango (NemoIconContainer  *container);
+gint               nemo_icon_container_get_max_layout_lines           (NemoIconContainer  *container);
+gint               nemo_icon_container_get_max_layout_lines_for_pango (NemoIconContainer  *container);
 
 void              nemo_icon_container_set_highlighted_for_clipboard (NemoIconContainer  *container,
 									 GList                  *clipboard_icon_data);
@@ -312,7 +323,6 @@ void              nemo_icon_container_show_stretch_handles          (NemoIconCon
 void              nemo_icon_container_unstretch                     (NemoIconContainer  *container);
 void              nemo_icon_container_start_renaming_selected_item  (NemoIconContainer  *container,
 									 gboolean                select_all);
-
 /* options */
 NemoZoomLevel nemo_icon_container_get_zoom_level                (NemoIconContainer  *view);
 void              nemo_icon_container_set_zoom_level                (NemoIconContainer  *view,
@@ -365,15 +375,5 @@ void              nemo_icon_container_widget_to_file_operation_position (NemoIco
 									     GdkPoint              *position);
 
 void         nemo_icon_container_setup_tooltip_preference_callback (NemoIconContainer *container);
-
-#define CANVAS_WIDTH(container,allocation) ((allocation.width	  \
-				- container->details->left_margin \
-				- container->details->right_margin) \
-				/  EEL_CANVAS (container)->pixels_per_unit)
-
-#define CANVAS_HEIGHT(container,allocation) ((allocation.height \
-			 - container->details->top_margin \
-			 - container->details->bottom_margin) \
-			 / EEL_CANVAS (container)->pixels_per_unit)
 
 #endif /* NEMO_ICON_CONTAINER_H */

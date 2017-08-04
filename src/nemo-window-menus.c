@@ -215,7 +215,7 @@ action_reload_callback (GtkAction *action,
 	NemoWindowSlot *slot;
 
 	slot = nemo_window_get_active_slot (NEMO_WINDOW (user_data));
-	nemo_window_slot_reload (slot);
+	nemo_window_slot_queue_reload (slot);
 }
 
 static NemoView *
@@ -234,21 +234,27 @@ static void
 action_zoom_in_callback (GtkAction *action, 
 			 gpointer user_data) 
 {
-	nemo_view_bump_zoom_level (get_current_view (user_data), 1);
+    if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
+        nemo_view_bump_zoom_level (get_current_view (user_data), 1);
+    }
 }
 
 static void
 action_zoom_out_callback (GtkAction *action, 
 			  gpointer user_data) 
 {
-	nemo_view_bump_zoom_level (get_current_view (user_data), -1);
+    if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
+        nemo_view_bump_zoom_level (get_current_view (user_data), -1);
+    }
 }
 
 static void
 action_zoom_normal_callback (GtkAction *action, 
 			     gpointer user_data) 
 {
-	nemo_view_restore_default_zoom_level (get_current_view (user_data));
+    if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
+        nemo_view_restore_default_zoom_level (get_current_view (user_data));
+    }
 }
 
 static void
@@ -746,26 +752,45 @@ nemo_window_initialize_go_menu (NemoWindow *window)
 
 static void
 action_new_window_callback (GtkAction *action,
-			    gpointer user_data)
+                            gpointer user_data)
 {
-	NemoApplication *application;
-	NemoWindow *current_window, *new_window;
-    gchar *uri;
+    NemoWindow *current_window;
 
-	current_window = NEMO_WINDOW (user_data);
+    current_window = NEMO_WINDOW (user_data);
 
-    uri = nemo_window_slot_get_current_uri (nemo_window_get_active_slot (current_window));
-    GFile *loc = g_file_new_for_uri (uri);
+    if (NEMO_IS_DESKTOP_WINDOW (current_window)) {
+        NemoFile *file;
+        NemoView *view;
+        gchar *desktop_uri;
 
-	application = nemo_application_get_singleton ();
+        desktop_uri = nemo_get_desktop_directory_uri ();
 
-	new_window = nemo_application_create_window (
-				application,
-				gtk_window_get_screen (GTK_WINDOW (current_window)));
+        file = nemo_file_get_existing_by_uri (desktop_uri);
 
-    nemo_window_slot_open_location (nemo_window_get_active_slot (new_window), loc, 0);
-    g_object_unref (loc);
-    g_free (uri);
+        view = nemo_window_slot_get_current_view (nemo_window_get_active_slot (current_window));
+        nemo_view_activate_file (view, file, 0);
+
+        g_free (desktop_uri);
+        nemo_file_unref (file);
+    } else {
+        NemoApplication *application;
+        NemoWindow *new_window;
+        gchar *uri;
+        GFile *loc;
+
+        uri = nemo_window_slot_get_current_uri (nemo_window_get_active_slot (current_window));
+        loc = g_file_new_for_uri (uri);
+
+        application = nemo_application_get_singleton ();
+
+        new_window = nemo_application_create_window (application,
+                                                     gtk_window_get_screen (GTK_WINDOW (current_window)));
+
+        nemo_window_slot_open_location (nemo_window_get_active_slot (new_window), loc, 0);
+
+        g_object_unref (loc);
+        g_free (uri);
+    }
 }
 
 static void

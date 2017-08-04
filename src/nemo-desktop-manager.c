@@ -3,7 +3,7 @@
 #include "nemo-desktop-manager.h"
 #include "nemo-blank-desktop-window.h"
 #include "nemo-desktop-window.h"
-#include "nemo-application.h"
+#include "nemo-desktop-application.h"
 
 #include <gdk/gdkx.h>
 
@@ -121,17 +121,13 @@ layout_changed (NemoDesktopManager *manager)
 
     close_all_windows (manager);
 
-    NemoApplication *app = NEMO_APPLICATION (g_application_get_default ());
-    if (!nemo_application_get_show_desktop (app)) {
-        return FALSE;
-    } 
-
     gchar *pref = g_settings_get_string (nemo_desktop_preferences, NEMO_PREFERENCES_DESKTOP_LAYOUT);
 
     if (g_strcmp0 (pref, "") == 0) {
         g_settings_set_string (nemo_desktop_preferences, NEMO_PREFERENCES_DESKTOP_LAYOUT, DESKTOPS_DEFAULT);
         g_free (pref);
         layout_changed (manager);
+        return FALSE;
     }
 
     gchar **pref_split = g_strsplit (pref, "::", 2);
@@ -141,6 +137,7 @@ layout_changed (NemoDesktopManager *manager)
         g_free (pref);
         g_strfreev (pref_split);
         layout_changed (manager);
+        return FALSE;;
     }
 
     n_monitors = gdk_screen_get_n_monitors (manager->screen);
@@ -148,6 +145,8 @@ layout_changed (NemoDesktopManager *manager)
 
     show_desktop_on_primary = g_strcmp0 (pref_split[0], "true") == 0;
     show_desktop_on_remaining = g_strcmp0 (pref_split[1], "true") == 0;
+
+    manager->desktop_on_primary_only = show_desktop_on_primary && !show_desktop_on_remaining;
 
     gint i = 0;
     gboolean primary_set = FALSE;
@@ -216,6 +215,11 @@ nemo_desktop_manager_constructed (GObject *object)
                                                          G_CALLBACK (queue_update_layout),
                                                          manager);
 
+    manager->use_grid_changed_id = g_signal_connect_swapped (nemo_desktop_preferences,
+                                                             "changed::" NEMO_PREFERENCES_USE_DESKTOP_GRID,
+                                                             G_CALLBACK (queue_update_layout),
+                                                             manager);
+
     /* Monitor the preference to have the desktop */
     /* point to the Unix home folder */
 
@@ -241,6 +245,7 @@ nemo_desktop_manager_dispose (GObject *object)
 
     g_signal_handler_disconnect (nemo_desktop_preferences, manager->show_desktop_changed_id);
     g_signal_handler_disconnect (nemo_desktop_preferences, manager->desktop_layout_changed_id);
+    g_signal_handler_disconnect (nemo_desktop_preferences, manager->use_grid_changed_id);
     g_signal_handler_disconnect (manager->screen, manager->size_changed_id);
     g_signal_handler_disconnect (nemo_preferences, manager->home_dir_changed_id);
     g_signal_handler_disconnect (nemo_preferences, manager->orphaned_icon_handling_id);
@@ -280,6 +285,8 @@ nemo_desktop_manager_init (NemoDesktopManager *self)
     self->scale_factor_changed_id = 0;
 
     self->desktops = NULL;
+
+    self->desktop_on_primary_only = FALSE;
 
     self->action_manager = nemo_action_manager_new ();
 }
@@ -354,6 +361,12 @@ nemo_desktop_manager_get_monitor_is_primary (NemoDesktopManager *manager,
     }
 
     return ret;
+}
+
+gboolean
+nemo_desktop_manager_get_primary_only (NemoDesktopManager *manager)
+{
+    return manager->desktop_on_primary_only;
 }
 
 NemoActionManager *

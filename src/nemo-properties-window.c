@@ -371,11 +371,11 @@ get_image_for_properties_window (NemoPropertiesWindow *window,
 		file = NEMO_FILE (l->data);
 		
 		if (!icon) {
-			icon = nemo_file_get_icon (file, NEMO_ICON_SIZE_STANDARD, icon_scale,
+			icon = nemo_file_get_icon (file, NEMO_ICON_SIZE_STANDARD, 0, icon_scale,
                                        NEMO_FILE_ICON_FLAGS_USE_THUMBNAILS |
                                        NEMO_FILE_ICON_FLAGS_IGNORE_VISITING);
 		} else {
-			new_icon = nemo_file_get_icon (file, NEMO_ICON_SIZE_STANDARD, icon_scale,
+			new_icon = nemo_file_get_icon (file, NEMO_ICON_SIZE_STANDARD, 0, icon_scale,
                                            NEMO_FILE_ICON_FLAGS_USE_THUMBNAILS |
                                            NEMO_FILE_ICON_FLAGS_IGNORE_VISITING);
 			if (!new_icon || new_icon != icon) {
@@ -3141,11 +3141,11 @@ create_basic_page (NemoPropertiesWindow *window)
 		append_blank_row (grid);
 
 		append_title_value_pair (window, grid, _("Accessed:"), 
-					 "date_accessed",
+					 "date_accessed_full",
 					 INCONSISTENT_STATE_STRING,
 					 FALSE);
 		append_title_value_pair (window, grid, _("Modified:"), 
-					 "date_modified",
+					 "date_modified_full",
 					 INCONSISTENT_STATE_STRING,
 					 FALSE);
 	}
