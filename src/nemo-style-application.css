@@ -5,8 +5,22 @@
 	background-color: transparent;
 }
 
+.nemo-desktop-window,
+.nemo-desktop-window:backdrop
+{
+    box-shadow: none;
+}
+
+NemoDesktopWindow GtkPaned {
+    background-color: transparent;
+}
+
 .nemo-canvas-item {
     border-radius: 3px;
+}
+
+.nemo-desktop {
+    -NemoIconContainer-activate-prelight-icon-label: true;
 }
 
 .nemo-desktop.nemo-canvas-item {
@@ -14,11 +28,17 @@
     text-shadow: 1px 1px alpha(black, 0.8);
 }
 
+.nemo-desktop.nemo-canvas-item:hover {
+    background-color: alpha(black, 0.5);
+    background-image: none;
+    text-shadow: none;
+}
+
 .nemo-desktop.nemo-canvas-item:selected {
     background-color: alpha(@theme_selected_bg_color, 0.8);
     background-image: none;
-    color: #f5f5f5;
     text-shadow: none;
+    color: #f5f5f5;
 }
 
 /* EelEditableLabel (icon labels) */

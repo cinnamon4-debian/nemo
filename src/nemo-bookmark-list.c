@@ -700,6 +700,7 @@ load_bookmark_metadata_file (NemoBookmarkList *list)
     }
 
     g_key_file_free (kfile);
+    g_free (filename);
 
     return ret;
 }
@@ -893,6 +894,7 @@ save_bookmark_metadata_file (NemoBookmarkList *list)
         g_error_free (error);
     }
 
+    g_free (filename);
     g_key_file_free (kfile);
     g_object_unref (file);
 }
@@ -999,7 +1001,6 @@ save_files_async (NemoBookmarkList    *self,
     GTask *task;
 
     g_object_ref (self);
-    // G_BREAKPOINT ();
     task = g_task_new (self, NULL, callback, self);
     g_task_run_in_thread (task, save_files_thread);
 

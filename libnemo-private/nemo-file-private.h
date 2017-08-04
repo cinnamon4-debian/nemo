@@ -219,6 +219,10 @@ struct NemoFileDetails
 
 	guint64 free_space; /* (guint)-1 for unknown */
 	time_t free_space_read; /* The time free_space was updated, or 0 for never */
+
+    gint desktop_monitor;
+    gint cached_position_x;
+    gint cached_position_y;
 };
 
 typedef struct {

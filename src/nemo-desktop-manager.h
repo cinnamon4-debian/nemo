@@ -46,8 +46,11 @@ typedef struct {
   gulong cinnamon_panel_layout_changed_id;
   gulong orphaned_icon_handling_id;
   gulong scale_factor_changed_id;
+  gulong use_grid_changed_id;
 
   guint update_layout_idle_id;
+
+  gboolean desktop_on_primary_only;
 
   NemoActionManager *action_manager;
 
@@ -67,6 +70,8 @@ gboolean nemo_desktop_manager_get_monitor_is_active (NemoDesktopManager *manager
                                                                    gint  monitor);
 gboolean nemo_desktop_manager_get_monitor_is_primary (NemoDesktopManager *manager,
                                                                    gint  monitor);
+
+gboolean nemo_desktop_manager_get_primary_only (NemoDesktopManager *manager);
 
 G_END_DECLS
 

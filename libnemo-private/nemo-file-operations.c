@@ -1,4 +1,4 @@
-/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
+/* -*- Mode: C; indent-tabs-mode: f; c-basic-offset: 4; tab-width: 4 -*- */
 
 /* nemo-file-operations.c - Nemo file operations.
 
@@ -2143,6 +2143,8 @@ nemo_file_operations_trash_or_delete (GList                  *files,
 					  NemoDeleteCallback  done_callback,
 					  gpointer                done_callback_data)
 {
+	g_return_if_fail (files != NULL);
+
 	trash_or_delete_internal (files, parent_window,
 				  TRUE,
 				  done_callback,  done_callback_data);
@@ -4193,6 +4195,7 @@ copy_move_file (CopyMoveJob *copy_job,
 	gboolean res;
 	int unique_name_nr;
 	gboolean handled_invalid_filename;
+    gboolean target_is_desktop, source_is_desktop;
 
 	job = (CommonJob *)copy_job;
 	
@@ -4200,6 +4203,20 @@ copy_move_file (CopyMoveJob *copy_job,
 		*skipped_file = TRUE;
 		return;
 	}
+
+    target_is_desktop = (copy_job->desktop_location != NULL &&
+                         g_file_equal (copy_job->desktop_location, dest_dir));
+
+    source_is_desktop = FALSE;
+
+    if (src != NULL) {
+        GFile *parent = g_file_get_parent (src);
+
+        if (parent != NULL && g_file_equal (copy_job->desktop_location, parent)) {
+            source_is_desktop = TRUE;
+            g_object_unref (parent);
+        }
+    }
 
 	unique_name_nr = 1;
 
@@ -4321,9 +4338,16 @@ copy_move_file (CopyMoveJob *copy_job,
 		transfer_info->num_files ++;
 		report_copy_progress (copy_job, source_info, transfer_info);
 
-		if (debuting_files) {
-			g_hash_table_replace (debuting_files, g_object_ref (dest), GINT_TO_POINTER (TRUE));
-		}
+        if (debuting_files) {
+            if (target_is_desktop && position) {
+                nemo_file_changes_queue_schedule_position_set (dest, *position, job->monitor_num);
+            } else if (source_is_desktop && copy_job->is_move) {
+                nemo_file_changes_queue_schedule_position_remove (dest);
+            }
+
+            g_hash_table_replace (debuting_files, g_object_ref (dest), GINT_TO_POINTER (TRUE));
+        }
+
 		if (copy_job->is_move) {
 			nemo_file_changes_queue_file_moved (src, dest);
 		} else {
@@ -4901,6 +4925,21 @@ move_file_prepare (CopyMoveJob *move_job,
 	GFileCopyFlags flags;
 	MoveFileCopyFallback *fallback;
 	gboolean handled_invalid_filename;
+    gboolean target_is_desktop, source_is_desktop;
+
+    target_is_desktop = (move_job->desktop_location != NULL &&
+                         g_file_equal (move_job->desktop_location, dest_dir));
+
+    source_is_desktop = FALSE;
+
+    if (src != NULL) {
+        GFile *parent = g_file_get_parent (src);
+
+        if (parent != NULL && g_file_equal (move_job->desktop_location, parent)) {
+            source_is_desktop = TRUE;
+            g_object_unref (parent);
+        }
+    }
 
 	overwrite = FALSE;
 	handled_invalid_filename = *dest_fs_type != NULL;
@@ -4964,6 +5003,12 @@ move_file_prepare (CopyMoveJob *move_job,
 		}
 
 		nemo_file_changes_queue_file_moved (src, dest);
+
+        if (target_is_desktop && position) {
+            nemo_file_changes_queue_schedule_position_set (dest, *position, job->monitor_num);
+        } else if (source_is_desktop) {
+            nemo_file_changes_queue_schedule_position_remove (dest);
+        }
 
 		if (job->undo_info != NULL) {
 			nemo_file_undo_info_ext_add_origin_target_pair (NEMO_FILE_UNDO_INFO_EXT (job->undo_info),
@@ -5318,6 +5363,7 @@ nemo_file_operations_move (GList *files,
 
 	job = op_job_new (CopyMoveJob, parent_window);
 	job->is_move = TRUE;
+    job->desktop_location = nemo_get_desktop_location ();
 	job->done_callback = done_callback;
 	job->done_callback_data = done_callback_data;
 	job->files = eel_g_object_list_copy (files);
@@ -5416,6 +5462,10 @@ link_file (CopyMoveJob *job,
 	char *primary, *secondary, *details;
 	int response;
 	gboolean handled_invalid_filename;
+    gboolean target_is_desktop;
+
+    target_is_desktop = (job->desktop_location != NULL &&
+                         g_file_equal (job->desktop_location, dest_dir));
 
 	common = (CommonJob *)job;
 
@@ -5454,6 +5504,10 @@ link_file (CopyMoveJob *job,
 		}
 		
 		nemo_file_changes_queue_file_added (dest);
+
+        if (target_is_desktop && position) {
+            nemo_file_changes_queue_schedule_position_set (dest, *position, common->monitor_num);
+        }
 
 		g_object_unref (dest);
 		
@@ -5676,6 +5730,7 @@ nemo_file_operations_duplicate (GList *files,
 	CopyMoveJob *job;
 
 	job = op_job_new (CopyMoveJob, parent_window);
+    job->desktop_location = nemo_get_desktop_location ();
 	job->done_callback = done_callback;
 	job->done_callback_data = done_callback_data;
 	job->files = eel_g_object_list_copy (files);
@@ -6092,7 +6147,7 @@ create_job (GIOSchedulerJob *io_job,
 			if (job->src != NULL) {
 				basename = g_file_get_basename (job->src);
 				/* localizers: the initial name of a new template document */
-				filename = g_strdup_printf (_("Untitled %s"), basename);
+				filename = g_strdup_printf ("%s", basename);
 
 				g_free (basename);
 			}
@@ -6187,8 +6242,6 @@ create_job (GIOSchedulerJob *io_job,
 		nemo_file_changes_queue_file_added (dest);
 		if (job->has_position) {
 			nemo_file_changes_queue_schedule_position_set (dest, job->position, common->monitor_num);
-		} else {
-			nemo_file_changes_queue_schedule_position_remove (dest);
 		}
 	} else {
 		g_assert (error != NULL);
@@ -6200,7 +6253,7 @@ create_job (GIOSchedulerJob *io_job,
 			g_assert (dest_fs_type == NULL);
 			dest_fs_type = query_fs_type (job->dest_dir, common->cancellable);
 
-			g_object_unref (dest);
+			g_clear_object (&dest);
 
 			if (count == 1) {
 				new_filename = g_strdup (filename);
@@ -6225,7 +6278,7 @@ create_job (GIOSchedulerJob *io_job,
 			}
 
 			if (make_file_name_valid_for_dest_fs (new_filename, dest_fs_type)) {
-				g_object_unref (dest);
+                g_clear_object (&dest);
 
 				if (filename_is_utf8) {
 					dest = g_file_get_child_for_display_name (job->dest_dir, new_filename, NULL);
@@ -6240,7 +6293,7 @@ create_job (GIOSchedulerJob *io_job,
 			}
 			g_free (new_filename);
 		} else if (IS_IO_ERROR (error, EXISTS)) {
-			g_object_unref (dest);
+            g_clear_object (&dest);
 			dest = NULL;
 			filename_base = eel_filename_strip_extension (filename);
 			offset = strlen (filename_base);
@@ -6304,9 +6357,8 @@ create_job (GIOSchedulerJob *io_job,
 	}
 
  aborted:
-	if (dest) {
-		g_object_unref (dest);
-	}
+    g_clear_object (&dest);
+
 	g_free (filename);
 	g_free (dest_fs_type);
 	g_io_scheduler_job_send_to_mainloop_async (io_job,
