@@ -1,8 +1,12 @@
-nemo (3.4.6-1~) UNRELEASED; urgency=medium
+nemo (3.4.6-1) experimental; urgency=medium
 
   * New upstream release (3.4.6).
+  * Add libselinux-dev build dep
+  * Update install files
+  * Bump group breaks (3.4)
+  * Release to experimental
 
- -- Maximiliano Curia <maxy@debian.org>  Sat, 05 Aug 2017 01:05:07 +0200
+ -- Maximiliano Curia <maxy@debian.org>  Sun, 06 Aug 2017 17:31:50 +0200
 
 nemo (3.2.2-3) unstable; urgency=medium
 
