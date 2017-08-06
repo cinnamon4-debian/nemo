@@ -71,6 +71,7 @@ Description: File manager and graphical shell for Cinnamon
  .
  Several icon themes and components for viewing different kinds of files
  are available in separate packages.
+Breaks: cinnamon (<< 3.4), nemo-fileroller (<< 3.4)
 
 Package: libnemo-extension1
 Section: libs
@@ -85,6 +86,7 @@ Description: Nemo component system facilities
  desktop. It works on local and remote filesystems.
  .
  This package contains the shared library needed by the nemo extensions.
+Breaks: nemo-fileroller (<< 3.4), nemo-python (<< 3.4)
 
 Package: libnemo-extension-dev
 Section: libdevel
@@ -115,6 +117,7 @@ Description: libraries for nemo components - gir bindings
  .
  This package can be used by other packages using the GIRepository format to
  generate dynamic bindings.
+Breaks: nemo-python (<< 3.4)
 
 Package: nemo-data
 Architecture: all
