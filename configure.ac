@@ -18,7 +18,7 @@ dnl Interface break is not allowed.
 m4_define(nemo_extension_current,  5)
 m4_define(nemo_extension_revision, 0)
 
-AC_INIT(nemo, 3.4.6, https://github.com/linuxmint/nemo)
+AC_INIT(nemo, 3.4.7, https://github.com/linuxmint/nemo)
 
 dnl ===========================================================================
 
@@ -183,9 +183,9 @@ dnl ===========================================================================
 
 AC_ARG_ENABLE(tracker,
               [AS_HELP_STRING([--enable-tracker=@<:@yes/no/auto@:>@],
-                              [build Tracker builtin support [default=auto]])],
+                              [build Tracker builtin support [default=no]])],
               [enable_tracker="$enableval"],
-              [enable_tracker=auto])
+              [enable_tracker=no])
 
 build_tracker=no
 if test "x$enable_tracker" != "xno"; then
