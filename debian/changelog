@@ -1,8 +1,12 @@
-nemo (3.4.7-1~) UNRELEASED; urgency=medium
+nemo (3.4.7-1) unstable; urgency=medium
 
+  [ Fabio Fantoni ]
   * New upstream release (3.4.7).
 
- -- Fabio Fantoni <fantonifabio@tiscali.it>  Mon, 14 Aug 2017 16:35:46 +0200
+  [ Maximiliano Curia ]
+  * Release to unstable
+
+ -- Maximiliano Curia <maxy@debian.org>  Sat, 02 Sep 2017 07:35:30 +0200
 
 nemo (3.4.6-1) experimental; urgency=medium
 
