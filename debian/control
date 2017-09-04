@@ -17,7 +17,7 @@ Build-Depends:
  gtk-doc-tools (>= 1.4),
  intltool (>= 0.40.1),
  libatk1.0-dev (>= 1.32.0),
- libcinnamon-desktop-dev (>= 2.6.1),
+ libcinnamon-desktop-dev (>= 3.4),
  libexempi-dev (>= 2.1.0),
  libexif-dev (>= 0.6.20),
  libgail-3-dev,
