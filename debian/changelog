@@ -3,6 +3,7 @@ nemo (3.4.7-2~) UNRELEASED; urgency=medium
   * Add debian/patches: nemo.desktop: Remove DBusActivatable line, not
     supported yet, causing issues with getting nemo to launch in more
     up-to-date distributions.
+  * Update debian/patches/missing-files-potfiles.in. Thanks to Jeremy Bicha.
 
  -- Fabio Fantoni <fantonifabio@tiscali.it>  Tue, 05 Sep 2017 13:05:32 +0200
 

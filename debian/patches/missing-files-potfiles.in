@@ -4,15 +4,13 @@ Subject: missing-files-potfiles.in
 
 Description: "make check" in po/ checks that all files are listed for translation or skipped. These are missing.
 Author: Iain Lane <iain.lane@canonical.com>
-Forwarded: no
-
-===================================================================
+Forwarded: https://github.com/linuxmint/nemo/pull/1584
 ---
- po/POTFILES.in | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ po/POTFILES.in | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
 
 diff --git a/po/POTFILES.in b/po/POTFILES.in
-index dca4d01..ffc1066 100644
+index dca4d01..2f1eec6 100644
 --- a/po/POTFILES.in
 +++ b/po/POTFILES.in
 @@ -22,6 +22,7 @@ libnemo-private/nemo-bookmark.c
@@ -23,20 +21,24 @@ index dca4d01..ffc1066 100644
  libnemo-private/nemo-desktop-directory-file.c
  libnemo-private/nemo-desktop-icon-file.c
  libnemo-private/nemo-desktop-link.c
-@@ -46,10 +47,12 @@ libnemo-private/nemo-tree-view-drag-dest.c
+@@ -46,40 +47,52 @@ libnemo-private/nemo-tree-view-drag-dest.c
  libnemo-private/nemo-undo-signal-handlers.c
  libnemo-private/nemo-vfs-file.c
  libnemo-private/org.nemo.gschema.xml.in
 +src/nemo-action-config-widget.c
  src/nemo-application.c
  src/nemo-autorun-software.c
++src/nemo-blank-desktop-window.c
  src/nemo-bookmarks-window.c
  [type: gettext/glade]src/nemo-bookmarks-window.glade
 +src/nemo-config-base-widget.c
  src/nemo-connect-server-dialog.c
  src/nemo-connect-server-dialog-main.c
++src/nemo-desktop-application.c
++src/nemo-desktop-icon-grid-view.c
  src/nemo-desktop-icon-view.c
-@@ -58,12 +61,14 @@ src/nemo-desktop-item-properties.c
+ src/nemo-desktop-icon-view-ui.xml
+ src/nemo-desktop-item-properties.c
  src/nemo-desktop-window.c
  src/nemo-directory-view-ui.xml
  src/nemo-error-reporting.c
@@ -45,13 +47,16 @@ index dca4d01..ffc1066 100644
  [type: gettext/glade]src/nemo-file-management-properties.glade
  src/nemo-icon-view.c
  src/nemo-icon-view-container.c
++src/nemo-icon-view-grid-container.c
  src/nemo-icon-view-ui.xml
  src/nemo-image-properties-page.c
 +src/nemo-interesting-folder-bar.c
  src/nemo-list-model.c
  src/nemo-list-view.c
  src/nemo-list-view-ui.xml
-@@ -72,14 +77,17 @@ src/nemo-location-entry.c
+ src/nemo-location-bar.c
+ src/nemo-location-entry.c
++src/nemo-main-application.c
  src/nemo-main.c
  src/nemo-mime-actions.c
  src/nemo-notebook.c
@@ -70,8 +75,6 @@ index dca4d01..ffc1066 100644
  src/nemo-toolbar.c
  src/nemo-trash-bar.c
  src/nemo-tree-sidebar.c
-@@ -94,3 +102,4 @@ src/nemo-window-pane.c
- src/nemo-window-private.h
- src/nemo-window-slot.c
- src/nemo-x-content-bar.c
-+src/nemo-blank-desktop-window.c
+-- 
+2.11.0
+
