@@ -9,7 +9,7 @@ Uploaders:
 Build-Depends:
  autoconf-archive,
  automake,
- cinnamon-l10n (>= 3.4),
+ cinnamon-l10n (>= 3.6),
  debhelper (>= 9),
  dh-autoreconf,
  dh-python,
@@ -17,18 +17,19 @@ Build-Depends:
  gtk-doc-tools (>= 1.4),
  intltool (>= 0.40.1),
  libatk1.0-dev (>= 1.32.0),
- libcinnamon-desktop-dev (>= 3.4),
+ libcinnamon-desktop-dev (>= 3.6),
  libexempi-dev (>= 2.1.0),
  libexif-dev (>= 0.6.20),
  libgail-3-dev,
  libgirepository1.0-dev (>= 0.9.12),
- libglib2.0-dev (>= 2.37.3),
+ libglib2.0-dev (>= 2.45.7),
  libglib2.0-doc,
  libgtk-3-dev (>= 3.9.10),
  libgtk-3-doc,
  libnotify-dev (>= 0.7.0),
  libselinux1-dev,
  libx11-dev,
+ libxapp-dev (>= 1.0.4),
  libxext-dev,
  libxml2-dev (>= 2.7.8),
  libxrender-dev,
@@ -71,7 +72,7 @@ Description: File manager and graphical shell for Cinnamon
  .
  Several icon themes and components for viewing different kinds of files
  are available in separate packages.
-Breaks: cinnamon (<< 3.4), nemo-fileroller (<< 3.4)
+Breaks: cinnamon (<< 3.6), nemo-fileroller (<< 3.6)
 
 Package: libnemo-extension1
 Section: libs
@@ -86,14 +87,14 @@ Description: Nemo component system facilities
  desktop. It works on local and remote filesystems.
  .
  This package contains the shared library needed by the nemo extensions.
-Breaks: nemo-fileroller (<< 3.4), nemo-python (<< 3.4)
+Breaks: nemo-fileroller (<< 3.6), nemo-python (<< 3.6)
 
 Package: libnemo-extension-dev
 Section: libdevel
 Architecture: any
 Depends:
  gir1.2-nemo-3.0 (= ${binary:Version}),
- libglib2.0-dev (>= 2.37.3),
+ libglib2.0-dev (>= 2.45.7),
  libgtk-3-dev (>= 3.9.10),
  libnemo-extension1 (= ${binary:Version}),
  ${misc:Depends},
@@ -117,7 +118,7 @@ Description: libraries for nemo components - gir bindings
  .
  This package can be used by other packages using the GIRepository format to
  generate dynamic bindings.
-Breaks: nemo-python (<< 3.4)
+Breaks: nemo-python (<< 3.6)
 
 Package: nemo-data
 Architecture: all
