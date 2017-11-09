@@ -6,6 +6,7 @@ nemo (3.6.2-1~) UNRELEASED; urgency=medium
   * debian/control:
     add libxapp-dev to build-deps and update others.
     bump group breaks (3.6).
+  * Update symbols.
 
  -- Fabio Fantoni <fantonifabio@tiscali.it>  Thu, 09 Nov 2017 11:52:05 +0100
 

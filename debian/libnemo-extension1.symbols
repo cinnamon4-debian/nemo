@@ -140,6 +140,7 @@ libnemo-extension.so.1 libnemo-extension1 #MINVER#
  eel_show_yes_no_dialog@Base 2.6.5
  eel_str_capitalize@Base 2.6.5
  eel_str_double_underscores@Base 2.6.5
+ eel_str_escape_quotes@Base 3.6.2
  eel_str_escape_spaces@Base 2.6.5
  eel_str_middle_truncate@Base 2.6.5
  eel_str_replace_substring@Base 2.6.5
