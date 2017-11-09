@@ -1,0 +1,81 @@
+Author: Michael Webster <miketwebster@gmail.com>
+Date: Thu, 26 Oct 2017 18:25:30 -0400
+Description: nemo-desktop-manager.c: Account for scale factor when using
+ cinnamon- supplied monitor info.  Cinnamon runs at a scale factor of 1
+ always, and things are scaled internally.
+ Fixes desktop layout in hidpi mode, when running cinnamon.
+Origin: upstream, https://github.com/linuxmint/nemo/commit/ae778dd90cac95456d224106be3f3df1b35e23ec
+Last-Update: 2017-11-09
+
+---
+ libnemo-private/nemo-desktop-utils.c | 18 ++++++++++++++++++
+ libnemo-private/nemo-desktop-utils.h |  1 +
+ src/nemo-desktop-manager.c           |  9 +++++++++
+ 3 files changed, 28 insertions(+)
+
+diff --git a/libnemo-private/nemo-desktop-utils.c b/libnemo-private/nemo-desktop-utils.c
+index 844190d9c..ecfaaea8e 100644
+--- a/libnemo-private/nemo-desktop-utils.c
++++ b/libnemo-private/nemo-desktop-utils.c
+@@ -162,4 +162,22 @@ nemo_desktop_utils_get_monitor_cloned (gint monitor, gint x_primary)
+     return FALSE;
+ }
+ 
++gint
++nemo_desktop_utils_get_scale_factor (void)
++{
++    guint scale;
++    GValue value = G_VALUE_INIT;
++
++    ensure_screen ();
++
++    g_value_init (&value, G_TYPE_UINT);
++
++    if (gdk_screen_get_setting (default_screen, "gdk-window-scaling-factor", &value)) {
++        scale = g_value_get_uint (&value);
++    } else {
++        scale = 1;
++    }
++
++    return (gint) scale;
++}
+ 
+diff --git a/libnemo-private/nemo-desktop-utils.h b/libnemo-private/nemo-desktop-utils.h
+index 4eaac2fe0..bb025cf23 100644
+--- a/libnemo-private/nemo-desktop-utils.h
++++ b/libnemo-private/nemo-desktop-utils.h
+@@ -33,6 +33,7 @@ gint nemo_desktop_utils_get_primary_monitor (void);
+ gint nemo_desktop_utils_get_monitor_for_widget (GtkWidget *widget);
+ gint nemo_desktop_utils_get_num_monitors (void);
+ gboolean nemo_desktop_utils_get_monitor_cloned (gint monitor, gint x_primary);
++gint nemo_desktop_utils_get_scale_factor (void);
+ 
+ G_END_DECLS
+ 
+diff --git a/src/nemo-desktop-manager.c b/src/nemo-desktop-manager.c
+index 26bff4fd0..9b81ae3c4 100644
+--- a/src/nemo-desktop-manager.c
++++ b/src/nemo-desktop-manager.c
+@@ -208,6 +208,7 @@ get_window_rect_for_monitor (NemoDesktopManager *manager,
+     GVariant *out_rect_var;
+     GdkRectangle out_rect;
+     gsize n_elem;
++    gint scale_factor;
+     GError *error;
+ 
+     error = NULL;
+@@ -235,6 +236,14 @@ get_window_rect_for_monitor (NemoDesktopManager *manager,
+ 
+     out_rect = *( (GdkRectangle *) g_variant_get_fixed_array (out_rect_var, &n_elem, sizeof(gint)) );
+ 
++    /* GdkScreen sizes are scaled for hidpi already.  But if we've gotten this far, we're using
++     * Cinnamon-provided numbers, which aren't scaled. */
++
++    scale_factor = nemo_desktop_utils_get_scale_factor ();
++
++    out_rect.width /= scale_factor;
++    out_rect.height /= scale_factor;
++
+ out:
+ 
+     rect->x = out_rect.x;
