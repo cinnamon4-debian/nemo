@@ -1,8 +1,6 @@
-nemo (3.6.2-1~) UNRELEASED; urgency=medium
+nemo (3.6.3-1~) UNRELEASED; urgency=medium
 
-  * New upstream release (3.6.2).
-  * Add to debian/patches: Fixes desktop layout in hidpi mode
-    Fix desktop drag & drop copy/move issue
+  * New upstream release (3.6.3).
   * Update install files.
   * debian/control:
     add libxapp-dev to build-deps and update others.
