@@ -1,5 +1,6 @@
-nemo (3.6.4-1~) UNRELEASED; urgency=medium
+nemo (3.6.4-1~1) UNRELEASED; urgency=medium
 
+  [ Fabio Fantoni ]
   * New upstream release (3.6.4).
   * Update install files.
   * debian/control:
@@ -7,7 +8,10 @@ nemo (3.6.4-1~) UNRELEASED; urgency=medium
     bump group breaks (3.6).
   * Update symbols.
 
- -- Fabio Fantoni <fantonifabio@tiscali.it>  Thu, 09 Nov 2017 11:52:05 +0100
+  [ Maximiliano Curia ]
+  * Bump Standards-Version to 4.1.1.
+
+ -- Maximiliano Curia <maxy@debian.org>  Wed, 29 Nov 2017 15:38:32 +0100
 
 nemo (3.4.7-1) unstable; urgency=medium
 
