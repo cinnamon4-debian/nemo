@@ -1,6 +1,6 @@
-nemo (3.6.4-1~) UNRELEASED; urgency=medium
+nemo (3.6.5-1~) UNRELEASED; urgency=medium
 
-  * New upstream release (3.6.4).
+  * New upstream release (3.6.5).
   * Update install files.
   * debian/control:
     add libxapp-dev to build-deps and update others.
