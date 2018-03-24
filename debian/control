@@ -124,6 +124,8 @@ Package: nemo-data
 Architecture: all
 Depends: python, ${misc:Depends}, ${python:Depends}
 Suggests: nemo
+Replaces: nemo (<< 3.6.5-1~)
+Breaks: nemo (<< 3.6.5-1~)
 Description: File manager and graphical shell for Cinnamon (data files)
  Nemo is the official file manager for the Cinnamon desktop. It allows one
  to browse directories, preview files and launch applications associated
