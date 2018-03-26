@@ -10,7 +10,7 @@ CONFIGURE_EXTRA_FLAGS = \
 export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 
 %:
-	dh $@ --with autoreconf,python2,gir --parallel
+	dh $@ --with autoreconf,python2,gir
 
 override_dh_autoreconf:
 	NOCONFIGURE=yes dh_autoreconf --as-needed -- ./autogen.sh
