@@ -10,7 +10,7 @@ Build-Depends:
  autoconf-archive,
  automake,
  cinnamon-l10n (>= 3.6),
- debhelper (>= 9),
+ debhelper (>= 11~),
  dh-autoreconf,
  dh-python,
  gobject-introspection,
