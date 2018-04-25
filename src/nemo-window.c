@@ -87,11 +87,11 @@ static void use_extra_mouse_buttons_changed          (gpointer              call
 static void side_pane_id_changed                    (NemoWindow            *window);
 static void handle_alt_menu_key                     (NemoWindow *window, gboolean on_release);
 
-/* Sanity check: highest mouse button value I could find was 14. 5 is our 
- * lower threshold (well-documented to be the one of the button events for the 
+/* Sanity check: highest mouse button value I could find was 14. 5 is our
+ * lower threshold (well-documented to be the one of the button events for the
  * scrollwheel), so it's hardcoded in the functions below. However, if you have
- * a button that registers higher and want to map it, file a bug and 
- * we'll move the bar. Makes you wonder why the X guys don't have 
+ * a button that registers higher and want to map it, file a bug and
+ * we'll move the bar. Makes you wonder why the X guys don't have
  * defined values for these like the XKB stuff, huh?
  */
 #define UPPER_MOUSE_LIMIT 14
@@ -183,13 +183,13 @@ nemo_window_go_up_signal (NemoWindow *window)
 	nemo_window_slot_go_up (nemo_window_get_active_slot (window), 0);
 }
 
-void 
+void
 nemo_window_slot_removed (NemoWindow *window,  NemoWindowSlot *slot)
 {
 	g_signal_emit (window, signals[SLOT_REMOVED], 0, slot);
 }
 
-void 
+void
 nemo_window_slot_added (NemoWindow *window,  NemoWindowSlot *slot)
 {
     g_signal_emit (window, signals[SLOT_ADDED], 0, slot);
@@ -238,13 +238,13 @@ update_cursor (NemoWindow *window)
 
 	slot = nemo_window_get_active_slot (window);
 
-	if (slot->allow_stop) {
+	if (slot && slot->allow_stop) {
 		cursor = gdk_cursor_new (GDK_WATCH);
-		gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (window)), cursor);
+                gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (window)), cursor);
 		g_object_unref (cursor);
 	} else {
-		gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (window)), NULL);
-	}
+                gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (window)), NULL);
+        }
 }
 
 void
@@ -284,7 +284,7 @@ nemo_window_sync_allow_stop (NemoWindow *window,
 static void
 nemo_window_prompt_for_location (NemoWindow *window,
 				     const char     *initial)
-{	
+{
 	NemoWindowPane *pane;
 
 	g_return_if_fail (NEMO_IS_WINDOW (window));
@@ -327,17 +327,17 @@ nemo_window_set_initial_window_geometry (NemoWindow *window)
 	guint default_width, default_height;
 
 	screen = gtk_window_get_screen (GTK_WINDOW (window));
-	
+
 	max_width_for_screen = get_max_forced_width (screen);
 	max_height_for_screen = get_max_forced_height (screen);
-	
+
 	default_width = NEMO_WINDOW_DEFAULT_WIDTH;
 	default_height = NEMO_WINDOW_DEFAULT_HEIGHT;
 
-	gtk_window_set_default_size (GTK_WINDOW (window), 
-				     MIN (default_width, 
-				          max_width_for_screen), 
-				     MIN (default_height, 
+	gtk_window_set_default_size (GTK_WINDOW (window),
+				     MIN (default_width,
+				          max_width_for_screen),
+				     MIN (default_height,
 				          max_height_for_screen));
 }
 
@@ -410,7 +410,7 @@ nemo_window_set_up_sidebar (NemoWindow *window)
 			 FALSE, FALSE);
 
 	setup_side_pane_width (window);
-	g_signal_connect (window->details->sidebar, 
+	g_signal_connect (window->details->sidebar,
 			  "size_allocate",
 			  G_CALLBACK (side_pane_size_allocate_callback),
 			  window);
@@ -679,7 +679,7 @@ nemo_window_set_property (GObject *object,
 	NemoWindow *window;
 
 	window = NEMO_WINDOW (object);
-	
+
 	switch (arg_id) {
 	case PROP_DISABLE_CHROME:
 		window->details->disable_chrome = g_value_get_boolean (value);
@@ -1063,7 +1063,7 @@ nemo_window_key_press_event (GtkWidget *widget,
 	if (view != NULL && nemo_view_get_is_renaming (view)) {
 		/* if we're renaming, just forward the event to the
 		 * focused widget and return. We don't want to process the window
-		 * accelerator bindings, as they might conflict with the 
+		 * accelerator bindings, as they might conflict with the
 		 * editable widget bindings.
 		 */
 		if (gtk_window_propagate_key_event (GTK_WINDOW (window), event)) {
@@ -1130,7 +1130,7 @@ nemo_window_key_release_event (GtkWidget *widget,
  */
 
 static void
-sync_view_type_callback (NemoFile *file, 
+sync_view_type_callback (NemoFile *file,
                          gpointer callback_data)
 {
     NemoWindow *window;
@@ -1158,7 +1158,7 @@ sync_view_type_callback (NemoFile *file,
 static void
 cancel_sync_view_type_callback (NemoWindowSlot *slot)
 {
-	nemo_file_cancel_call_when_ready (slot->viewed_file, 
+	nemo_file_cancel_call_when_ready (slot->viewed_file,
 					      sync_view_type_callback,
 					      slot);
 }
@@ -1297,7 +1297,7 @@ nemo_window_sync_zoom_widgets (NemoWindow *window)
 					      NEMO_ACTION_ZOOM_IN);
 	gtk_action_set_visible (action, supports_zooming);
 	gtk_action_set_sensitive (action, can_zoom_in);
-	
+
 	action = gtk_action_group_get_action (action_group,
 					      NEMO_ACTION_ZOOM_OUT);
 	gtk_action_set_visible (action, supports_zooming);
@@ -1384,7 +1384,7 @@ nemo_window_disconnect_content_view (NemoWindow *window,
  */
 static void
 nemo_window_show (GtkWidget *widget)
-{	
+{
 	NemoWindow *window;
 
 	window = NEMO_WINDOW (widget);
@@ -1398,7 +1398,7 @@ nemo_window_show (GtkWidget *widget)
 		nemo_window_hide_sidebar (window);
 	}
 
-	GTK_WIDGET_CLASS (nemo_window_parent_class)->show (widget);	
+	GTK_WIDGET_CLASS (nemo_window_parent_class)->show (widget);
 
 	gtk_ui_manager_ensure_update (window->details->ui_manager);
 }
@@ -1586,6 +1586,21 @@ window_set_search_action_text (NemoWindow *window,
 	}
 }
 
+static void
+center_pane_divider (GtkWidget  *paned,
+                     GParamSpec *pspec,
+                     gpointer    user_data)
+{
+    /* Make the paned think it's been manually resized, otherwise
+     * things like the trash bar will force unwanted resizes */
+
+    g_object_set (G_OBJECT (paned),
+                  "position", gtk_widget_get_allocated_width (paned) / 2,
+                  NULL);
+
+    g_signal_handlers_disconnect_by_func (G_OBJECT (paned), center_pane_divider, NULL);
+}
+
 static NemoWindowSlot *
 create_extra_pane (NemoWindow *window)
 {
@@ -1598,18 +1613,17 @@ create_extra_pane (NemoWindow *window)
 	window->details->panes = g_list_append (window->details->panes, pane);
 
 	paned = GTK_PANED (window->details->split_view_hpane);
+
+    g_signal_connect_after (paned,
+                            "notify::position",
+                            G_CALLBACK(center_pane_divider),
+                            NULL);
+
 	if (gtk_paned_get_child1 (paned) == NULL) {
 		gtk_paned_pack1 (paned, GTK_WIDGET (pane), TRUE, FALSE);
 	} else {
 		gtk_paned_pack2 (paned, GTK_WIDGET (pane), TRUE, FALSE);
 	}
-
-    /* Make the paned think it's been manually resized, otherwise
-       things like the trash bar will force unwanted resizes */
-
-    int w;
-    w = gtk_widget_get_allocated_width (GTK_WIDGET (paned)) / 2;
-    gtk_paned_set_position (paned, w);
 
 	/* Ensure the toolbar doesn't pop itself into existence (double toolbars suck.) */
 	gtk_widget_hide (pane->tool_bar);
@@ -1627,7 +1641,7 @@ nemo_window_reload (NemoWindow *window)
 {
 	NemoWindowSlot *active_slot;
 	active_slot = nemo_window_get_active_slot (window);
-	nemo_window_slot_queue_reload (active_slot);
+	nemo_window_slot_queue_reload (active_slot, TRUE);
 }
 
 static gboolean
@@ -1665,7 +1679,7 @@ nemo_window_button_press_event (GtkWidget *widget,
 
 	if (mouse_extra_buttons && (event->button == mouse_back_button)) {
 		nemo_window_back_or_forward (window, TRUE, 0, 0);
-		handled = TRUE; 
+		handled = TRUE;
 	} else if (mouse_extra_buttons && (event->button == mouse_forward_button)) {
 		nemo_window_back_or_forward (window, FALSE, 0, 0);
 		handled = TRUE;
@@ -1973,6 +1987,13 @@ nemo_window_split_view_off (NemoWindow *window)
 		}
 	}
 
+    /* Reset split view pane's position so the position can be
+     * caught again later */
+    g_object_set (G_OBJECT (window->details->split_view_hpane),
+                  "position", 0,
+                  "position-set", FALSE,
+                  NULL);
+
 	nemo_window_set_active_pane (window, active_pane);
 	nemo_navigation_state_set_master (window->details->nav_state,
 					      active_pane->action_group);
@@ -2060,7 +2081,7 @@ nemo_window_set_ignore_meta_zoom_level (NemoWindow *window, gint level)
 
 /* FIXME:
  *
- * Remove this and just use g_list_copy_deep 
+ * Remove this and just use g_list_copy_deep
  * when we no longer need to support GLib < 2.34
  *
  */

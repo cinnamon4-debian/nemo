@@ -41,8 +41,6 @@
 #define AFTER_ALL_TABS -1
 #define NOT_IN_APP_WINDOWS -2
 
-static void nemo_notebook_init		 (NemoNotebook *notebook);
-static void nemo_notebook_class_init	 (NemoNotebookClass *klass);
 static int  nemo_notebook_insert_page	 (GtkNotebook *notebook,
 					  GtkWidget *child,
 					  GtkWidget *tab_label,
@@ -367,7 +365,7 @@ build_tab_label (NemoNotebook *nb, NemoWindowSlot *slot)
 
 	gtk_widget_set_name (close_button, "nemo-tab-close-button");
 
-	image = gtk_image_new_from_icon_name ("window-close", GTK_ICON_SIZE_MENU);
+	image = gtk_image_new_from_icon_name ("window-close-symbolic", GTK_ICON_SIZE_MENU);
 	gtk_widget_set_tooltip_text (close_button, _("Close tab"));
 	g_signal_connect_object (close_button, "clicked",
 				 G_CALLBACK (close_button_clicked_cb), slot, 0);

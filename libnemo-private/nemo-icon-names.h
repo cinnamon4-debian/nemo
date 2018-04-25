@@ -13,7 +13,7 @@
 #define NEMO_ICON_SEARCH		"system-search"
 #define NEMO_ICON_TRASH		"user-trash"
 #define NEMO_ICON_TRASH_FULL	"user-trash-full"
-#define NEMO_ICON_DELETE		"edit-delete"
+#define NEMO_ICON_DELETE		"edit-delete-symbolic"
 
 #define NEMO_ICON_FOLDER_DESKTOP    "user-desktop"
 #define NEMO_ICON_FOLDER_DOCUMENTS  "folder-documents"
@@ -30,6 +30,35 @@
 
 /* Icons not provided by fd.o naming spec or nemo itself */
 #define NEMO_ICON_BURN		"nemo-cd-burner"
+
+#define NEMO_ICON_SYMBOLIC_COMPUTER      "computer-symbolic"
+#define NEMO_ICON_SYMBOLIC_DESKTOP       "user-desktop-symbolic"
+#define NEMO_ICON_SYMBOLIC_FILESYSTEM    "drive-harddisk-symbolic"
+#define NEMO_ICON_SYMBOLIC_FOLDER        "folder-symbolic"
+#define NEMO_ICON_SYMBOLIC_FOLDER_REMOTE "folder-remote-symbolic"
+#define NEMO_ICON_SYMBOLIC_HOME      "user-home-symbolic"
+#define NEMO_ICON_SYMBOLIC_NETWORK       "network-workgroup-symbolic"
+#define NEMO_ICON_SYMBOLIC_NETWORK_SERVER    "network-server-symbolic"
+#define NEMO_ICON_SYMBOLIC_TRASH     "user-trash-symbolic"
+#define NEMO_ICON_SYMBOLIC_TRASH_FULL    "user-trash-full-symbolic"
+
+#define NEMO_ICON_SYMBOLIC_FOLDER_DOCUMENTS  "folder-documents-symbolic"
+#define NEMO_ICON_SYMBOLIC_FOLDER_DOWNLOAD   "folder-download-symbolic"
+#define NEMO_ICON_SYMBOLIC_FOLDER_MUSIC      "folder-music-symbolic"
+#define NEMO_ICON_SYMBOLIC_FOLDER_PICTURES   "folder-pictures-symbolic"
+#define NEMO_ICON_SYMBOLIC_FOLDER_PUBLIC_SHARE "folder-publicshare-symbolic"
+#define NEMO_ICON_SYMBOLIC_FOLDER_TEMPLATES  "folder-templates-symbolic"
+#define NEMO_ICON_SYMBOLIC_FOLDER_VIDEOS     "folder-videos-symbolic"
+#define NEMO_ICON_SYMBOLIC_FOLDER_SAVED_SEARCH "folder-saved-search-symbolic"
+
+
+
+
+
+
+
+
+
 
 #endif /* NEMO_ICON_NAMES_H */
 
