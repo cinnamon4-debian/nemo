@@ -69,7 +69,7 @@ on_check_toggled(GtkWidget *button, ActionProxy *proxy)
 
     GPtrArray *new_list = g_ptr_array_new ();
 
-    int i;
+    guint i;
 
     if (enabled) {
         for (i = 0; i < g_strv_length (blacklist); i++) {
@@ -207,6 +207,10 @@ strip_accel (const gchar *input)
 static void
 refresh_widget (NemoActionConfigWidget *widget)
 {
+    gchar **data_dirs;
+    gchar *path;
+    guint i;
+
     if (widget->actions != NULL) {
         g_list_free_full (widget->actions, (GDestroyNotify) action_proxy_free);
         widget->actions = NULL;
@@ -214,11 +218,13 @@ refresh_widget (NemoActionConfigWidget *widget)
 
     nemo_config_base_widget_clear_list (NEMO_CONFIG_BASE_WIDGET (widget));
 
-    gchar *path = NULL;
+    data_dirs = (gchar **) g_get_system_data_dirs ();
 
-    path = nemo_action_manager_get_sys_directory_path ();
-    populate_from_directory (widget, path);
-    g_clear_pointer (&path, g_free);
+    for (i = 0; i < g_strv_length (data_dirs); i++) {
+        path = g_build_filename (data_dirs[i], "nemo", "actions", NULL);
+        populate_from_directory (widget, path);
+        g_clear_pointer (&path, g_free);
+    }
 
     path = nemo_action_manager_get_user_directory_path ();
     populate_from_directory (widget, path);
@@ -248,7 +254,7 @@ refresh_widget (NemoActionConfigWidget *widget)
             ActionProxy *proxy = l->data;
 
             gboolean active = TRUE;
-            gint i = 0;
+            guint i = 0;
 
             for (i = 0; i < g_strv_length (blacklist); i++) {
                 if (g_strcmp0 (blacklist[i], proxy->filename) == 0) {
@@ -381,14 +387,14 @@ static void setup_dir_monitors (NemoActionConfigWidget *widget)
 
     gchar **data_dirs = (gchar **) g_get_system_data_dirs ();
 
-    gint i;
+    guint i;
     for (i = 0; i < g_strv_length (data_dirs); i++) {
         gchar *path = g_build_filename (data_dirs[i], "nemo", "actions", NULL);
         try_monitor_path (widget, path);
         g_free (path);
     }
 
-    gchar *path = g_build_filename (g_get_user_data_dir (), "nemo", "actions", NULL);
+    gchar *path = nemo_action_manager_get_user_directory_path ();
     try_monitor_path (widget, path);
     g_free (path);
 }

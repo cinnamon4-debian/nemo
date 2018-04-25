@@ -229,6 +229,7 @@ NemoRequestStatus   nemo_file_get_deep_counts                   (NemoFile       
 									 goffset                         *total_size,
 									 gboolean                        force);
 gboolean                nemo_file_should_show_thumbnail             (NemoFile                   *file);
+void                    nemo_file_delete_thumbnail                  (NemoFile                   *file);
 gboolean                nemo_file_should_show_directory_item_count  (NemoFile                   *file);
 gboolean                nemo_file_should_show_type                  (NemoFile                   *file);
 GList *                 nemo_file_get_keywords                      (NemoFile                   *file);
@@ -449,8 +450,7 @@ char *                  nemo_file_get_drop_target_uri               (NemoFile   
 
 GIcon *                 nemo_file_get_gicon                         (NemoFile                   *file,
                                                                      NemoFileIconFlags           flags);
-GIcon *                 nemo_file_get_emblemed_icon                 (NemoFile                   *file,
-                                                                     NemoFileIconFlags           flags);
+GIcon *                 nemo_file_get_control_icon                  (NemoFile                   *file);
 
 NemoIconInfo *      nemo_file_get_icon                          (NemoFile                   *file,
 									 int                             size,

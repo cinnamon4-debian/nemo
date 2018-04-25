@@ -99,7 +99,7 @@ action_close_window_slot_callback (GtkAction *action,
 }
 
 static void
-action_connect_to_server_callback (GtkAction *action, 
+action_connect_to_server_callback (GtkAction *action,
 				   gpointer user_data)
 {
 	NemoWindow *window = NEMO_WINDOW (user_data);
@@ -111,7 +111,7 @@ action_connect_to_server_callback (GtkAction *action,
 }
 
 static void
-action_stop_callback (GtkAction *action, 
+action_stop_callback (GtkAction *action,
 		      gpointer user_data)
 {
 	NemoWindow *window;
@@ -125,8 +125,8 @@ action_stop_callback (GtkAction *action,
 
 #ifdef TEXT_CHANGE_UNDO
 static void
-action_undo_callback (GtkAction *action, 
-		      gpointer user_data) 
+action_undo_callback (GtkAction *action,
+		      gpointer user_data)
 {
 	NemoApplication *app;
 
@@ -136,22 +136,24 @@ action_undo_callback (GtkAction *action,
 #endif
 
 static void
-action_home_callback (GtkAction *action, 
-		      gpointer user_data) 
+action_home_callback (GtkAction *action,
+		      gpointer user_data)
 {
-	NemoWindow *window;
-	NemoWindowSlot *slot;
+    if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
+        NemoWindow *window;
+        NemoWindowSlot *slot;
 
-	window = NEMO_WINDOW (user_data);
-	slot = nemo_window_get_active_slot (window);
+        window = NEMO_WINDOW (user_data);
 
-	nemo_window_slot_go_home (slot,
-				      nemo_event_get_window_open_flags ());
+        slot = nemo_window_get_active_slot (window);
+
+        nemo_window_slot_go_home (slot, nemo_event_get_window_open_flags ());
+    }
 }
 
 static void
-action_go_to_computer_callback (GtkAction *action, 
-				gpointer user_data) 
+action_go_to_computer_callback (GtkAction *action,
+				gpointer user_data)
 {
 	NemoWindow *window;
 	NemoWindowSlot *slot;
@@ -167,8 +169,8 @@ action_go_to_computer_callback (GtkAction *action,
 }
 
 static void
-action_go_to_network_callback (GtkAction *action, 
-				gpointer user_data) 
+action_go_to_network_callback (GtkAction *action,
+				gpointer user_data)
 {
 	NemoWindow *window;
 	NemoWindowSlot *slot;
@@ -185,7 +187,7 @@ action_go_to_network_callback (GtkAction *action,
 
 static void
 action_go_to_templates_callback (GtkAction *action,
-				 gpointer user_data) 
+				 gpointer user_data)
 {
 	NemoWindow *window;
 	NemoWindowSlot *slot;
@@ -204,8 +206,8 @@ action_go_to_templates_callback (GtkAction *action,
 }
 
 static void
-action_go_to_trash_callback (GtkAction *action, 
-			     gpointer user_data) 
+action_go_to_trash_callback (GtkAction *action,
+			     gpointer user_data)
 {
 	NemoWindow *window;
 	NemoWindowSlot *slot;
@@ -221,13 +223,13 @@ action_go_to_trash_callback (GtkAction *action,
 }
 
 static void
-action_reload_callback (GtkAction *action, 
-			gpointer user_data) 
+action_reload_callback (GtkAction *action,
+			gpointer user_data)
 {
 	NemoWindowSlot *slot;
 
 	slot = nemo_window_get_active_slot (NEMO_WINDOW (user_data));
-	nemo_window_slot_queue_reload (slot);
+	nemo_window_slot_queue_reload (slot, TRUE);
 }
 
 static NemoView *
@@ -243,8 +245,8 @@ get_current_view (NemoWindow *window)
 }
 
 static void
-action_zoom_in_callback (GtkAction *action, 
-			 gpointer user_data) 
+action_zoom_in_callback (GtkAction *action,
+			 gpointer user_data)
 {
     if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
         nemo_view_bump_zoom_level (get_current_view (user_data), 1);
@@ -252,8 +254,8 @@ action_zoom_in_callback (GtkAction *action,
 }
 
 static void
-action_zoom_out_callback (GtkAction *action, 
-			  gpointer user_data) 
+action_zoom_out_callback (GtkAction *action,
+			  gpointer user_data)
 {
     if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
         nemo_view_bump_zoom_level (get_current_view (user_data), -1);
@@ -261,8 +263,8 @@ action_zoom_out_callback (GtkAction *action,
 }
 
 static void
-action_zoom_normal_callback (GtkAction *action, 
-			     gpointer user_data) 
+action_zoom_normal_callback (GtkAction *action,
+			     gpointer user_data)
 {
     if (!NEMO_IS_DESKTOP_WINDOW (user_data)) {
         nemo_view_restore_default_zoom_level (get_current_view (user_data));
@@ -270,7 +272,7 @@ action_zoom_normal_callback (GtkAction *action,
 }
 
 static void
-action_show_hidden_files_callback (GtkAction *action, 
+action_show_hidden_files_callback (GtkAction *action,
 				   gpointer callback_data)
 {
 	NemoWindow *window;
@@ -288,7 +290,7 @@ action_show_hidden_files_callback (GtkAction *action,
 }
 
 static void
-action_preferences_callback (GtkAction *action, 
+action_preferences_callback (GtkAction *action,
 			     gpointer user_data)
 {
 	GtkWindow *window;
@@ -299,7 +301,7 @@ action_preferences_callback (GtkAction *action,
 }
 
 static void
-action_plugins_callback (GtkAction *action, 
+action_plugins_callback (GtkAction *action,
                          gpointer user_data)
 {
     nemo_plugin_manager_show ();
@@ -308,7 +310,7 @@ action_plugins_callback (GtkAction *action,
 static void
 action_about_nemo_callback (GtkAction *action,
 				gpointer user_data)
-{	
+{
 	const gchar *license[] = {
 		N_("Nemo is free software; you can redistribute it and/or modify "
 		   "it under the terms of the GNU General Public License as published by "
@@ -328,17 +330,17 @@ action_about_nemo_callback (GtkAction *action,
 	license_trans = g_strjoin ("\n\n", _(license[0]), _(license[1]),
 					     _(license[2]), NULL);
 
-	date = g_date_time_new_now_local ();	
+	date = g_date_time_new_now_local ();
 
 	gtk_show_about_dialog (GTK_WINDOW (user_data),
 			       "program-name", _("Nemo"),
 			       "version", VERSION,
 			       "comments", _("Nemo lets you organize "
 					     "files and folders, both on "
-					     "your computer and online."),			       
+					     "your computer and online."),
 			       "license", license_trans,
-			       "wrap-license", TRUE,			       				
-			      "logo-icon-name", "folder",			      
+			       "wrap-license", TRUE,
+			      "logo-icon-name", "folder",
 			      NULL);
 
 	g_free (license_trans);
@@ -346,8 +348,8 @@ action_about_nemo_callback (GtkAction *action,
 }
 
 static void
-action_up_callback (GtkAction *action, 
-		     gpointer user_data) 
+action_up_callback (GtkAction *action,
+		     gpointer user_data)
 {
 	NemoWindow *window = user_data;
 	NemoWindowSlot *slot;
@@ -357,7 +359,7 @@ action_up_callback (GtkAction *action,
 }
 
 static void
-action_nemo_manual_callback (GtkAction *action, 
+action_nemo_manual_callback (GtkAction *action,
 				 gpointer user_data)
 {
 	NemoWindow *window;
@@ -415,7 +417,7 @@ menu_item_select_cb (GtkMenuItem *proxy,
 
 	action = gtk_activatable_get_related_action (GTK_ACTIVATABLE (proxy));
 	g_return_if_fail (action != NULL);
-	
+
 	g_object_get (G_OBJECT (action), "tooltip", &message, NULL);
 	if (message) {
 		gtk_statusbar_push (GTK_STATUSBAR (window->details->statusbar),
@@ -458,7 +460,7 @@ trash_state_changed_cb (NemoTrashMonitor *monitor,
 	action_group = nemo_window_get_main_action_group (window);
 	action = gtk_action_group_get_action (action_group, "Go to Trash");
 
-	gicon = nemo_trash_monitor_get_icon ();
+	gicon = nemo_trash_monitor_get_symbolic_icon ();
 
 	if (gicon) {
 		g_object_set (action, "gicon", gicon, NULL);
@@ -482,25 +484,25 @@ nemo_window_initialize_trash_icon_monitor (NemoWindow *window)
 #define MENU_ITEM_MAX_WIDTH_CHARS 32
 
 static void
-action_close_all_windows_callback (GtkAction *action, 
+action_close_all_windows_callback (GtkAction *action,
 				   gpointer user_data)
 {
 	nemo_application_close_all_windows (nemo_application_get_singleton ());
 }
 
 static void
-action_back_callback (GtkAction *action, 
-		      gpointer user_data) 
+action_back_callback (GtkAction *action,
+		      gpointer user_data)
 {
-	nemo_window_back_or_forward (NEMO_WINDOW (user_data), 
+	nemo_window_back_or_forward (NEMO_WINDOW (user_data),
 					 TRUE, 0, nemo_event_get_window_open_flags ());
 }
 
 static void
-action_forward_callback (GtkAction *action, 
-			 gpointer user_data) 
+action_forward_callback (GtkAction *action,
+			 gpointer user_data)
 {
-	nemo_window_back_or_forward (NEMO_WINDOW (user_data), 
+	nemo_window_back_or_forward (NEMO_WINDOW (user_data),
 					 FALSE, 0, nemo_event_get_window_open_flags ());
 }
 
@@ -534,7 +536,7 @@ action_split_view_same_location_callback (GtkAction *action,
 }
 
 static void
-action_show_hide_sidebar_callback (GtkAction *action, 
+action_show_hide_sidebar_callback (GtkAction *action,
 				   gpointer user_data)
 {
 	NemoWindow *window;
@@ -704,7 +706,7 @@ update_side_bar_radio_buttons (NemoWindow *window)
 }
 
 void
-nemo_window_update_show_hide_menu_items (NemoWindow *window) 
+nemo_window_update_show_hide_menu_items (NemoWindow *window)
 {
 	GtkActionGroup *action_group;
 	GtkAction *action;
@@ -728,7 +730,7 @@ action_add_bookmark_callback (GtkAction *action,
 }
 
 static void
-action_edit_bookmarks_callback (GtkAction *action, 
+action_edit_bookmarks_callback (GtkAction *action,
 				gpointer user_data)
 {
         nemo_window_edit_bookmarks (NEMO_WINDOW (user_data));
@@ -766,32 +768,6 @@ static const char* icon_entries[] = {
 	"/MenuBar/Other Menus/Go/Go to Network",
 	"/MenuBar/Other Menus/Go/Edit Location"
 };
-
-/**
- * refresh_go_menu:
- * 
- * Refresh list of bookmarks at end of Go menu to match centralized history list.
- * @window: The NemoWindow whose Go menu will be refreshed.
- **/
-static void
-nemo_window_initialize_go_menu (NemoWindow *window)
-{
-	GtkUIManager *ui_manager;
-	GtkWidget *menuitem;
-	int i;
-
-	ui_manager = nemo_window_get_ui_manager (NEMO_WINDOW (window));
-
-	for (i = 0; i < G_N_ELEMENTS (icon_entries); i++) {
-		menuitem = gtk_ui_manager_get_widget (
-				ui_manager,
-				icon_entries[i]);
-		if (menuitem) {
-			gtk_image_menu_item_set_always_show_image (
-					GTK_IMAGE_MENU_ITEM (menuitem), TRUE);
-		}
-	}
-}
 
 static void
 action_new_window_callback (GtkAction *action,
@@ -1130,7 +1106,7 @@ action_tabs_move_right_callback (GtkAction *action,
 }
 
 static void
-action_tab_change_action_activate_callback (GtkAction *action, 
+action_tab_change_action_activate_callback (GtkAction *action,
 					    gpointer user_data)
 {
 	NemoWindowPane *pane;
@@ -1170,10 +1146,10 @@ open_in_terminal_other (const gchar *path)
 
 static void
 action_open_terminal_callback(GtkAction *action, gpointer callback_data)
-{  
+{
     NemoWindow *window;
     NemoView *view;
-    
+
     window = NEMO_WINDOW(callback_data);
 
     view = get_current_view (window);
@@ -1193,16 +1169,16 @@ static const GtkActionEntry main_entries[] = {
   /* name, stock id, label */  { "Edit", NULL, N_("_Edit") },
   /* name, stock id, label */  { "View", NULL, N_("_View") },
   /* name, stock id, label */  { "Help", NULL, N_("_Help") },
-  /* name, stock id */         { "Close", GTK_STOCK_CLOSE,
+  /* name, stock id */         { "Close", "window-close-symbolic",
   /* label, accelerator */       N_("_Close"), "<control>W",
   /* tooltip */                  N_("Close this folder"),
                                  G_CALLBACK (action_close_window_slot_callback) },
-                               { "Preferences", GTK_STOCK_PREFERENCES,
-                                 N_("Prefere_nces"),               
+                               { "Preferences", "preferences-other-symbolic",
+                                 N_("Prefere_nces"),
                                  NULL, N_("Edit Nemo preferences"),
                                  G_CALLBACK (action_preferences_callback) },
                                { NEMO_ACTION_PLUGIN_MANAGER, NULL,
-                                 N_("Plugins"),               
+                                 N_("Plugins"),
                                  "<alt>p", N_("Manage extensions, actions and scripts"),
                                  G_CALLBACK (action_plugins_callback) },
 #ifdef TEXT_CHANGE_UNDO
@@ -1210,21 +1186,21 @@ static const GtkActionEntry main_entries[] = {
                                  "<control>Z", N_("Undo the last text change"),
                                  G_CALLBACK (action_undo_callback) },
 #endif
-  /* name, stock id, label */  { "Up", GTK_STOCK_GO_UP, N_("Open _Parent"),
+  /* name, stock id, label */  { "Up", "go-up-symbolic", N_("Open _Parent"),
                                  "<alt>Up", N_("Open the parent folder"),
                                  G_CALLBACK (action_up_callback) },
   /* name, stock id, label */  { "UpAccel", NULL, "UpAccel",
                                  "", NULL,
                                  G_CALLBACK (action_up_callback) },
-  /* name, stock id */         { "Stop", GTK_STOCK_STOP,
+  /* name, stock id */         { "Stop", "process-stop-symbolic",
   /* label, accelerator */       N_("_Stop"), NULL,
   /* tooltip */                  N_("Stop loading the current location"),
                                  G_CALLBACK (action_stop_callback) },
-  /* name, stock id */         { "Reload", GTK_STOCK_REFRESH,
+  /* name, stock id */         { "Reload", "view-refresh-symbolic",
   /* label, accelerator */       N_("_Reload"), "<control>R",
   /* tooltip */                  N_("Reload the current location"),
                                  G_CALLBACK (action_reload_callback) },
-  /* name, stock id */         { "NemoHelp", GTK_STOCK_HELP,
+  /* name, stock id */         { "NemoHelp", "help-contents-symbolic",
   /* label, accelerator */       N_("_All Topics"), "F1",
   /* tooltip */                  N_("Display Nemo help"),
                                  G_CALLBACK (action_nemo_manual_callback) },
@@ -1244,11 +1220,11 @@ static const GtkActionEntry main_entries[] = {
      label, accelerator        N_("Share and transfer files"), NULL,
      tooltip                   N_("Easily transfer files to your contacts and devices from the file manager."),
                                  G_CALLBACK (action_nemo_manual_callback) }, **/
-  /* name, stock id */         { "About Nemo", GTK_STOCK_ABOUT,
+  /* name, stock id */         { "About Nemo", "help-about-symbolic",
   /* label, accelerator */       N_("_About"), NULL,
   /* tooltip */                  N_("Display credits for the creators of Nemo"),
                                  G_CALLBACK (action_about_nemo_callback) },
-  /* name, stock id */         { "Zoom In", GTK_STOCK_ZOOM_IN,
+  /* name, stock id */         { "Zoom In", "zoom-in-symbolic",
   /* label, accelerator */       N_("Zoom _In"), "<control>plus",
   /* tooltip */                  N_("Increase the view size"),
                                  G_CALLBACK (action_zoom_in_callback) },
@@ -1260,7 +1236,7 @@ static const GtkActionEntry main_entries[] = {
   /* label, accelerator */       "ZoomInAccel2", "<control>KP_Add",
   /* tooltip */                  NULL,
                                  G_CALLBACK (action_zoom_in_callback) },
-  /* name, stock id */         { "Zoom Out", GTK_STOCK_ZOOM_OUT,
+  /* name, stock id */         { "Zoom Out", "zoom-out-symbolic",
   /* label, accelerator */       N_("Zoom _Out"), "<control>minus",
   /* tooltip */                  N_("Decrease the view size"),
                                  G_CALLBACK (action_zoom_out_callback) },
@@ -1268,50 +1244,50 @@ static const GtkActionEntry main_entries[] = {
   /* label, accelerator */       "ZoomOutAccel", "<control>KP_Subtract",
   /* tooltip */                  NULL,
                                  G_CALLBACK (action_zoom_out_callback) },
-  /* name, stock id */         { "Zoom Normal", GTK_STOCK_ZOOM_100,
+  /* name, stock id */         { "Zoom Normal", "zoom-original-symbolic",
   /* label, accelerator */       N_("Normal Si_ze"), "<control>0",
   /* tooltip */                  N_("Use the normal view size"),
                                  G_CALLBACK (action_zoom_normal_callback) },
-  /* name, stock id */         { "Connect to Server", NULL, 
+  /* name, stock id */         { "Connect to Server", NULL,
   /* label, accelerator */       N_("Connect to _Server..."), NULL,
   /* tooltip */                  N_("Connect to a remote computer or shared disk"),
                                  G_CALLBACK (action_connect_to_server_callback) },
-  /* name, stock id */         { "Home", NEMO_ICON_HOME,
+  /* name, stock id */         { "Home", NEMO_ICON_SYMBOLIC_HOME,
   /* label, accelerator */       N_("_Home"), "<alt>Home",
   /* tooltip */                  N_("Open your personal folder"),
                                  G_CALLBACK (action_home_callback) },
-  /* name, stock id */         { "Go to Computer", NEMO_ICON_COMPUTER,
+  /* name, stock id */         { "Go to Computer", NEMO_ICON_SYMBOLIC_COMPUTER,
   /* label, accelerator */       N_("_Computer"), NULL,
   /* tooltip */                  N_("Browse all local and remote disks and folders accessible from this computer"),
                                  G_CALLBACK (action_go_to_computer_callback) },
-  /* name, stock id */         { "Go to Network", NEMO_ICON_NETWORK,
+  /* name, stock id */         { "Go to Network", NEMO_ICON_SYMBOLIC_NETWORK,
   /* label, accelerator */       N_("_Network"), NULL,
   /* tooltip */                  N_("Browse bookmarked and local network locations"),
                                  G_CALLBACK (action_go_to_network_callback) },
-  /* name, stock id */         { "Go to Templates", NEMO_ICON_TEMPLATE,
+  /* name, stock id */         { "Go to Templates", NEMO_ICON_SYMBOLIC_FOLDER_TEMPLATES,
   /* label, accelerator */       N_("T_emplates"), NULL,
   /* tooltip */                  N_("Open your personal templates folder"),
                                  G_CALLBACK (action_go_to_templates_callback) },
-  /* name, stock id */         { "Go to Trash", NEMO_ICON_TRASH,
+  /* name, stock id */         { "Go to Trash", NEMO_ICON_SYMBOLIC_TRASH,
   /* label, accelerator */       N_("_Trash"), NULL,
   /* tooltip */                  N_("Open your personal trash folder"),
                                  G_CALLBACK (action_go_to_trash_callback) },
   /* name, stock id, label */  { "Go", NULL, N_("_Go") },
   /* name, stock id, label */  { "Bookmarks", NULL, N_("_Bookmarks") },
   /* name, stock id, label */  { "Tabs", NULL, N_("_Tabs") },
-  /* name, stock id, label */  { "New Window", "window-new", N_("New _Window"),
+  /* name, stock id, label */  { "New Window", NULL, N_("New _Window"),
                                  "<control>N", N_("Open another Nemo window for the displayed location"),
                                  G_CALLBACK (action_new_window_callback) },
-  /* name, stock id, label */  { "New Tab", "tab-new", N_("New _Tab"),
+  /* name, stock id, label */  { "New Tab", "tab-new-symbolic", N_("New _Tab"),
                                  "<control>T", N_("Open another tab for the displayed location"),
                                  G_CALLBACK (action_new_tab_callback) },
   /* name, stock id, label */  { "Close All Windows", NULL, N_("Close _All Windows"),
                                  "<control>Q", N_("Close all Navigation windows"),
                                  G_CALLBACK (action_close_all_windows_callback) },
-  /* name, stock id, label */  { NEMO_ACTION_BACK, GTK_STOCK_GO_BACK, N_("_Back"),
+  /* name, stock id, label */  { NEMO_ACTION_BACK, "go-previous-symbolic", N_("_Back"),
 				 "<alt>Left", N_("Go to the previous visited location"),
 				 G_CALLBACK (action_back_callback) },
-  /* name, stock id, label */  { NEMO_ACTION_FORWARD, GTK_STOCK_GO_FORWARD, N_("_Forward"),
+  /* name, stock id, label */  { NEMO_ACTION_FORWARD, "go-next-symbolic", N_("_Forward"),
 				 "<alt>Right", N_("Go to the next visited location"),
 				 G_CALLBACK (action_forward_callback) },
   /* name, stock id, label */  { NEMO_ACTION_EDIT_LOCATION, NULL, N_("Toggle _Location Entry"),
@@ -1323,7 +1299,7 @@ static const GtkActionEntry main_entries[] = {
   /* name, stock id, label */  { "SplitViewSameLocation", NULL, N_("Sa_me Location as Other Pane"),
 				 NULL, N_("Go to the same location as in the extra pane"),
 				 G_CALLBACK (action_split_view_same_location_callback) },
-  /* name, stock id, label */  { "Add Bookmark", GTK_STOCK_ADD, N_("_Add Bookmark"),
+  /* name, stock id, label */  { "Add Bookmark", "bookmark-new-symbolic", N_("_Add Bookmark"),
                                  "<control>d", N_("Add a bookmark for the current location to this menu"),
                                  G_CALLBACK (action_add_bookmark_callback) },
   /* name, stock id, label */  { "Edit Bookmarks", NULL, N_("_Edit Bookmarks..."),
@@ -1354,12 +1330,12 @@ static const GtkToggleActionEntry main_toggle_entries[] = {
   /* label, accelerator */   N_("_Main Toolbar"), NULL,
   /* tooltip */              N_("Change the visibility of this window's main toolbar"),
 			     NULL,
-  /* is_active */            TRUE }, 
+  /* is_active */            TRUE },
   /* name, stock id */     { "Show Hide Sidebar", NULL,
   /* label, accelerator */   N_("_Show Sidebar"), "F9",
   /* tooltip */              N_("Change the visibility of this window's side pane"),
                              G_CALLBACK (action_show_hide_sidebar_callback),
-  /* is_active */            TRUE }, 
+  /* is_active */            TRUE },
   /* name, stock id */     { "Show Hide Statusbar", NULL,
   /* label, accelerator */   N_("St_atusbar"), NULL,
   /* tooltip */              N_("Change the visibility of this window's statusbar"),
@@ -1370,7 +1346,7 @@ static const GtkToggleActionEntry main_toggle_entries[] = {
   /* tooltip */              N_("Change the default visibility of the menubar"),
                              NULL,
   /* is_active */            TRUE },
-  /* name, stock id */     { "Search", "edit-find",
+  /* name, stock id */     { "Search", "edit-find-symbolic",
   /* label, accelerator */   N_("_Search for Files..."), "<control>f",
   /* tooltip */              N_("Search documents and folders by name"),
 			     NULL,
@@ -1462,9 +1438,9 @@ nemo_window_create_toolbar_action_group (NemoWindow *window)
    	g_signal_connect (action, "activate",
    			  G_CALLBACK (action_up_callback), window);
    	gtk_action_group_add_action (action_group, action);
-   
+
    	g_object_unref (action);
-  
+
    	action = g_object_new (NEMO_TYPE_NAVIGATION_ACTION,
    			       "name", NEMO_ACTION_RELOAD,
    			       "label", _("_Reload"),
@@ -1476,9 +1452,9 @@ nemo_window_create_toolbar_action_group (NemoWindow *window)
    	g_signal_connect (action, "activate",
    			  G_CALLBACK (action_reload_callback), window);
    	gtk_action_group_add_action (action_group, action);
-   	
+
    	g_object_unref (action);
-   
+
    	action = g_object_new (NEMO_TYPE_NAVIGATION_ACTION,
    			       "name", NEMO_ACTION_HOME,
    			       "label", _("_Home"),
@@ -1490,9 +1466,9 @@ nemo_window_create_toolbar_action_group (NemoWindow *window)
    	g_signal_connect (action, "activate",
    			  G_CALLBACK (action_home_callback), window);
    	gtk_action_group_add_action (action_group, action);
-   
+
    	g_object_unref (action);
-   
+
    	action = g_object_new (NEMO_TYPE_NAVIGATION_ACTION,
    			       "name", NEMO_ACTION_COMPUTER,
    			       "label", _("_Computer"),
@@ -1504,7 +1480,7 @@ nemo_window_create_toolbar_action_group (NemoWindow *window)
    	g_signal_connect (action, "activate",
    			  G_CALLBACK (action_go_to_computer_callback), window);
    	gtk_action_group_add_action (action_group, action);
-   
+
    	g_object_unref (action);
 
     action = GTK_ACTION (gtk_toggle_action_new (NEMO_ACTION_TOGGLE_LOCATION,
@@ -1527,9 +1503,9 @@ nemo_window_create_toolbar_action_group (NemoWindow *window)
     gtk_action_group_add_action (action_group, GTK_ACTION (action));
     g_signal_connect (action, "activate",
                       G_CALLBACK (action_new_folder_callback), window);
-    gtk_action_set_icon_name (GTK_ACTION (action), "folder-symbolic");
+    gtk_action_set_icon_name (GTK_ACTION (action), "folder-new-symbolic");
     g_object_unref (action);
-    
+
     action = GTK_ACTION (gtk_action_new (NEMO_ACTION_OPEN_IN_TERMINAL,
                                                 _("Open in Terminal"),
                                                 _("Open a terminal in the active folder"),
@@ -1579,10 +1555,10 @@ nemo_window_create_toolbar_action_group (NemoWindow *window)
  	action = GTK_ACTION (gtk_toggle_action_new (NEMO_ACTION_SEARCH,
  				_("Search"),_("Search documents and folders by name"),
  				NULL));
- 
+
   	gtk_action_group_add_action (action_group, action);
     gtk_action_set_icon_name (GTK_ACTION (action), "edit-find-symbolic");
-  
+
   	g_object_unref (action);
 
 	navigation_state = nemo_window_get_navigation_state (window);
@@ -1636,7 +1612,7 @@ window_menus_set_bindings (NemoWindow *window)
                             G_BINDING_BIDIRECTIONAL | G_BINDING_SYNC_CREATE);
 }
 
-void 
+void
 nemo_window_initialize_actions (NemoWindow *window)
 {
 	GtkActionGroup *action_group;
@@ -1659,11 +1635,11 @@ nemo_window_initialize_actions (NemoWindow *window)
 
 /**
  * nemo_window_initialize_menus
- * 
+ *
  * Create and install the set of menus for this window.
  * @window: A recently-created NemoWindow.
  */
-void 
+void
 nemo_window_initialize_menus (NemoWindow *window)
 {
 	GtkActionGroup *action_group;
@@ -1680,10 +1656,10 @@ nemo_window_initialize_menus (NemoWindow *window)
 	action_group = gtk_action_group_new ("ShellActions");
 	gtk_action_group_set_translation_domain (action_group, GETTEXT_PACKAGE);
 	window->details->main_action_group = action_group;
-	gtk_action_group_add_actions (action_group, 
+	gtk_action_group_add_actions (action_group,
 				      main_entries, G_N_ELEMENTS (main_entries),
 				      window);
-	gtk_action_group_add_toggle_actions (action_group, 
+	gtk_action_group_add_toggle_actions (action_group,
 					     main_toggle_entries, G_N_ELEMENTS (main_toggle_entries),
 					     window);
 	gtk_action_group_add_radio_actions (action_group,
@@ -1746,7 +1722,7 @@ nemo_window_initialize_menus (NemoWindow *window)
 
 	gtk_window_add_accel_group (GTK_WINDOW (window),
 				    gtk_ui_manager_get_accel_group (ui_manager));
-	
+
 	g_signal_connect (ui_manager, "connect_proxy",
 			  G_CALLBACK (connect_proxy_cb), window);
 	g_signal_connect (ui_manager, "disconnect_proxy",
@@ -1756,7 +1732,6 @@ nemo_window_initialize_menus (NemoWindow *window)
 	gtk_ui_manager_add_ui_from_resource (ui_manager, "/org/nemo/nemo-shell-ui.xml", NULL);
 
 	nemo_window_initialize_trash_icon_monitor (window);
-	nemo_window_initialize_go_menu (window);
 }
 
 void
@@ -1773,7 +1748,7 @@ get_extension_menus (NemoWindow *window)
 	GList *providers;
 	GList *items;
 	GList *l;
-	
+
 	providers = nemo_module_get_extensions_for_type (NEMO_TYPE_MENU_PROVIDER);
 	items = NULL;
 
@@ -1782,7 +1757,7 @@ get_extension_menus (NemoWindow *window)
 	for (l = providers; l != NULL; l = l->next) {
 		NemoMenuProvider *provider;
 		GList *file_items;
-		
+
 		provider = NEMO_MENU_PROVIDER (l->data);
 		file_items = nemo_menu_provider_get_background_items (provider,
 									  GTK_WIDGET (window),
@@ -1806,20 +1781,20 @@ add_extension_menu_items (NemoWindow *window,
 	GList *l;
 
 	ui_manager = window->details->ui_manager;
-	
+
 	for (l = menu_items; l; l = l->next) {
 		NemoMenuItem *item;
 		NemoMenu *menu;
 		GtkAction *action;
 		char *path;
-		
+
 		item = NEMO_MENU_ITEM (l->data);
-		
+
 		g_object_get (item, "menu", &menu, NULL);
-		
+
 		action = nemo_action_from_menu_item (item, GTK_WIDGET (window));
 		gtk_action_group_add_action_with_accel (action_group, action, NULL);
-		
+
 		path = g_build_path ("/", POPUP_PATH_EXTENSION_ACTIONS, subdirectory, NULL);
 		gtk_ui_manager_add_ui (ui_manager,
 				       merge_id,
@@ -1840,13 +1815,13 @@ add_extension_menu_items (NemoWindow *window,
 				       FALSE);
 		g_free (path);
 
-		/* recursively fill the menu */		       
+		/* recursively fill the menu */
 		if (menu != NULL) {
 			char *subdir;
 			GList *children;
-			
+
 			children = nemo_menu_get_items (menu);
-			
+
 			subdir = g_build_path ("/", subdirectory, "/", gtk_action_get_name (action), NULL);
 			add_extension_menu_items (window,
 						  merge_id,
@@ -1856,7 +1831,7 @@ add_extension_menu_items (NemoWindow *window,
 
 			nemo_menu_item_list_free (children);
 			g_free (subdir);
-		}			
+		}
 	}
 }
 
@@ -1878,7 +1853,7 @@ nemo_window_load_extension_menus (NemoWindow *window)
 						    window->details->extensions_menu_action_group);
 		window->details->extensions_menu_action_group = NULL;
 	}
-	
+
 	merge_id = gtk_ui_manager_new_merge_id (window->details->ui_manager);
 	window->details->extensions_menu_merge_id = merge_id;
 	action_group = gtk_action_group_new ("ExtensionsMenuGroup");
