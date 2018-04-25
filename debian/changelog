@@ -1,3 +1,10 @@
+nemo (3.8.0-1~) UNRELEASED; urgency=medium
+
+  * New upstream release (3.8.0).
+  * Update debian/copyright.
+
+ -- Fabio Fantoni <fantonifabio@tiscali.it>  Wed, 25 Apr 2018 13:41:46 +0200
+
 nemo (3.6.5-1) unstable; urgency=medium
 
   [ Fabio Fantoni ]
