@@ -213,6 +213,7 @@ gboolean                nemo_file_is_user_special_directory         (NemoFile   
 gboolean		nemo_file_is_archive			(NemoFile			*file);
 gboolean                nemo_file_is_in_trash                       (NemoFile                   *file);
 gboolean                nemo_file_is_in_recent                      (NemoFile                   *file);
+gboolean                nemo_file_is_in_admin                       (NemoFile                   *file);
 gboolean                nemo_file_is_in_desktop                     (NemoFile                   *file);
 gboolean		nemo_file_is_home				(NemoFile                   *file);
 gboolean                nemo_file_is_desktop_directory              (NemoFile                   *file);
@@ -450,7 +451,7 @@ char *                  nemo_file_get_drop_target_uri               (NemoFile   
 
 GIcon *                 nemo_file_get_gicon                         (NemoFile                   *file,
                                                                      NemoFileIconFlags           flags);
-GIcon *                 nemo_file_get_control_icon                  (NemoFile                   *file);
+gchar *                 nemo_file_get_control_icon_name             (NemoFile                   *file);
 
 NemoIconInfo *      nemo_file_get_icon                          (NemoFile                   *file,
 									 int                             size,

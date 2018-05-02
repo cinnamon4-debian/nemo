@@ -388,7 +388,7 @@ add_place (NemoPlacesSidebar *sidebar,
 	   PlaceType place_type,
 	   SectionType section_type,
 	   const char *name,
-	   GIcon *icon,
+	   const char *icon,
 	   const char *uri,
 	   GDrive *drive,
 	   GVolume *volume,
@@ -569,19 +569,27 @@ sidebar_update_restore_selection (NemoPlacesSidebar *sidebar,
 static gint
 get_disk_full (GFile *file, gchar **tooltip_info)
 {
-    GFileInfo *info = g_file_query_filesystem_info (file,
-                                                    "filesystem::*",
-                                                    NULL,
-                                                    NULL);
-        guint64 k_used, k_total, k_free;
-        gint df_percent;
-        float fraction;
-        int prefix;
-        gchar *free_string;
+    GFileInfo *info;
+    GError *error;
+    guint64 k_used, k_total, k_free;
+    gint df_percent;
+    float fraction;
+    int prefix;
+    gchar *free_string;
 
+    error = NULL;
+    df_percent = -1;
+
+    info = g_file_query_filesystem_info (file,
+                                         "filesystem::*",
+                                         NULL,
+                                         &error);
+
+    if (info != NULL) {
         k_used = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_USED);
         k_total = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_SIZE);
         k_free = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_FREE);
+
         fraction = ((float) k_used / (float) k_total) * 100.0;
         df_percent = (gint) rintf(fraction);
 
@@ -589,10 +597,19 @@ get_disk_full (GFile *file, gchar **tooltip_info)
         free_string = g_format_size_full (k_free, prefix);
 
         *tooltip_info = g_strdup_printf (_("Free space: %s"), free_string);
+
         g_free (free_string);
-        if (info != NULL)
-            g_object_unref (info);
-        return (df_percent > -1 && df_percent < 101) ? df_percent : 0;
+        g_object_unref (info);
+    }
+
+    if (error != NULL) {
+        DEBUG ("Couldn't get disk full info for: %s", error->message);
+
+        *tooltip_info = g_strdup (" ");
+        g_clear_error (&error);
+    }
+
+    return df_percent;
 }
 
 static gboolean
@@ -649,12 +666,12 @@ recent_is_supported (void)
     return FALSE;
 }
 
-static GIcon *
-get_gicon (const gchar *uri)
+static gchar *
+get_icon_name (const gchar *uri)
 {
     NemoFile *file = nemo_file_get_by_uri (uri);
 
-    return nemo_file_get_control_icon (file);
+    return nemo_file_get_control_icon_name (file);
 }
 
 static void
@@ -674,7 +691,7 @@ update_places (NemoPlacesSidebar *sidebar)
 	int bookmark_count, bookmark_index;
 	char *location, *mount_uri, *name, *desktop_path, *last_uri, *identifier;
 	const gchar *bookmark_name;
-	GIcon *icon;
+	gchar *icon;
 	GFile *root;
 	NemoWindowSlot *slot;
 	char *tooltip;
@@ -712,7 +729,7 @@ update_places (NemoPlacesSidebar *sidebar)
 
     /* home folder */
     mount_uri = nemo_get_home_directory_uri ();
-    icon = get_gicon (mount_uri);
+    icon = get_icon_name (mount_uri);
     full = get_disk_full (g_file_new_for_uri (mount_uri), &tooltip_info);
     tooltip = g_strdup_printf (_("Open your personal folder\n%s"), tooltip_info);
     g_free (tooltip_info);
@@ -721,9 +738,9 @@ update_places (NemoPlacesSidebar *sidebar)
                            _("Home"), icon,
                            mount_uri, NULL, NULL, NULL, 0,
                            tooltip,
-                           full, home_on_different_fs (mount_uri),
+                           full, home_on_different_fs (mount_uri) && full > -1,
                            cat_iter);
-    g_object_unref (icon);
+    g_free (icon);
     sidebar->top_bookend_uri = g_strdup (mount_uri);
     g_free (mount_uri);
     g_free (tooltip);
@@ -732,14 +749,14 @@ update_places (NemoPlacesSidebar *sidebar)
         /* desktop */
         desktop_path = nemo_get_desktop_directory ();
         mount_uri = g_filename_to_uri (desktop_path, NULL, NULL);
-        icon = get_gicon (mount_uri);
+        icon = get_icon_name (mount_uri);
         cat_iter = add_place (sidebar, PLACES_BUILT_IN,
                                SECTION_COMPUTER,
                                _("Desktop"), icon,
                                mount_uri, NULL, NULL, NULL, 0,
                                _("Open the contents of your desktop in a folder"), 0, FALSE,
                                cat_iter);
-        g_object_unref (icon);
+        g_free (icon);
         g_free (sidebar->top_bookend_uri);
         sidebar->top_bookend_uri = g_strdup (mount_uri);
         g_free (mount_uri);
@@ -766,7 +783,7 @@ update_places (NemoPlacesSidebar *sidebar)
         root = nemo_bookmark_get_location (bookmark);
 
         bookmark_name = nemo_bookmark_get_name (bookmark);
-        icon = nemo_bookmark_get_icon (bookmark);
+        icon = nemo_bookmark_get_icon_name (bookmark);
         mount_uri = nemo_bookmark_get_uri (bookmark);
         tooltip = g_file_get_parse_name (root);
 
@@ -777,26 +794,25 @@ update_places (NemoPlacesSidebar *sidebar)
                                tooltip, 0, FALSE,
                                cat_iter);
         g_object_unref (root);
-        g_object_unref (icon);
+        g_free (icon);
         g_free (mount_uri);
         g_free (tooltip);
     }
 
     if (recent_is_supported ()) {
         mount_uri = (char *)"recent:///"; /* No need to strdup */
-        icon = g_themed_icon_new ("document-open-recent-symbolic");
+        icon = "document-open-recent-symbolic";
         cat_iter = add_place (sidebar, PLACES_BUILT_IN,
                               SECTION_COMPUTER,
                               _("Recent"), icon, mount_uri,
                               NULL, NULL, NULL, 0,
                               _("Recent files"), 0, FALSE, cat_iter);
-        g_object_unref (icon);
         sidebar->bottom_bookend_uri = g_strdup (mount_uri);
     }
 
     /* file system root */
     mount_uri = (char *)"file:///"; /* No need to strdup */
-    icon = g_themed_icon_new (NEMO_ICON_SYMBOLIC_FILESYSTEM);
+    icon = NEMO_ICON_SYMBOLIC_FILESYSTEM;
     full = get_disk_full (g_file_new_for_uri (mount_uri), &tooltip_info);
     tooltip = g_strdup_printf (_("Open the contents of the File System\n%s"), tooltip_info);
     g_free (tooltip_info);
@@ -805,23 +821,22 @@ update_places (NemoPlacesSidebar *sidebar)
                            _("File System"), icon,
                            mount_uri, NULL, NULL, NULL, 0,
                            tooltip,
-                           full, TRUE,
+                           full, full > -1,
                            cat_iter);
-    g_object_unref (icon);
     g_free (tooltip);
 
     if (!recent_is_supported())
         sidebar->bottom_bookend_uri = g_strdup (mount_uri);
 
     mount_uri = (char *)"trash:///"; /* No need to strdup */
-    icon = nemo_trash_monitor_get_symbolic_icon ();
+    icon = nemo_trash_monitor_get_symbolic_icon_name ();
     cat_iter = add_place (sidebar, PLACES_BUILT_IN,
                            SECTION_COMPUTER,
                            _("Trash"), icon, mount_uri,
                            NULL, NULL, NULL, 0,
                            _("Open the trash"), 0, FALSE,
                            cat_iter);
-    g_object_unref (icon);
+    g_free (icon);
 
     cat_iter = add_heading (sidebar, SECTION_BOOKMARKS,
                                     _("Bookmarks"));
@@ -832,7 +847,7 @@ update_places (NemoPlacesSidebar *sidebar)
             root = nemo_bookmark_get_location (bookmark);
 
             bookmark_name = nemo_bookmark_get_name (bookmark);
-            icon = nemo_bookmark_get_icon (bookmark);
+            icon = nemo_bookmark_get_icon_name (bookmark);
             mount_uri = nemo_bookmark_get_uri (bookmark);
             tooltip = g_file_get_parse_name (root);
 
@@ -843,7 +858,7 @@ update_places (NemoPlacesSidebar *sidebar)
                                    tooltip, 0, FALSE,
                                    cat_iter);
             g_object_unref (root);
-            g_object_unref (icon);
+            g_free (icon);
             g_free (mount_uri);
             g_free (tooltip);
         }
@@ -894,7 +909,7 @@ update_places (NemoPlacesSidebar *sidebar)
             }
         }
 
-        icon = nemo_get_mount_gicon (mount);
+        icon = nemo_get_mount_icon_name (mount);
         mount_uri = g_file_get_uri (root);
         name = g_mount_get_name (mount);
         tooltip = g_file_get_parse_name (root);
@@ -905,7 +920,7 @@ update_places (NemoPlacesSidebar *sidebar)
                                cat_iter);
         g_object_unref (root);
         g_object_unref (mount);
-        g_object_unref (icon);
+        g_free (icon);
         g_free (name);
         g_free (mount_uri);
         g_free (tooltip);
@@ -935,7 +950,7 @@ update_places (NemoPlacesSidebar *sidebar)
                 mount = g_volume_get_mount (volume);
                 if (mount != NULL) {
                     /* Show mounted volume in the sidebar */
-                    icon = nemo_get_mount_gicon (mount);
+                    icon = nemo_get_mount_icon_name (mount);
                     root = g_mount_get_default_location (mount);
                     mount_uri = g_file_get_uri (root);
                     name = g_mount_get_name (mount);
@@ -950,11 +965,11 @@ update_places (NemoPlacesSidebar *sidebar)
                                            SECTION_DEVICES,
                                            name, icon, mount_uri,
                                            drive, volume, mount, 0, tooltip,
-                                           full, TRUE,
+                                           full, full > -1,
                                            cat_iter);
                     g_object_unref (root);
                     g_object_unref (mount);
-                    g_object_unref (icon);
+                    g_free (icon);
                     g_free (tooltip);
                     g_free (name);
                     g_free (mount_uri);
@@ -967,7 +982,7 @@ update_places (NemoPlacesSidebar *sidebar)
                      * cue that the user should remember to yank out the media if
                      * he just unmounted it.
                      */
-                    icon = g_volume_get_symbolic_icon (volume);
+                    icon = nemo_get_volume_icon_name (volume);
                     name = g_volume_get_name (volume);
                     tooltip = g_strdup_printf (_("Mount and open %s (%s)"), name,
                                                g_volume_get_identifier (volume,
@@ -978,7 +993,7 @@ update_places (NemoPlacesSidebar *sidebar)
                                            name, icon, NULL,
                                            drive, volume, NULL, 0, tooltip, 0, FALSE,
                                            cat_iter);
-                    g_object_unref (icon);
+                    g_free (icon);
                     g_free (name);
                     g_free (tooltip);
                 }
@@ -995,7 +1010,7 @@ update_places (NemoPlacesSidebar *sidebar)
                  * work.. but it's also for human beings who like to turn off media detection
                  * in the OS to save battery juice.
                  */
-                icon = g_drive_get_symbolic_icon (drive);
+                icon = nemo_get_drive_icon_name (drive);
                 name = g_drive_get_name (drive);
                 tooltip = g_strdup_printf (_("Mount and open %s"), name);
 
@@ -1004,7 +1019,7 @@ update_places (NemoPlacesSidebar *sidebar)
                                        name, icon, NULL,
                                        drive, NULL, NULL, 0, tooltip, 0, FALSE,
                                        cat_iter);
-                g_object_unref (icon);
+                g_free (icon);
                 g_free (tooltip);
                 g_free (name);
             }
@@ -1035,7 +1050,7 @@ update_places (NemoPlacesSidebar *sidebar)
 
         mount = g_volume_get_mount (volume);
         if (mount != NULL) {
-            icon = nemo_get_mount_gicon (mount);
+            icon = nemo_get_mount_icon_name (mount);
             root = g_mount_get_default_location (mount);
             mount_uri = g_file_get_uri (root);
             full = get_disk_full (g_file_new_for_uri (mount_uri), &tooltip_info);
@@ -1048,23 +1063,23 @@ update_places (NemoPlacesSidebar *sidebar)
             cat_iter = add_place (sidebar, PLACES_MOUNTED_VOLUME,
                                    SECTION_DEVICES,
                                    name, icon, mount_uri,
-                                   NULL, volume, mount, 0, tooltip, full, TRUE,
+                                   NULL, volume, mount, 0, tooltip, full, full > -1,
                                    cat_iter);
             g_object_unref (mount);
-            g_object_unref (icon);
+            g_free (icon);
             g_free (name);
             g_free (tooltip);
             g_free (mount_uri);
         } else {
             /* see comment above in why we add an icon for an unmounted mountable volume */
-            icon = g_volume_get_symbolic_icon (volume);
+            icon = nemo_get_volume_icon_name (volume);
             name = g_volume_get_name (volume);
             cat_iter = add_place (sidebar, PLACES_MOUNTED_VOLUME,
                                    SECTION_DEVICES,
                                    name, icon, NULL,
                                    NULL, volume, NULL, 0, name, 0, FALSE,
                                    cat_iter);
-            g_object_unref (icon);
+            g_free (icon);
             g_free (name);
         }
         g_object_unref (volume);
@@ -1084,7 +1099,7 @@ update_places (NemoPlacesSidebar *sidebar)
 			network_mounts = g_list_prepend (network_mounts, mount);
 			continue;
 		} else {
-			icon = g_volume_get_symbolic_icon (volume);
+			icon = nemo_get_volume_icon_name (volume);
 			name = g_volume_get_name (volume);
 			tooltip = g_strdup_printf (_("Mount and open %s"), name);
 
@@ -1093,7 +1108,7 @@ update_places (NemoPlacesSidebar *sidebar)
                 				   name, icon, NULL,
                 				   NULL, volume, NULL, 0, tooltip, 0, FALSE,
                                    cat_iter);
-			g_object_unref (icon);
+			g_free (icon);
 			g_free (name);
 			g_free (tooltip);
 		}
@@ -1105,7 +1120,7 @@ update_places (NemoPlacesSidebar *sidebar)
 	for (l = network_mounts; l != NULL; l = l->next) {
 		mount = l->data;
 		root = g_mount_get_default_location (mount);
-		icon = nemo_get_mount_gicon (mount);
+		icon = nemo_get_mount_icon_name (mount);
 		mount_uri = g_file_get_uri (root);
 		name = g_mount_get_name (mount);
 		tooltip = g_file_get_parse_name (root);
@@ -1115,7 +1130,7 @@ update_places (NemoPlacesSidebar *sidebar)
                 			   NULL, NULL, mount, 0, tooltip, 0, FALSE,
                                cat_iter);
 		g_object_unref (root);
-		g_object_unref (icon);
+		g_free (icon);
 		g_free (name);
 		g_free (mount_uri);
 		g_free (tooltip);
@@ -1125,14 +1140,13 @@ update_places (NemoPlacesSidebar *sidebar)
 
 	/* network:// */
  	mount_uri = (char *)"network:///"; /* No need to strdup */
-	icon = g_themed_icon_new (NEMO_ICON_SYMBOLIC_NETWORK);
+	icon = NEMO_ICON_SYMBOLIC_NETWORK;
 	cat_iter = add_place (sidebar, PLACES_BUILT_IN,
                 		   SECTION_NETWORK,
                 		   _("Network"), icon,
                 		   mount_uri, NULL, NULL, NULL, 0,
                 		   _("Browse the contents of the network"), 0, FALSE,
                            cat_iter);
-	g_object_unref (icon);
 
 	/* restore selection */
     restore_expand_state (sidebar);
@@ -3920,7 +3934,7 @@ nemo_places_sidebar_init (NemoPlacesSidebar *sidebar)
                   NULL);
 	gtk_tree_view_column_pack_start (col, cell, FALSE);
 	gtk_tree_view_column_set_attributes (col, cell,
-					     "gicon", PLACES_SIDEBAR_COLUMN_ICON,
+					     "icon-name", PLACES_SIDEBAR_COLUMN_ICON,
 					     NULL);
 	gtk_tree_view_column_set_cell_data_func (col, cell,
 						 icon_cell_renderer_func,
@@ -4349,7 +4363,7 @@ nemo_shortcuts_model_new (NemoPlacesSidebar *sidebar)
 		G_TYPE_VOLUME,
 		G_TYPE_MOUNT,
 		G_TYPE_STRING,
-		G_TYPE_ICON,
+		G_TYPE_STRING,
 		G_TYPE_INT,
 		G_TYPE_BOOLEAN,
 		G_TYPE_BOOLEAN,
