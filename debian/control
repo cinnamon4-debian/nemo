@@ -34,7 +34,7 @@ Build-Depends:
  python3,
  python3-gi,
  x11proto-core-dev,
-Standards-Version: 4.1.3
+Standards-Version: 4.1.4
 Homepage: http://cinnamon.linuxmint.com/
 Vcs-Browser: https://salsa.debian.org/cinnamon-team/nemo
 Vcs-Git: https://salsa.debian.org/cinnamon-team/nemo.git
