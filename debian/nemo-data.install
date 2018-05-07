@@ -3,6 +3,7 @@ usr/share/glib-2.0/schemas/org.nemo.gschema.xml
 usr/share/gtksourceview-*/*/nemo_*
 usr/share/icons/*/*/*/collapse-menu-hover-symbolic.svg
 usr/share/icons/*/*/*/collapse-menu-symbolic.svg
+usr/share/icons/*/*/*/drive-removable-media-usb-symbolic.svg
 usr/share/icons/*/*/*/expand-menu-hover-symbolic.svg
 usr/share/icons/*/*/*/expand-menu-symbolic.svg
 usr/share/icons/*/*/*/location-symbolic.svg
