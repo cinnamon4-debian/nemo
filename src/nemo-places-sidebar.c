@@ -286,9 +286,7 @@ static gboolean get_overlay_scrolling_enabled (void)
         return overlay_scrolling_enabled == 1;
     }
 
-    gchar *val = NULL;
-
-    val = g_getenv ("GTK_OVERLAY_SCROLLING");
+    const gchar *val = g_getenv ("GTK_OVERLAY_SCROLLING");
 
     if (val == NULL || g_strcmp0 (val, "0") == 0) {
         overlay_scrolling_enabled = 0;
@@ -393,9 +391,9 @@ add_place (NemoPlacesSidebar *sidebar,
 	   GDrive *drive,
 	   GVolume *volume,
 	   GMount *mount,
-	   const int index,
+	   int index,
 	   const char *tooltip,
-       const int df_percent,
+       int df_percent,
        gboolean show_df_percent,
        GtkTreeIter cat_iter)
 {
@@ -575,10 +573,12 @@ get_disk_full (GFile *file, gchar **tooltip_info)
     gint df_percent;
     float fraction;
     int prefix;
-    gchar *free_string;
+    gchar *size_string;
+    gchar *out_string;
 
     error = NULL;
     df_percent = -1;
+    out_string = NULL;
 
     info = g_file_query_filesystem_info (file,
                                          "filesystem::*",
@@ -590,24 +590,32 @@ get_disk_full (GFile *file, gchar **tooltip_info)
         k_total = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_SIZE);
         k_free = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_FREE);
 
-        fraction = ((float) k_used / (float) k_total) * 100.0;
-        df_percent = (gint) rintf(fraction);
+        if (k_total > 0) {
+            fraction = ((float) k_used / (float) k_total) * 100.0;
 
-        prefix = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_SIZE_PREFIXES);
-        free_string = g_format_size_full (k_free, prefix);
+            df_percent = (gint) rintf(fraction);
 
-        *tooltip_info = g_strdup_printf (_("Free space: %s"), free_string);
+            prefix = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_SIZE_PREFIXES);
+            size_string = g_format_size_full (k_free, prefix);
 
-        g_free (free_string);
+            out_string = g_strdup_printf (_("Free space: %s"), size_string);
+
+            g_free (size_string);
+        }
+
         g_object_unref (info);
     }
 
     if (error != NULL) {
-        DEBUG ("Couldn't get disk full info for: %s", error->message);
-
-        *tooltip_info = g_strdup (" ");
+        g_printerr ("Couldn't get disk full info for: %s\n", error->message);
         g_clear_error (&error);
     }
+
+    if (out_string == NULL) {
+        out_string = g_strdup (" ");
+    }
+
+    *tooltip_info = out_string;
 
     return df_percent;
 }
@@ -692,7 +700,7 @@ update_places (NemoPlacesSidebar *sidebar)
 	char *location, *mount_uri, *name, *desktop_path, *last_uri, *identifier;
 	const gchar *bookmark_name;
 	gchar *icon;
-	GFile *root;
+	GFile *root, *df_file;
 	NemoWindowSlot *slot;
 	char *tooltip;
     gchar *tooltip_info;
@@ -730,7 +738,11 @@ update_places (NemoPlacesSidebar *sidebar)
     /* home folder */
     mount_uri = nemo_get_home_directory_uri ();
     icon = get_icon_name (mount_uri);
-    full = get_disk_full (g_file_new_for_uri (mount_uri), &tooltip_info);
+
+    df_file = g_file_new_for_uri (mount_uri);
+    full = get_disk_full (df_file, &tooltip_info);
+    g_clear_object (&df_file);
+
     tooltip = g_strdup_printf (_("Open your personal folder\n%s"), tooltip_info);
     g_free (tooltip_info);
     cat_iter = add_place (sidebar, PLACES_BUILT_IN,
@@ -813,7 +825,11 @@ update_places (NemoPlacesSidebar *sidebar)
     /* file system root */
     mount_uri = (char *)"file:///"; /* No need to strdup */
     icon = NEMO_ICON_SYMBOLIC_FILESYSTEM;
-    full = get_disk_full (g_file_new_for_uri (mount_uri), &tooltip_info);
+
+    df_file = g_file_new_for_uri (mount_uri);
+    full = get_disk_full (df_file, &tooltip_info);
+    g_clear_object (&df_file);
+
     tooltip = g_strdup_printf (_("Open the contents of the File System\n%s"), tooltip_info);
     g_free (tooltip_info);
     cat_iter = add_place (sidebar, PLACES_BUILT_IN,
@@ -840,28 +856,28 @@ update_places (NemoPlacesSidebar *sidebar)
 
     cat_iter = add_heading (sidebar, SECTION_BOOKMARKS,
                                     _("Bookmarks"));
-    if (bookmark_index < bookmark_count) {
-        for (bookmark_index; bookmark_index < bookmark_count; ++bookmark_index) {
-            bookmark = nemo_bookmark_list_item_at (sidebar->bookmarks, bookmark_index);
 
-            root = nemo_bookmark_get_location (bookmark);
+    while (bookmark_index < bookmark_count) {
+        bookmark = nemo_bookmark_list_item_at (sidebar->bookmarks, bookmark_index);
 
-            bookmark_name = nemo_bookmark_get_name (bookmark);
-            icon = nemo_bookmark_get_icon_name (bookmark);
-            mount_uri = nemo_bookmark_get_uri (bookmark);
-            tooltip = g_file_get_parse_name (root);
+        root = nemo_bookmark_get_location (bookmark);
 
-            cat_iter = add_place (sidebar, PLACES_BOOKMARK,
-                                   SECTION_BOOKMARKS,
-                                   bookmark_name, icon, mount_uri,
-                                   NULL, NULL, NULL, bookmark_index,
-                                   tooltip, 0, FALSE,
-                                   cat_iter);
-            g_object_unref (root);
-            g_free (icon);
-            g_free (mount_uri);
-            g_free (tooltip);
-        }
+        bookmark_name = nemo_bookmark_get_name (bookmark);
+        icon = nemo_bookmark_get_icon_name (bookmark);
+        mount_uri = nemo_bookmark_get_uri (bookmark);
+        tooltip = g_file_get_parse_name (root);
+
+        cat_iter = add_place (sidebar, PLACES_BOOKMARK,
+                              SECTION_BOOKMARKS,
+                              bookmark_name, icon, mount_uri,
+                              NULL, NULL, NULL, bookmark_index,
+                              tooltip, 0, FALSE,
+                              cat_iter);
+        g_object_unref (root);
+        g_free (icon);
+        g_free (mount_uri);
+        g_free (tooltip);
+        ++bookmark_index;
     }
 
     /* add mounts that has no volume (/etc/mtab mounts, ftp, sftp,...) */
@@ -954,7 +970,11 @@ update_places (NemoPlacesSidebar *sidebar)
                     root = g_mount_get_default_location (mount);
                     mount_uri = g_file_get_uri (root);
                     name = g_mount_get_name (mount);
-                    full = get_disk_full (g_file_new_for_uri (mount_uri), &tooltip_info);
+
+                    df_file = g_file_new_for_uri (mount_uri);
+                    full = get_disk_full (df_file, &tooltip_info);
+                    g_clear_object (&df_file);
+
                     tooltip = g_strdup_printf (_("%s (%s)\n%s"),
                                                g_file_get_parse_name (root),
                                                g_volume_get_identifier (volume,
@@ -1053,7 +1073,11 @@ update_places (NemoPlacesSidebar *sidebar)
             icon = nemo_get_mount_icon_name (mount);
             root = g_mount_get_default_location (mount);
             mount_uri = g_file_get_uri (root);
-            full = get_disk_full (g_file_new_for_uri (mount_uri), &tooltip_info);
+
+            df_file = g_file_new_for_uri (mount_uri);
+            full = get_disk_full (df_file, &tooltip_info);
+            g_clear_object (&df_file);
+
             tooltip = g_strdup_printf (_("%s\n%s"),
                                        g_file_get_parse_name (root),
                                        tooltip_info);
