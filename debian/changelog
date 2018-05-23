@@ -1,8 +1,13 @@
-nemo (3.8.2-1~) UNRELEASED; urgency=medium
+nemo (3.8.2-1) experimental; urgency=medium
 
+  [ Fabio Fantoni ]
   * New upstream release (3.8.2).
+  * add missed files to nemo-data.install
 
- -- Fabio Fantoni <fantonifabio@tiscali.it>  Mon, 07 May 2018 13:31:03 +0200
+  [ Maximiliano Curia ]
+  * Release to experimental
+
+ -- Maximiliano Curia <maxy@debian.org>  Wed, 23 May 2018 20:14:22 +0200
 
 nemo (3.8.1-1) experimental; urgency=medium
 
