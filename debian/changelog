@@ -1,3 +1,9 @@
+nemo (3.8.3-1~) UNRELEASED; urgency=medium
+
+  * New upstream release (3.8.3).
+
+ -- Maximiliano Curia <maxy@debian.org>  Sun, 10 Jun 2018 16:11:51 +0200
+
 nemo (3.8.2-1) experimental; urgency=medium
 
   [ Fabio Fantoni ]
