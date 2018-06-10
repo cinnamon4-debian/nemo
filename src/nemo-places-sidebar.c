@@ -813,7 +813,7 @@ update_places (NemoPlacesSidebar *sidebar)
 
     if (recent_is_supported ()) {
         mount_uri = (char *)"recent:///"; /* No need to strdup */
-        icon = "document-open-recent-symbolic";
+        icon = NEMO_ICON_SYMBOLIC_FOLDER_RECENT;
         cat_iter = add_place (sidebar, PLACES_BUILT_IN,
                               SECTION_COMPUTER,
                               _("Recent"), icon, mount_uri,
@@ -2444,7 +2444,7 @@ open_selected_bookmark (NemoPlacesSidebar *sidebar,
 			g_object_add_weak_pointer (G_OBJECT (sidebar->go_to_after_mount_slot),
 						   (gpointer *) &sidebar->go_to_after_mount_slot);
 
-			sidebar->go_to_after_mount_flags = flags;
+			sidebar->go_to_after_mount_flags = flags | NEMO_WINDOW_OPEN_FLAG_MOUNT;
 
 			nemo_file_operations_mount_volume_full (NULL, volume,
 								    volume_mounted_cb,

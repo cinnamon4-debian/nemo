@@ -44,6 +44,7 @@
 #include "nemo-search-directory.h"
 #include "nemo-search-directory-file.h"
 #include "nemo-thumbnails.h"
+#include "nemo-trash-monitor.h"
 #include "nemo-vfs-file.h"
 #include "nemo-file-undo-operations.h"
 #include "nemo-file-undo-manager.h"
@@ -2282,7 +2283,7 @@ update_info_internal (NemoFile *file,
 	}
 	file->details->type = file_type;
 
-	if (!file->details->got_custom_activation_uri) {
+	if (!file->details->got_custom_activation_uri && !nemo_file_is_in_trash (file)) {
 		activation_uri = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_STANDARD_TARGET_URI);
 		if (activation_uri == NULL) {
 			if (file->details->activation_uri) {
@@ -4399,6 +4400,12 @@ nemo_file_get_control_icon_name (NemoFile *file)
 
     if (eel_uri_is_search (uri)) {
         icon_name = g_strdup (NEMO_ICON_SYMBOLIC_FOLDER_SAVED_SEARCH);
+    } else if (eel_uri_is_trash (uri)) {
+        icon_name = nemo_trash_monitor_get_symbolic_icon_name ();
+    } else if (eel_uri_is_recent (uri)) {
+        icon_name = g_strdup (NEMO_ICON_SYMBOLIC_FOLDER_RECENT);
+    } else if (eel_uri_is_network (uri)) {
+        icon_name = g_strdup (NEMO_ICON_SYMBOLIC_NETWORK);
     } else {
         const gchar *static_name;
 
