@@ -169,6 +169,7 @@ static const char * nemo_file_peek_display_name (NemoFile *file);
 static const char * nemo_file_peek_display_name_collation_key (NemoFile *file);
 static void file_mount_unmounted (GMount *mount,  gpointer data);
 static void metadata_hash_free (GHashTable *hash);
+static void invalidate_thumbnail (NemoFile *file);
 
 G_DEFINE_TYPE_WITH_CODE (NemoFile, nemo_file, G_TYPE_OBJECT,
 			 G_IMPLEMENT_INTERFACE (NEMO_TYPE_FILE_INFO,
@@ -454,6 +455,9 @@ nemo_file_clear_info (NemoFile *file)
 		g_object_unref (file->details->icon);
 		file->details->icon = NULL;
 	}
+
+    g_clear_object (&file->details->thumbnail);
+    g_clear_object (&file->details->scaled_thumbnail);
 
 	g_free (file->details->thumbnail_path);
 	file->details->thumbnail_path = NULL;
@@ -829,12 +833,8 @@ finalize (GObject *object)
 	g_free (file->details->activation_uri);
 	g_clear_object (&file->details->custom_icon);
 
-	if (file->details->thumbnail) {
-		g_object_unref (file->details->thumbnail);
-	}
-	if (file->details->scaled_thumbnail) {
-		g_object_unref (file->details->scaled_thumbnail);
-	}
+    g_clear_object (&file->details->thumbnail);
+    g_clear_object (&file->details->scaled_thumbnail);
 
 	if (file->details->mount) {
 		g_signal_handlers_disconnect_by_func (file->details->mount, file_mount_unmounted, file);
@@ -4207,6 +4207,7 @@ nemo_file_delete_thumbnail (NemoFile *file)
 
     gint success;
 
+    invalidate_thumbnail (file);
     success = g_unlink (file->details->thumbnail_path);
 
     if (success != 0) {
@@ -4533,7 +4534,8 @@ nemo_file_get_icon (NemoFile *file,
                 }
             }
 
-            if (file->details->thumbnail_scale == thumb_scale &&
+            if (file->details->thumbnail_is_up_to_date &&
+                file->details->thumbnail_scale == thumb_scale &&
                 file->details->scaled_thumbnail != NULL) {
                 scaled_pixbuf = file->details->scaled_thumbnail;
             } else {
@@ -4599,12 +4601,20 @@ nemo_file_get_icon (NemoFile *file,
 		icon = nemo_icon_info_lookup (gicon, size, scale);
 		if (nemo_icon_info_is_fallback (icon)) {
 			g_object_unref (icon);
-			icon = nemo_icon_info_lookup (g_themed_icon_new ("text-x-generic"), size, scale);
+            GIcon *generic = g_themed_icon_new ("text-x-generic");
+
+			icon = nemo_icon_info_lookup (generic, size, scale);
+            g_object_unref (generic);
 		}
 		g_object_unref (gicon);
 		return icon;
 	} else {
-		return nemo_icon_info_lookup (g_themed_icon_new ("text-x-generic"), size, scale);
+        GIcon *generic = g_themed_icon_new ("text-x-generic");
+
+        icon = nemo_icon_info_lookup (generic, size, scale);
+        g_object_unref (generic);
+
+		return icon;
 	}
 }
 
@@ -7681,6 +7691,7 @@ nemo_file_construct_tooltip (NemoFile *file, NemoFileTooltipFlags flags)
     ret = string->str;
 
     g_string_free (string, FALSE);
+    g_free (scheme);
 
     return ret;
 }
