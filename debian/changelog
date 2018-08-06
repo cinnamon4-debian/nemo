@@ -1,8 +1,10 @@
-nemo (3.8.3-1~) UNRELEASED; urgency=medium
+nemo (3.8.5-1~) UNRELEASED; urgency=medium
 
   * New upstream release (3.8.3).
+  * Disable testsuite
+  * New upstream release (3.8.5).
 
- -- Maximiliano Curia <maxy@debian.org>  Sun, 10 Jun 2018 16:11:51 +0200
+ -- Maximiliano Curia <maxy@debian.org>  Mon, 06 Aug 2018 17:19:53 +0200
 
 nemo (3.8.2-1) experimental; urgency=medium
 
