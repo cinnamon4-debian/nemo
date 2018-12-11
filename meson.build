@@ -1,8 +1,8 @@
 # Meson build file
 
 # https://github.com/linuxmint/nemo
-project('nemo', 'c', version: '3.8.5',
-  meson_version: '>=0.37.0'
+project('nemo', 'c', version: '4.0.4',
+  meson_version: '>=0.41.0'
 )
 
 # 1. If the library code has changed at all since last release, then increment revision.
@@ -56,6 +56,11 @@ if not get_option('deprecated_warnings')
   )
 endif
 
+if get_option('profiling')
+    add_global_arguments('-fno-omit-frame-pointer',
+        language: 'c')
+endif
+
 ################################################################################
 # Find dependencies
 
@@ -68,7 +73,6 @@ gio     = dependency('gio-2.0',                     version: glib_version)
 gio_unix= dependency('gio-unix-2.0',                version: glib_version)
 glib    = dependency('glib-2.0',                    version: glib_version)
 gmodule = dependency('gmodule-no-export-2.0',       version: glib_version)
-gthread = dependency('gthread-2.0',                 version: glib_version)
 gobject = dependency('gobject-2.0',                 version: '>=2.0')
 go_intr = dependency('gobject-introspection-1.0',   version: '>=1.0')
 libnotif= dependency('libnotify',                   version: '>=0.7.0')
@@ -77,7 +81,7 @@ cinnamon= dependency('cinnamon-desktop',            version: '>=2.6.1')
 gail    = dependency('gail-3.0')
 libxml  = dependency('libxml-2.0',                  version: '>=2.7.8')
 x11     = dependency('x11')
-xapp    = dependency('xapp',                        version: '>=1.0.3')
+xapp    = dependency('xapp',                        version: '>=1.4.0')
 
 # Facultative dependencies
 
@@ -134,6 +138,25 @@ conf.set('ENABLE_NLS', cc.has_header('libintl.h'))
 conf.set('HAVE_GETTEXT', true)
 conf.set('HAVE_LOCALE_H', cc.has_header('locale.h'))
 
+# STATX Support check
+statx_supported = cc.compiles(
+'''
+#define _GNU_SOURCE
+#include <linux/stat.h>
+
+struct statx stxbuf;
+'''
+)
+
+if not statx_supported
+    message('WARNING: No native statx support (Kernel < 4.11) - using compatibility wrappers.')
+else
+    message('Native statx support used.')
+endif
+
+conf.set10('NATIVE_STATX', statx_supported)
+# End STATX
+
 configure_file(
   input : 'config.h.meson.in',
   output: 'config.h',
@@ -161,10 +184,10 @@ subdir('cut-n-paste-code/libegg')
 subdir('data')
 subdir('eel')
 subdir('files')
+subdir('gresources')
 subdir('libnemo-extension')
 subdir('libnemo-private')
 # subdir('po')
-subdir('gresources')
 subdir('src')
 subdir('test')
 subdir('docs')
@@ -182,4 +205,6 @@ message('\n'.join(['',
 '',
 '    nemo-extension documentation: @0@'.format(gtkdoc_enabled),
 '    nemo-extension introspection: @0@'.format(true),
+'',
+'    perf profiling support:  @0@'.format(get_option('profiling'))
 ]))

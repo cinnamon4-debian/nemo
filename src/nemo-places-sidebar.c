@@ -87,6 +87,7 @@ typedef struct {
 	GVolumeMonitor *volume_monitor;
 
     NemoActionManager *action_manager;
+    guint action_manager_changed_id;
     GList *action_items;
 
 	gboolean devices_header_added;
@@ -118,6 +119,9 @@ typedef struct {
 	GtkWidget *popup_menu_properties_item;
     GtkWidget *popup_menu_action_separator_item;
     GtkWidget *popup_menu_remove_rename_separator_item;
+
+    NemoFile *popup_file;
+    guint popup_file_idle_handler;
 
 	/* volume mounting - delayed open process */
 	gboolean mounting;
@@ -557,11 +561,16 @@ sidebar_update_restore_selection (NemoPlacesSidebar *sidebar,
 	gtk_tree_model_foreach (GTK_TREE_MODEL (sidebar->store_filter),
 				restore_selection_foreach, &data);
 
-	if (data.path != NULL) {
-		selection = gtk_tree_view_get_selection (sidebar->tree_view);
-		gtk_tree_selection_select_path (selection, data.path);
-		gtk_tree_path_free (data.path);
-	}
+    if (data.path != NULL) {
+        selection = gtk_tree_view_get_selection (sidebar->tree_view);
+        gtk_tree_selection_select_path (selection, data.path);
+        gtk_tree_view_scroll_to_cell (sidebar->tree_view,
+                                      data.path,
+                                      NULL,
+                                      TRUE,
+                                      0.5, 0.0);
+        gtk_tree_path_free (data.path);
+    }
 }
 
 static gint
@@ -2303,6 +2312,15 @@ bookmarks_check_popup_sensitivity (NemoPlacesSidebar *sidebar)
 
     GList *l;
     NemoFile *file = nemo_file_get_by_uri (uri);
+
+    g_clear_pointer (&sidebar->popup_file, nemo_file_unref);
+
+    if (sidebar->popup_file_idle_handler != 0) {
+        g_source_remove (sidebar->popup_file_idle_handler);
+    }
+
+    sidebar->popup_file = nemo_file_ref (file);
+
     NemoFile *parent = nemo_file_get_parent (file);
     GList *tmp = NULL;
     tmp = g_list_append (tmp, file);
@@ -2310,9 +2328,13 @@ bookmarks_check_popup_sensitivity (NemoPlacesSidebar *sidebar)
 
     for (l = sidebar->action_items; l != NULL; l = l->next) {
         p = l->data;
-        if (nemo_action_get_visibility (p->action, tmp, parent)) {
-            gtk_menu_item_set_label (GTK_MENU_ITEM (p->item), nemo_action_get_label (p->action, tmp, parent));
+        if (nemo_action_get_visibility (p->action, tmp, parent, TRUE)) {
+            gchar *action_label = nemo_action_get_label (p->action, tmp, parent);
+
+            gtk_menu_item_set_label (GTK_MENU_ITEM (p->item), action_label);
             gtk_widget_set_visible (p->item, TRUE);
+
+            g_free (action_label);
             actions_visible = TRUE;
         } else {
             gtk_widget_set_visible (p->item, FALSE);
@@ -2321,7 +2343,7 @@ bookmarks_check_popup_sensitivity (NemoPlacesSidebar *sidebar)
 
     gtk_widget_set_visible (sidebar->popup_menu_action_separator_item, actions_visible);
 
-    nemo_file_list_free (tmp);
+    g_list_free (tmp);
 
 	g_free (uri);
 }
@@ -2741,31 +2763,48 @@ unmount_shortcut_cb (GtkMenuItem           *item,
 }
 
 static void
+handle_mount_unmount_failure (const gchar *primary,
+                              GError      *error)
+{
+    const gchar *message = NULL;
+
+    if (error && error->code == G_IO_ERROR_FAILED_HANDLED) {
+        return;
+    }
+
+    if (error) {
+        message = error->message;
+    }
+
+    eel_show_error_dialog (primary,
+                           message,
+                           NULL);
+}
+
+static void
 drive_eject_cb (GObject *source_object,
 		GAsyncResult *res,
 		gpointer user_data)
 {
 	NemoWindow *window;
 	GError *error;
-	char *primary;
-	char *name;
 
 	window = user_data;
 	g_object_unref (window);
 
 	error = NULL;
 	if (!g_drive_eject_with_operation_finish (G_DRIVE (source_object), res, &error)) {
-		if (error->code != G_IO_ERROR_FAILED_HANDLED) {
-			name = g_drive_get_name (G_DRIVE (source_object));
-			primary = g_strdup_printf (_("Unable to eject %s"), name);
-			g_free (name);
-			eel_show_error_dialog (primary,
-					       error->message,
-				       NULL);
-			g_free (primary);
-		}
-		g_error_free (error);
-	}
+        char *name, *primary;
+
+        name = g_drive_get_name (G_DRIVE (source_object));
+        primary = g_strdup_printf (_("Unable to eject %s"), name);
+
+        handle_mount_unmount_failure (primary, error);
+
+        g_free (name);
+        g_free (primary);
+        g_clear_error (&error);
+    }
 }
 
 static void
@@ -2775,25 +2814,23 @@ volume_eject_cb (GObject *source_object,
 {
 	NemoWindow *window;
 	GError *error;
-	char *primary;
-	char *name;
 
 	window = user_data;
 	g_object_unref (window);
 
 	error = NULL;
 	if (!g_volume_eject_with_operation_finish (G_VOLUME (source_object), res, &error)) {
-		if (error->code != G_IO_ERROR_FAILED_HANDLED) {
-			name = g_volume_get_name (G_VOLUME (source_object));
-			primary = g_strdup_printf (_("Unable to eject %s"), name);
-			g_free (name);
-			eel_show_error_dialog (primary,
-					       error->message,
-					       NULL);
-			g_free (primary);
-		}
-		g_error_free (error);
-	}
+        char *name, *primary;
+
+        name = g_volume_get_name (G_VOLUME (source_object));
+        primary = g_strdup_printf (_("Unable to eject %s"), name);
+
+        handle_mount_unmount_failure (primary, error);
+
+        g_free (name);
+        g_free (primary);
+        g_clear_error (&error);
+    }
 }
 
 static void
@@ -2803,25 +2840,23 @@ mount_eject_cb (GObject *source_object,
 {
 	NemoWindow *window;
 	GError *error;
-	char *primary;
-	char *name;
 
 	window = user_data;
 	g_object_unref (window);
 
 	error = NULL;
 	if (!g_mount_eject_with_operation_finish (G_MOUNT (source_object), res, &error)) {
-		if (error->code != G_IO_ERROR_FAILED_HANDLED) {
-			name = g_mount_get_name (G_MOUNT (source_object));
-			primary = g_strdup_printf (_("Unable to eject %s"), name);
-			g_free (name);
-			eel_show_error_dialog (primary,
-					       error->message,
-					       NULL);
-			g_free (primary);
-		}
-		g_error_free (error);
-	}
+        char *name, *primary;
+
+        name = g_mount_get_name (G_MOUNT (source_object));
+        primary = g_strdup_printf (_("Unable to eject %s"), name);
+
+        handle_mount_unmount_failure (primary, error);
+
+        g_free (name);
+        g_free (primary);
+        g_clear_error (&error);
+    }
 }
 
 static void
@@ -2945,22 +2980,20 @@ drive_poll_for_media_cb (GObject *source_object,
 			 gpointer user_data)
 {
 	GError *error;
-	char *primary;
-	char *name;
 
 	error = NULL;
 	if (!g_drive_poll_for_media_finish (G_DRIVE (source_object), res, &error)) {
-		if (error->code != G_IO_ERROR_FAILED_HANDLED) {
-			name = g_drive_get_name (G_DRIVE (source_object));
-			primary = g_strdup_printf (_("Unable to poll %s for media changes"), name);
-			g_free (name);
-			eel_show_error_dialog (primary,
-					       error->message,
-					       NULL);
-			g_free (primary);
-		}
-		g_error_free (error);
-	}
+        char *name, *primary;
+
+        name = g_drive_get_name (G_DRIVE (source_object));
+        primary = g_strdup_printf (_("Unable to poll %s for media changes"), name);
+
+        handle_mount_unmount_failure (primary, error);
+
+        g_free (name);
+        g_free (primary);
+        g_clear_error (&error);
+    }
 }
 
 static void
@@ -2990,22 +3023,21 @@ drive_start_cb (GObject      *source_object,
 		gpointer      user_data)
 {
 	GError *error;
-	char *primary;
-	char *name;
 
 	error = NULL;
-	if (!g_drive_poll_for_media_finish (G_DRIVE (source_object), res, &error)) {
-		if (error->code != G_IO_ERROR_FAILED_HANDLED) {
-			name = g_drive_get_name (G_DRIVE (source_object));
-			primary = g_strdup_printf (_("Unable to start %s"), name);
-			g_free (name);
-			eel_show_error_dialog (primary,
-					       error->message,
-					       NULL);
-			g_free (primary);
-		}
-		g_error_free (error);
-	}
+
+	if (!g_drive_start_finish (G_DRIVE (source_object), res, &error)) {
+        char *name, *primary;
+
+        name = g_drive_get_name (G_DRIVE (source_object));
+        primary = g_strdup_printf (_("Unable to start %s"), name);
+
+        handle_mount_unmount_failure (primary, error);
+
+        g_free (name);
+        g_free (primary);
+        g_clear_error (&error);
+    }
 }
 
 static void
@@ -3042,25 +3074,24 @@ drive_stop_cb (GObject *source_object,
 {
 	NemoWindow *window;
 	GError *error;
-	char *primary;
-	char *name;
 
 	window = user_data;
 	g_object_unref (window);
 
 	error = NULL;
-	if (!g_drive_poll_for_media_finish (G_DRIVE (source_object), res, &error)) {
-		if (error->code != G_IO_ERROR_FAILED_HANDLED) {
-			name = g_drive_get_name (G_DRIVE (source_object));
-			primary = g_strdup_printf (_("Unable to stop %s"), name);
-			g_free (name);
-			eel_show_error_dialog (primary,
-					       error->message,
-					       NULL);
-			g_free (primary);
-		}
-		g_error_free (error);
-	}
+
+    if (!g_drive_stop_finish (G_DRIVE (source_object), res, &error)) {
+        char *name, *primary;
+
+        name = g_drive_get_name (G_DRIVE (source_object));
+        primary = g_strdup_printf (_("Unable to stop %s"), name);
+
+        handle_mount_unmount_failure (primary, error);
+
+        g_free (name);
+        g_free (primary);
+        g_clear_error (&error);
+    }
 }
 
 static void
@@ -3172,13 +3203,6 @@ properties_cb (GtkMenuItem           *item,
 	gtk_tree_path_free (path);
 }
 
-static void
-action_payload_free (gpointer data)
-{
-    ActionPayload *p = (ActionPayload *) data;
-    gtk_widget_destroy (GTK_WIDGET (p->item));
-}
-
 static gboolean
 nemo_places_sidebar_focus (GtkWidget *widget,
 			       GtkDirectionType direction)
@@ -3275,6 +3299,41 @@ bookmarks_key_press_event_cb (GtkWidget             *widget,
   return FALSE;
 }
 
+static gboolean
+free_popup_file_in_idle_cb (gpointer data)
+{
+    NemoPlacesSidebar *sidebar;
+
+    sidebar = NEMO_PLACES_SIDEBAR (data);
+
+    if (sidebar->popup_file != NULL) {
+        nemo_file_unref (sidebar->popup_file);
+        sidebar->popup_file = NULL;
+    }
+
+    sidebar->popup_file_idle_handler = 0;
+
+    return FALSE;
+}
+
+static void
+popup_menu_deactivated (GtkMenuShell *menu_shell, gpointer data)
+{
+    NemoPlacesSidebar *sidebar;
+
+    sidebar = NEMO_PLACES_SIDEBAR (data);
+
+    /* The popup menu is deactivated. (I.E. hidden)
+       We want to free popup_file, but can't right away as it might immediately get
+       used if we're deactivation due to activating a menu item. So, we free it in
+       idle */
+
+    if (sidebar->popup_file != NULL &&
+        sidebar->popup_file_idle_handler == 0) {
+        sidebar->popup_file_idle_handler = g_idle_add (free_popup_file_in_idle_cb, sidebar);
+    }
+}
+
 static void
 action_activated_callback (GtkMenuItem *item, ActionPayload *payload)
 {
@@ -3309,7 +3368,7 @@ static void
 add_action_popup_items (NemoPlacesSidebar *sidebar)
 {
     if (sidebar->action_items != NULL)
-        g_list_free_full (sidebar->action_items, action_payload_free);
+        g_list_free_full (sidebar->action_items, g_free);
 
     sidebar->action_items = NULL;
 
@@ -3351,6 +3410,11 @@ bookmarks_build_popup_menu (NemoPlacesSidebar *sidebar)
 					      NEMO_PREFERENCES_ALWAYS_USE_BROWSER);
 
 	sidebar->popup_menu = gtk_menu_new ();
+
+    g_signal_connect (sidebar->popup_menu, "deactivate",
+                      G_CALLBACK (popup_menu_deactivated),
+                      sidebar);
+
 	gtk_menu_attach_to_widget (GTK_MENU (sidebar->popup_menu),
 			           GTK_WIDGET (sidebar),
 			           bookmarks_popup_menu_detach_cb);
@@ -3505,6 +3569,14 @@ bookmarks_popup_menu_cb (GtkWidget *widget,
 {
 	bookmarks_popup_menu (sidebar, NULL);
 	return TRUE;
+}
+
+static void
+actions_changed_callback (NemoPlacesSidebar *sidebar)
+{
+    if (sidebar->popup_menu) {
+        gtk_menu_detach (GTK_MENU (sidebar->popup_menu));
+    }
 }
 
 static gboolean
@@ -3889,6 +3961,10 @@ nemo_places_sidebar_init (NemoPlacesSidebar *sidebar)
 	GtkStyleContext   *style_context;
 
     sidebar->action_manager = nemo_action_manager_new ();
+    sidebar->action_manager_changed_id = g_signal_connect_swapped (sidebar->action_manager,
+                                                                   "changed",
+                                                                   G_CALLBACK (actions_changed_callback),
+                                                                   sidebar);
 
     sidebar->action_items = NULL;
 
@@ -4165,14 +4241,25 @@ nemo_places_sidebar_dispose (GObject *object)
 		sidebar->bookmarks_changed_id = 0;
 	}
 
+    if (sidebar->action_manager_changed_id != 0) {
+        g_signal_handler_disconnect (sidebar->action_manager,
+                                     sidebar->action_manager_changed_id);
+        sidebar->action_manager_changed_id = 0;
+    }
+
+    g_clear_object (&sidebar->action_manager);
+
+    if (sidebar->popup_file != NULL) {
+        nemo_file_unref (sidebar->popup_file);
+        sidebar->popup_file = NULL;
+    }
+
     if (sidebar->update_places_on_idle_id != 0) {
         g_source_remove (sidebar->update_places_on_idle_id);
         sidebar->update_places_on_idle_id = 0;
     }
 
 	g_clear_object (&sidebar->store);
-
-    g_clear_object (&sidebar->action_manager);
 
 	if (sidebar->go_to_after_mount_slot) {
 		g_object_remove_weak_pointer (G_OBJECT (sidebar->go_to_after_mount_slot),

@@ -48,7 +48,8 @@
 #include <string.h>
 
 /* gap between bottom of icon and start of text box */
-#define LABEL_OFFSET 1
+#define LABEL_OFFSET 3
+#define LABEL_OFFSET_BESIDES 3
 #define LABEL_LINE_SPACING 0
 
 /* special text height handling
@@ -76,8 +77,6 @@ struct NemoIconCanvasItemDetails {
     cairo_surface_t *rendered_surface;
 	char *editable_text;		/* Text that can be modified by a renaming function */
 	char *additional_text;		/* Text that cannot be modifed, such as file size, etc. */
-	GdkPoint *attach_points;
-	int n_attach_points;
 
 	/* Size of the text at current font. */
 	int text_dx;
@@ -117,13 +116,9 @@ struct NemoIconCanvasItemDetails {
 
 	guint is_visible : 1;
 
-	GdkRectangle embedded_text_rect;
-	char *embedded_text;
-
 	/* Cached PangoLayouts. Only used if the icon is visible */
 	PangoLayout *editable_text_layout;
 	PangoLayout *additional_text_layout;
-	PangoLayout *embedded_text_layout;
 
 	/* Cached rectangle in canvas coordinates */
 	EelIRect canvas_rect;
@@ -179,10 +174,6 @@ static PangoLayout *get_label_layout                 (PangoLayout               
 static gboolean hit_test_stretch_handle              (NemoIconCanvasItem        *item,
 						      EelIRect                       canvas_rect,
 						      GtkCornerType *corner);
-static void      draw_embedded_text                  (NemoIconCanvasItem        *icon_item,
-                                                      cairo_t                       *cr,
-						      int                            x,
-						      int                            y);
 
 static void       nemo_icon_canvas_item_ensure_bounds_up_to_date (NemoIconCanvasItem *icon_item);
 
@@ -218,7 +209,6 @@ nemo_icon_canvas_item_finalize (GObject *object)
 
 	g_free (details->editable_text);
 	g_free (details->additional_text);
-	g_free (details->attach_points);
 
     if (details->rendered_surface != NULL) {
         cairo_surface_destroy (details->rendered_surface);
@@ -231,12 +221,6 @@ nemo_icon_canvas_item_finalize (GObject *object)
 	if (details->additional_text_layout != NULL) {
 		g_object_unref (details->additional_text_layout);
 	}
-
-	if (details->embedded_text_layout != NULL) {
-		g_object_unref (details->embedded_text_layout);
-	}
-
-	g_free (details->embedded_text);
 
 	G_OBJECT_CLASS (nemo_icon_canvas_item_parent_class)->finalize (object);
 }
@@ -272,9 +256,7 @@ nemo_icon_canvas_item_invalidate_label_size (NemoIconCanvasItem *item)
 	if (item->details->additional_text_layout != NULL) {
 		pango_layout_context_changed (item->details->additional_text_layout);
 	}
-	if (item->details->embedded_text_layout != NULL) {
-		pango_layout_context_changed (item->details->embedded_text_layout);
-	}
+
 	nemo_icon_canvas_item_invalidate_bounds_cache (item);
 	item->details->text_width = -1;
 	item->details->text_height = -1;
@@ -508,8 +490,6 @@ nemo_icon_canvas_item_get_drag_surface (NemoIconCanvasItem *item)
 	icon_rect.x1 = item_offset_x + pix_width;
 	icon_rect.y1 = item_offset_y + pix_height;
 
-	draw_embedded_text (item, cr,
-			    item_offset_x, item_offset_y);
 	draw_label_text (item, cr, icon_rect);
 	cairo_destroy (cr);
 
@@ -548,52 +528,6 @@ nemo_icon_canvas_item_set_image (NemoIconCanvasItem *item,
 	nemo_icon_canvas_item_invalidate_bounds_cache (item);
 	eel_canvas_item_request_update (EEL_CANVAS_ITEM (item));
 }
-
-void
-nemo_icon_canvas_item_set_attach_points (NemoIconCanvasItem *item,
-					     GdkPoint *attach_points,
-					     int n_attach_points)
-{
-	g_free (item->details->attach_points);
-	item->details->attach_points = NULL;
-	item->details->n_attach_points = 0;
-
-	if (attach_points != NULL && n_attach_points != 0) {
-		item->details->attach_points = g_memdup (attach_points, n_attach_points * sizeof (GdkPoint));
-		item->details->n_attach_points = n_attach_points;
-	}
-
-	nemo_icon_canvas_item_invalidate_bounds_cache (item);
-}
-
-void
-nemo_icon_canvas_item_set_embedded_text_rect (NemoIconCanvasItem       *item,
-						  const GdkRectangle           *text_rect)
-{
-	item->details->embedded_text_rect = *text_rect;
-
-	nemo_icon_canvas_item_invalidate_bounds_cache (item);
-	eel_canvas_item_request_update (EEL_CANVAS_ITEM (item));
-}
-
-void
-nemo_icon_canvas_item_set_embedded_text (NemoIconCanvasItem       *item,
-					     const char                   *text)
-{
-	g_free (item->details->embedded_text);
-	item->details->embedded_text = g_strdup (text);
-
-	if (item->details->embedded_text_layout != NULL) {
-		if (text != NULL) {
-			pango_layout_set_text (item->details->embedded_text_layout, text, -1);
-		} else {
-			pango_layout_set_text (item->details->embedded_text_layout, "", -1);
-		}
-	}
-
-	eel_canvas_item_request_update (EEL_CANVAS_ITEM (item));
-}
-
 
 /* Recomputes the bounding box of a icon canvas item.
  * This is a generic implementation that could be used for any canvas item
@@ -637,6 +571,7 @@ compute_text_rectangle (const NemoIconCanvasItem *item,
 {
 	EelIRect text_rectangle;
 	double pixels_per_unit;
+    double label_offset;
 	double text_width, text_height, text_height_for_layout, text_height_for_entire_text, real_text_height, text_dx;
 
 	pixels_per_unit = EEL_CANVAS_ITEM (item)->canvas->pixels_per_unit;
@@ -646,17 +581,19 @@ compute_text_rectangle (const NemoIconCanvasItem *item,
 		text_height_for_layout = item->details->text_height_for_layout;
 		text_height_for_entire_text = item->details->text_height_for_entire_text;
 		text_dx = item->details->text_dx;
+        label_offset = LABEL_OFFSET;
 	} else {
 		text_width = item->details->text_width / pixels_per_unit;
 		text_height = item->details->text_height / pixels_per_unit;
 		text_height_for_layout = item->details->text_height_for_layout / pixels_per_unit;
 		text_height_for_entire_text = item->details->text_height_for_entire_text / pixels_per_unit;
 		text_dx = item->details->text_dx / pixels_per_unit;
+        label_offset = LABEL_OFFSET / pixels_per_unit;
 	}
 
 	if (NEMO_ICON_CONTAINER (EEL_CANVAS_ITEM (item)->canvas)->details->label_position == NEMO_ICON_LABEL_POSITION_BESIDE) {
 		if (!nemo_icon_container_is_layout_rtl (NEMO_ICON_CONTAINER (EEL_CANVAS_ITEM (item)->canvas))) {
-                	text_rectangle.x0 = icon_rectangle.x1;
+                	text_rectangle.x0 = icon_rectangle.x1 + LABEL_OFFSET_BESIDES;
                 	text_rectangle.x1 = text_rectangle.x0 + text_dx + text_width;
 		} else {
                 	text_rectangle.x1 = icon_rectangle.x0;
@@ -677,17 +614,25 @@ compute_text_rectangle (const NemoIconCanvasItem *item,
 			real_text_height = VOODOO();
 		} else {
 #endif
-			real_text_height = text_height_for_entire_text;
+        if (usage == BOUNDS_USAGE_FOR_LAYOUT) {
+            real_text_height = text_height_for_layout;
+        } else if (usage == BOUNDS_USAGE_FOR_ENTIRE_ITEM) {
+            real_text_height = text_height_for_entire_text;
+        } else if (usage == BOUNDS_USAGE_FOR_DISPLAY) {
+            real_text_height = text_height;
+        } else {
+            g_assert_not_reached ();
+        }
 #if 0
 		}
 #endif
 
-                text_rectangle.y0 = (icon_rectangle.y0 + icon_rectangle.y1) / 2- (int) real_text_height / 2;
-                text_rectangle.y1 = text_rectangle.y0 + real_text_height;
+        text_rectangle.y0 = (icon_rectangle.y0 + icon_rectangle.y1) / 2- (int) real_text_height / 2;
+        text_rectangle.y1 = text_rectangle.y0 + real_text_height;
 	} else {
-                text_rectangle.x0 = (icon_rectangle.x0 + icon_rectangle.x1) / 2 - (int) text_width / 2;
-                text_rectangle.y0 = icon_rectangle.y1;
-                text_rectangle.x1 = text_rectangle.x0 + text_width;
+        text_rectangle.x0 = (icon_rectangle.x0 + icon_rectangle.x1) / 2 - (int) text_width / 2;
+        text_rectangle.y0 = icon_rectangle.y1 + label_offset;
+        text_rectangle.x1 = text_rectangle.x0 + text_width;
 
 		if (usage == BOUNDS_USAGE_FOR_LAYOUT) {
 			real_text_height = text_height_for_layout;
@@ -699,7 +644,7 @@ compute_text_rectangle (const NemoIconCanvasItem *item,
 			g_assert_not_reached ();
 		}
 
-		text_rectangle.y1 = text_rectangle.y0 + real_text_height + LABEL_OFFSET / pixels_per_unit;
+		text_rectangle.y1 = text_rectangle.y0 + real_text_height + label_offset;
         }
 
 	return text_rectangle;
@@ -901,8 +846,7 @@ prepare_pango_layout_for_draw (NemoIconCanvasItem *item,
 	} else if (needs_highlight ||
 		   details->is_prelit ||
 		   details->is_highlighted_as_keyboard_focus ||
-		   details->entire_text ||
-		   container->details->label_position == NEMO_ICON_LABEL_POSITION_BESIDE) {
+		   details->entire_text) {
 		/* VOODOO-TODO, cf. compute_text_rectangle() */
 		pango_layout_set_height (layout, G_MININT);
 	} else {
@@ -1241,11 +1185,6 @@ nemo_icon_canvas_item_invalidate_label (NemoIconCanvasItem     *item)
 		g_object_unref (item->details->additional_text_layout);
 		item->details->additional_text_layout = NULL;
 	}
-
-	if (item->details->embedded_text_layout) {
-		g_object_unref (item->details->embedded_text_layout);
-		item->details->embedded_text_layout = NULL;
-	}
 }
 
 
@@ -1398,66 +1337,6 @@ map_surface (NemoIconCanvasItem *icon_item)
 	return icon_item->details->rendered_surface;
 }
 
-static void
-draw_embedded_text (NemoIconCanvasItem *item,
-                    cairo_t *cr,
-		    int x, int y)
-{
-	PangoLayout *layout;
-	PangoContext *context;
-	PangoFontDescription *desc;
-	GtkWidget *widget;
-	GtkStyleContext *style_context;
-    guint scale;
-
-	if (item->details->embedded_text == NULL ||
-	    item->details->embedded_text_rect.width == 0 ||
-	    item->details->embedded_text_rect.height == 0) {
-		return;
-	}
-
-	widget = GTK_WIDGET (EEL_CANVAS_ITEM (item)->canvas);
-
-	if (item->details->embedded_text_layout != NULL) {
-		layout = g_object_ref (item->details->embedded_text_layout);
-	} else {
-		context = gtk_widget_get_pango_context (widget);
-		layout = pango_layout_new (context);
-		pango_layout_set_text (layout, item->details->embedded_text, -1);
-
-		desc = pango_font_description_from_string ("monospace 6");
-		pango_layout_set_font_description (layout, desc);
-		pango_font_description_free (desc);
-
-		if (item->details->is_visible) {
-			item->details->embedded_text_layout = g_object_ref (layout);
-		}
-	}
-
-	style_context = gtk_widget_get_style_context (widget);
-	gtk_style_context_save (style_context);
-	gtk_style_context_add_class (style_context, "icon-embedded-text");
-
-	cairo_save (cr);
-
-    scale = gtk_widget_get_scale_factor (widget);
-
-	cairo_rectangle (cr,
-			 x + item->details->embedded_text_rect.x / scale,
-			 y + item->details->embedded_text_rect.y / scale,
-			 item->details->embedded_text_rect.width / scale,
-			 item->details->embedded_text_rect.height / scale);
-	cairo_clip (cr);
-
-	gtk_render_layout (style_context, cr,
-			   x + item->details->embedded_text_rect.x / scale,
-			   y + item->details->embedded_text_rect.y / scale,
-			   layout);
-
-	gtk_style_context_restore (style_context);
-	cairo_restore (cr);
-}
-
 /* Draw the icon item for non-anti-aliased mode. */
 static void
 nemo_icon_canvas_item_draw (EelCanvasItem *item,
@@ -1492,8 +1371,6 @@ nemo_icon_canvas_item_draw (EelCanvasItem *item,
                              temp_surface,
                              icon_rect.x0, icon_rect.y0);
     cairo_surface_destroy (temp_surface);
-
-	draw_embedded_text (icon_item, cr, icon_rect.x0, icon_rect.y0);
 
 	/* Draw stretching handles (if necessary). */
 	draw_stretch_handles (icon_item, cr, &icon_rect);
@@ -1614,7 +1491,7 @@ nemo_icon_canvas_item_event (EelCanvasItem *item, GdkEvent *event)
 
 
     if (event->type == GDK_ENTER_NOTIFY) {
-        gtk_widget_set_tooltip_text (GTK_WIDGET (item->canvas), icon_item->tooltip);
+        nemo_icon_container_update_tooltip_text (NEMO_ICON_CONTAINER (item->canvas), icon_item);
 		if (!icon_item->details->is_prelit) {
 			icon_item->details->is_prelit = TRUE;
 			nemo_icon_canvas_item_invalidate_label_size (icon_item);
@@ -1634,7 +1511,7 @@ nemo_icon_canvas_item_event (EelCanvasItem *item, GdkEvent *event)
 		}
 		return TRUE;
     } else if (event->type == GDK_LEAVE_NOTIFY) {
-        gtk_widget_set_tooltip_text (GTK_WIDGET (item->canvas), "");
+        nemo_icon_container_update_tooltip_text (NEMO_ICON_CONTAINER (item->canvas), NULL);
 		if (icon_item->details->is_prelit
 		    || icon_item->details->is_highlighted_for_drop) {
 			/* When leaving, turn of the prelight state and the
@@ -2073,29 +1950,29 @@ nemo_icon_canvas_item_set_renaming (NemoIconCanvasItem *item, gboolean state)
 double
 nemo_icon_canvas_item_get_max_text_width (NemoIconCanvasItem *item)
 {
-	EelCanvasItem *canvas_item;
-	NemoIconContainer *container;
+    EelCanvasItem *canvas_item;
+    NemoIconContainer *container;
 
-	canvas_item = EEL_CANVAS_ITEM (item);
-	container = NEMO_ICON_CONTAINER (canvas_item->canvas);
-    if (nemo_icon_container_is_tighter_layout (container)) {
-       return GET_VIEW_CONSTANT (container, max_text_width_tighter) * canvas_item->canvas->pixels_per_unit;
-    } else {
-        if (container->details->label_position == NEMO_ICON_LABEL_POSITION_BESIDE) {
-           if (container->details->layout_mode == NEMO_ICON_LAYOUT_T_B_L_R ||
-               container->details->layout_mode == NEMO_ICON_LAYOUT_T_B_R_L) {
-               if (container->details->all_columns_same_width) {
-                   return GET_VIEW_CONSTANT (container, max_text_width_beside_top_to_bottom) * canvas_item->canvas->pixels_per_unit;
-               } else {
-                   return -1;
-               }
+    canvas_item = EEL_CANVAS_ITEM (item);
+    container = NEMO_ICON_CONTAINER (canvas_item->canvas);
+
+    if (container->details->label_position == NEMO_ICON_LABEL_POSITION_BESIDE) {
+        if (container->details->layout_mode == NEMO_ICON_LAYOUT_T_B_L_R ||
+            container->details->layout_mode == NEMO_ICON_LAYOUT_T_B_R_L) {
+            /* compact view */
+            if (container->details->all_columns_same_width) {
+                return GET_VIEW_CONSTANT (container, max_text_width_beside_top_to_bottom) * canvas_item->canvas->pixels_per_unit;
             } else {
-                return GET_VIEW_CONSTANT (container, max_text_width_beside) * canvas_item->canvas->pixels_per_unit;
+                return -1;
             }
         } else {
-           return GET_VIEW_CONSTANT (container, max_text_width_standard) * canvas_item->canvas->pixels_per_unit;
+            /* normal icon view with labels-beside-icons */
+            return GET_VIEW_CONSTANT (container, max_text_width_beside) * canvas_item->canvas->pixels_per_unit;
         }
-	}
+    } else {
+        /* normal icon view */
+        return nemo_get_icon_text_width_for_zoom_level (nemo_icon_container_get_zoom_level (container));
+    }
 }
 
 void
@@ -2935,10 +2812,4 @@ nemo_icon_canvas_item_accessible_factory_class_init (NemoIconCanvasItemAccessibl
 {
 	klass->create_accessible = nemo_icon_canvas_item_accessible_factory_create_accessible;
 	klass->get_accessible_type = nemo_icon_canvas_item_accessible_factory_get_accessible_type;
-}
-
-void
-nemo_icon_canvas_item_set_tooltip_text            (NemoIconCanvasItem *item, const gchar *text)
-{
-    item->tooltip = g_strdup (text);
 }

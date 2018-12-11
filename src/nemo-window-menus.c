@@ -44,7 +44,6 @@
 #include "nemo-icon-view.h"
 #include "nemo-list-view.h"
 #include "nemo-toolbar.h"
-#include "nemo-plugin-manager.h"
 
 #include <gtk/gtk.h>
 #include <gio/gio.h>
@@ -297,14 +296,18 @@ action_preferences_callback (GtkAction *action,
 
 	window = GTK_WINDOW (user_data);
 
-	nemo_file_management_properties_dialog_show (window);
+	nemo_file_management_properties_dialog_show (window, NULL);
 }
 
 static void
 action_plugins_callback (GtkAction *action,
                          gpointer user_data)
 {
-    nemo_plugin_manager_show ();
+    GtkWindow *window;
+
+    window = GTK_WINDOW (user_data);
+
+    nemo_file_management_properties_dialog_show (window, "plugins");
 }
 
 static void
@@ -556,6 +559,10 @@ action_split_view_callback (GtkAction *action,
 {
 	NemoWindow *window;
 	gboolean is_active;
+
+    if (NEMO_IS_DESKTOP_WINDOW (user_data)) {
+        return;
+    }
 
 	window = NEMO_WINDOW (user_data);
 
@@ -878,6 +885,27 @@ action_menu_edit_location_callback (GtkAction *action,
 }
 
 static void
+action_show_thumbnails_callback (GtkAction * action,
+                                 gpointer user_data)
+{
+    NemoWindowSlot *slot;
+    NemoWindowPane *pane;
+    NemoWindow *window;
+    gboolean value;
+
+    window = NEMO_WINDOW (user_data);
+
+    slot = nemo_window_get_active_slot (window);
+    pane = nemo_window_get_active_pane(window);
+
+    value = gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action));
+    nemo_window_slot_set_show_thumbnails(slot, value);
+
+    toolbar_set_show_thumbnails_button (value, pane);
+    menu_set_show_thumbnails_action(value, window);
+}
+
+static void
 set_content_view_type(NemoWindow *window,
                       const gchar *view_id)
 {
@@ -1018,6 +1046,60 @@ toolbar_set_view_button (guint action_id, NemoWindowPane *pane)
                            action_compact_view_callback,
                            NULL);
 
+}
+
+void
+toolbar_set_show_thumbnails_button (gboolean value, NemoWindowPane *pane)
+{
+    GtkAction *action;
+    GtkActionGroup *action_group;
+
+    action_group = nemo_window_pane_get_toolbar_action_group (pane);
+
+
+    action = gtk_action_group_get_action(action_group,
+                                         NEMO_ACTION_SHOW_THUMBNAILS);
+
+    g_signal_handlers_block_matched (action,
+                         G_SIGNAL_MATCH_FUNC,
+                         0, 0,
+                         NULL,
+                         action_show_thumbnails_callback,
+                         NULL);
+
+    gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action), value);
+
+    g_signal_handlers_unblock_matched (action,
+                           G_SIGNAL_MATCH_FUNC,
+                           0, 0,
+                           NULL,
+                           action_show_thumbnails_callback,
+                           NULL);
+}
+
+void
+menu_set_show_thumbnails_action (gboolean value, NemoWindow *window)
+{
+    GtkAction *action;
+
+    action = gtk_action_group_get_action (window->details->main_action_group,
+                                          NEMO_ACTION_SHOW_THUMBNAILS);
+
+    g_signal_handlers_block_matched (action,
+                         G_SIGNAL_MATCH_FUNC,
+                         0, 0,
+                         NULL,
+                         action_show_thumbnails_callback,
+                         NULL);
+
+    gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action), value);
+
+    g_signal_handlers_unblock_matched (action,
+                           G_SIGNAL_MATCH_FUNC,
+                           0, 0,
+                           NULL,
+                           action_show_thumbnails_callback,
+                           NULL);
 }
 
 void
@@ -1347,6 +1429,11 @@ static const GtkToggleActionEntry main_toggle_entries[] = {
   /* tooltip */              N_("Open an extra folder view side-by-side"),
                              G_CALLBACK (action_split_view_callback),
   /* is_active */            FALSE },
+    /* name, stock id */         { NEMO_ACTION_SHOW_THUMBNAILS, NULL,
+  /* label, accelerator */       N_("Show _Thumbnails"), NULL,
+  /* tooltip */                  N_("Toggle the display of thumbnails in the current directory"),
+  /* callback */                 G_CALLBACK (action_show_thumbnails_callback),
+  /* default */                  FALSE },
 };
 
 static const GtkRadioActionEntry sidebar_radio_entries[] = {
@@ -1551,6 +1638,18 @@ nemo_window_create_toolbar_action_group (NemoWindow *window)
     gtk_action_set_icon_name (GTK_ACTION (action), "edit-find-symbolic");
 
   	g_object_unref (action);
+    
+    action = GTK_ACTION (gtk_toggle_action_new (NEMO_ACTION_SHOW_THUMBNAILS,
+                         _("Show Thumbnails"),
+                         _("Show Thumbnails"),
+                         NULL));
+   	g_signal_connect (action, "activate",
+                      G_CALLBACK (action_show_thumbnails_callback),
+                      window);
+   	gtk_action_group_add_action (action_group, action);
+    gtk_action_set_icon_name (GTK_ACTION (action), "xapp-prefs-preview-symbolic");
+
+   	g_object_unref (action);
 
 	navigation_state = nemo_window_get_navigation_state (window);
 	nemo_navigation_state_add_group (navigation_state, action_group);

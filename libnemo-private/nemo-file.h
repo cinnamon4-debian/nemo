@@ -60,8 +60,9 @@ typedef enum {
 	NEMO_FILE_SORT_BY_TYPE,
     NEMO_FILE_SORT_BY_DETAILED_TYPE,
 	NEMO_FILE_SORT_BY_MTIME,
-        NEMO_FILE_SORT_BY_ATIME,
-	NEMO_FILE_SORT_BY_TRASHED_TIME
+    NEMO_FILE_SORT_BY_ATIME,
+	NEMO_FILE_SORT_BY_TRASHED_TIME,
+    NEMO_FILE_SORT_BY_BTIME
 } NemoFileSortType;	
 
 typedef enum {
@@ -91,7 +92,8 @@ typedef enum {
     NEMO_DATE_TYPE_CHANGED,
     NEMO_DATE_TYPE_ACCESSED,
     NEMO_DATE_TYPE_PERMISSIONS_CHANGED,
-    NEMO_DATE_TYPE_TRASHED
+    NEMO_DATE_TYPE_TRASHED,
+    NEMO_DATE_TYPE_CREATED
 } NemoDateType;
 
 typedef enum {
@@ -99,7 +101,8 @@ typedef enum {
     NEMO_FILE_TOOLTIP_FLAGS_FILE_TYPE =  (1<<0),
     NEMO_FILE_TOOLTIP_FLAGS_MOD_DATE = (1<<1),
     NEMO_FILE_TOOLTIP_FLAGS_ACCESS_DATE = (1<<2),
-    NEMO_FILE_TOOLTIP_FLAGS_PATH = (1<<3)
+    NEMO_FILE_TOOLTIP_FLAGS_PATH = (1<<3),
+    NEMO_FILE_TOOLTIP_FLAGS_CREATED_DATE = (1<<4)
 } NemoFileTooltipFlags;
 
 /* Emblems sometimes displayed for NemoFiles. Do not localize. */ 
@@ -200,6 +203,8 @@ gboolean                nemo_file_is_launchable                     (NemoFile   
 gboolean                nemo_file_is_symbolic_link                  (NemoFile                   *file);
 gboolean                nemo_file_is_mountpoint                     (NemoFile                   *file);
 GMount *                nemo_file_get_mount                         (NemoFile                   *file);
+void                    nemo_file_set_mount                         (NemoFile                   *file,
+                                                                     GMount                     *mount);
 char *                  nemo_file_get_volume_free_space             (NemoFile                   *file);
 char *                  nemo_file_get_volume_name                   (NemoFile                   *file);
 char *                  nemo_file_get_symbolic_link_target_path     (NemoFile                   *file);
@@ -235,7 +240,7 @@ gboolean                nemo_file_should_show_directory_item_count  (NemoFile   
 gboolean                nemo_file_should_show_type                  (NemoFile                   *file);
 GList *                 nemo_file_get_keywords                      (NemoFile                   *file);
 GList *                 nemo_file_get_emblem_icons                  (NemoFile                   *file,
-									 char                          **exclude);
+                                                                     NemoFile                   *view_file);
 gboolean                nemo_file_get_directory_item_mime_types     (NemoFile                   *file,
 									 GList                         **mime_list);
 
@@ -357,7 +362,14 @@ void                    nemo_file_set_metadata                      (NemoFile   
 void                    nemo_file_set_metadata_list                 (NemoFile                   *file,
 									 const char                     *key,
 									 GList                          *list);
-
+void                    nemo_file_set_desktop_grid_adjusts (NemoFile   *file,
+                                                            const char *key,
+                                                            int         int_a,
+                                                            int         int_b);
+void                    nemo_file_get_desktop_grid_adjusts (NemoFile   *file,
+                                                            const char *key,
+                                                            int        *int_a,
+                                                            int        *int_b);
 /* Covers for common data types. */
 gboolean                nemo_file_get_boolean_metadata              (NemoFile                   *file,
 									 const char                     *key,

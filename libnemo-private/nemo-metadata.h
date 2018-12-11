@@ -41,7 +41,6 @@
 
 #define NEMO_METADATA_KEY_ICON_VIEW_ZOOM_LEVEL       	"nemo-icon-view-zoom-level"
 #define NEMO_METADATA_KEY_ICON_VIEW_AUTO_LAYOUT      	"nemo-icon-view-auto-layout"
-#define NEMO_METADATA_KEY_ICON_VIEW_TIGHTER_LAYOUT      "nemo-icon-view-tighter-layout"
 #define NEMO_METADATA_KEY_ICON_VIEW_SORT_BY          	"nemo-icon-view-sort-by"
 #define NEMO_METADATA_KEY_ICON_VIEW_SORT_REVERSED    	"nemo-icon-view-sort-reversed"
 #define NEMO_METADATA_KEY_ICON_VIEW_KEEP_ALIGNED            "nemo-icon-view-keep-aligned"
@@ -73,8 +72,11 @@
 #define NEMO_METADATA_KEY_CUSTOM_ICON                	"custom-icon"
 #define NEMO_METADATA_KEY_CUSTOM_ICON_NAME                	"custom-icon-name"
 #define NEMO_METADATA_KEY_EMBLEMS				"emblems"
+
 #define NEMO_METADATA_KEY_MONITOR               "monitor"
 #define NEMO_METADATA_KEY_DESKTOP_GRID_HORIZONTAL  "desktop-horizontal"
+#define NEMO_METADATA_KEY_SHOW_THUMBNAILS "show-thumbnails"
+#define NEMO_METADATA_KEY_DESKTOP_GRID_ADJUST      "desktop-grid-adjust"
 
 guint nemo_metadata_get_id (const char *metadata);
 

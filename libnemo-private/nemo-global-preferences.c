@@ -37,6 +37,9 @@
 
 
 static gboolean ignore_view_metadata = FALSE;
+static gchar **file_roller_mimetypes = NULL;
+
+GFileMonitor *tz_mon;
 
 /*
  * Public functions
@@ -97,7 +100,8 @@ nemo_global_preferences_get_tooltip_flags (void)
         flags |= NEMO_FILE_TOOLTIP_FLAGS_ACCESS_DATE;
     if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_TOOLTIP_FULL_PATH))
         flags |= NEMO_FILE_TOOLTIP_FLAGS_PATH;
-
+    if (g_settings_get_boolean (nemo_preferences, NEMO_PREFERENCES_TOOLTIP_CREATED_DATE))
+        flags |= NEMO_FILE_TOOLTIP_FLAGS_CREATED_DATE;
     return flags;
 }
 
@@ -126,47 +130,93 @@ ignore_view_metadata_cb (GSettings *settings,
     ignore_view_metadata = g_settings_get_boolean (settings, key);
 }
 
-static void
-cache_fileroller_mimetypes (void)
+gchar **
+nemo_global_preferences_get_fileroller_mimetypes (void)
 {
-    if (nemo_is_file_roller_installed ()) {
-        GAppInfo *app_info;
-        gchar ***results;
-        gchar **result;
-        gint i;
+    static gsize once_init = 0;
 
-        results = g_desktop_app_info_search ("file-roller");
+    if (g_once_init_enter (&once_init)) {
+        if (nemo_is_file_roller_installed ()) {
+            GAppInfo *app_info;
+            gchar ***results;
+            gchar **result;
+            gint i;
 
-        if (results != NULL && results[0] != NULL) {
-            const gchar *best;
+            results = g_desktop_app_info_search ("file-roller");
 
-            best = results[0][0];
+            if (results != NULL && results[0] != NULL) {
+                const gchar *best;
 
-            app_info = G_APP_INFO (g_desktop_app_info_new (best));
+                best = results[0][0];
 
-            if (app_info == NULL) {
-                g_warning ("Unable to retrieve list of file-roller mimetypes");
-                file_roller_mimetypes = NULL;
-                return;
+                app_info = G_APP_INFO (g_desktop_app_info_new (best));
+
+                if (app_info) {
+                    file_roller_mimetypes = g_strdupv ((gchar **) g_app_info_get_supported_types (app_info));
+                    g_object_unref (app_info);
+                }
+
+                if (app_info == NULL) {
+                    g_warning ("Unable to retrieve list of file-roller mimetypes");
+                }
+
+                i = 0;
+                result = results[i];
+
+                while (result != NULL) {
+                    g_strfreev (result);
+                    result = results[++i];
+                }
+
+                g_free (results);
             }
-
-            file_roller_mimetypes = g_strdupv ((gchar **) g_app_info_get_supported_types (app_info));
-
-            g_object_unref (app_info);
         }
 
-        i = 0;
-        result = results[i];
-
-        while (result != NULL) {
-            g_strfreev (result);
-            result = results[++i];
-        }
-
-        g_free (results);
-    } else {
-        file_roller_mimetypes = NULL;
+        g_once_init_leave (&once_init, 1);
     }
+
+    return file_roller_mimetypes;
+}
+
+static void
+on_time_data_changed (gpointer user_data)
+{
+    prefs_current_date_format = g_settings_get_enum (nemo_preferences, NEMO_PREFERENCES_DATE_FORMAT);
+    prefs_current_24h_time_format = g_settings_get_boolean (cinnamon_interface_preferences, "clock-use-24h");
+
+    if (prefs_current_timezone != NULL) {
+        g_time_zone_unref (prefs_current_timezone);
+    }
+
+    prefs_current_timezone = g_time_zone_new_local ();
+}
+
+static void
+setup_cached_time_data (void)
+{
+    GFile *tz;
+
+    prefs_current_timezone = NULL;
+
+    g_signal_connect_swapped (nemo_preferences,
+                              "changed::" NEMO_PREFERENCES_DATE_FORMAT,
+                              G_CALLBACK (on_time_data_changed), NULL);
+
+    g_signal_connect_swapped (cinnamon_interface_preferences,
+                              "changed::clock-use-24h",
+                              G_CALLBACK (on_time_data_changed), NULL);
+
+
+    tz = g_file_new_for_path ("/etc/localtime");
+
+    tz_mon = g_file_monitor_file (tz, 0, NULL, NULL);
+    g_object_unref (tz);
+
+    g_signal_connect_swapped (tz_mon,
+                              "changed",
+                              G_CALLBACK (on_time_data_changed), NULL);
+
+    on_time_data_changed (NULL);
 }
 
 void
@@ -201,11 +251,27 @@ nemo_global_preferences_init (void)
                       "changed::" NEMO_PREFERENCES_IGNORE_VIEW_METADATA,
                       G_CALLBACK (ignore_view_metadata_cb), NULL);
 
-    cache_fileroller_mimetypes ();
+    setup_cached_time_data ();
 }
 
 void
 nemo_global_preferences_finalize (void)
 {
     g_strfreev (file_roller_mimetypes);
+    g_object_unref (tz_mon);
+
+    g_object_unref (nemo_preferences);
+    g_object_unref (nemo_window_state);
+    g_object_unref (nemo_icon_view_preferences);
+    g_object_unref (nemo_list_view_preferences);
+    g_object_unref (nemo_compact_view_preferences);
+    g_object_unref (nemo_desktop_preferences);
+    g_object_unref (nemo_tree_sidebar_preferences);
+    g_object_unref (nemo_plugin_preferences);
+    g_object_unref (gnome_lockdown_preferences);
+    g_object_unref (gnome_background_preferences);
+    g_object_unref (gnome_media_handling_preferences);
+    g_object_unref (gnome_terminal_preferences);
+    g_object_unref (cinnamon_privacy_preferences);
+    g_object_unref (cinnamon_interface_preferences);
 }

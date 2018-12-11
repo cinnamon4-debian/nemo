@@ -141,10 +141,7 @@ typedef struct {
 	NemoIconInfo *(* get_icon_images)     (NemoIconContainer *container,
 						   NemoIconData *data,
 						   int icon_size,
-						   char **embedded_text,
 						   gboolean for_drag_accept,
-						   gboolean need_large_embeddded_text,
-						   gboolean *embedded_text_needs_loading,
 						   gboolean *has_window_open);
 	void         (* get_icon_text)            (NemoIconContainer *container,
 						   NemoIconData *data,
@@ -160,13 +157,7 @@ typedef struct {
 						   NemoIconData *icon_b);
 	void         (* freeze_updates)           (NemoIconContainer *container);
 	void         (* unfreeze_updates)         (NemoIconContainer *container);
-	void         (* start_monitor_top_left)   (NemoIconContainer *container,
-						   NemoIconData *data,
-						   gconstpointer client,
-						   gboolean large_text);
-	void         (* stop_monitor_top_left)    (NemoIconContainer *container,
-						   NemoIconData *data,
-						   gconstpointer client);
+
 	void         (* prioritize_thumbnailing)  (NemoIconContainer *container,
 						   NemoIconData *data);
     gint         (* get_max_layout_lines_for_pango) (NemoIconContainer *container);
@@ -282,10 +273,6 @@ gboolean          nemo_icon_container_is_auto_layout                (NemoIconCon
 void              nemo_icon_container_set_auto_layout               (NemoIconContainer  *container,
 									 gboolean                auto_layout);
 
-gboolean          nemo_icon_container_is_tighter_layout             (NemoIconContainer  *container);
-void              nemo_icon_container_set_tighter_layout            (NemoIconContainer  *container,
-                                     gboolean                tighter_layout);
-
 gboolean          nemo_icon_container_is_keep_aligned               (NemoIconContainer  *container);
 void              nemo_icon_container_set_keep_aligned              (NemoIconContainer  *container,
 									 gboolean                keep_aligned);
@@ -294,6 +281,9 @@ void              nemo_icon_container_set_layout_mode               (NemoIconCon
 void              nemo_icon_container_set_horizontal_layout (NemoIconContainer *container,
                                                              gboolean           horizontal);
 gboolean          nemo_icon_container_get_horizontal_layout (NemoIconContainer *container);
+void              nemo_icon_container_set_grid_adjusts (NemoIconContainer *container,
+                                                        gint               h_adjust,
+                                                        gint               v_adjust);
 
 void              nemo_icon_container_set_label_position            (NemoIconContainer  *container,
 									 NemoIconLabelPosition pos);
@@ -312,7 +302,10 @@ void              nemo_icon_container_select_all                    (NemoIconCon
 
 
 /* operations on the selection */
+void              nemo_icon_container_update_selection              (NemoIconContainer *container);
 GList     *       nemo_icon_container_get_selection                 (NemoIconContainer  *view);
+GList     *       nemo_icon_container_peek_selection                (NemoIconContainer  *view);
+gint              nemo_icon_container_get_selection_count           (NemoIconContainer  *container);
 void			  nemo_icon_container_invert_selection				(NemoIconContainer  *view);
 void              nemo_icon_container_set_selection                 (NemoIconContainer  *view,
 									 GList                  *selection);
@@ -375,5 +368,6 @@ void              nemo_icon_container_widget_to_file_operation_position (NemoIco
 									     GdkPoint              *position);
 
 void         nemo_icon_container_setup_tooltip_preference_callback (NemoIconContainer *container);
-
+void         nemo_icon_container_update_tooltip_text (NemoIconContainer  *container,
+                                                      NemoIconCanvasItem *item);
 #endif /* NEMO_ICON_CONTAINER_H */

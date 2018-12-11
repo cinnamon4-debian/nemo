@@ -589,7 +589,7 @@ nemo_action_new (const gchar *name,
         guint i = 0;
         for (i = 0; i < g_strv_length (deps); i++) {
             if (g_path_is_absolute (deps[i])) {
-                if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
+                if (!g_file_test (deps[i], G_FILE_TEST_EXISTS)) {
                     finish = FALSE;
                     DEBUG ("Missing action dependency: %s", deps[i]);
                 }
@@ -1032,8 +1032,16 @@ expand_action_string (NemoAction *action, GList *selection, NemoFile *parent, GS
         str = g_string_insert (str, shift, insertion);
 
         token_type = TOKEN_NONE;
+
+        /* The string may have expanded, and since we modify-in-place using GString, make sure
+         * our continuation begins just beyond what we inserted, not the original match position.
+         * Otherwise we may get confused by uri escape codes that happen to match *our* replacement
+         * tokens (%U, %F, etc...).
+         *
+         * See: https://github.com/linuxmint/nemo/issues/1956
+         */
+        ptr = find_token_type (str->str + shift + strlen(insertion), &token_type);
         g_free  (insertion);
-        ptr = find_token_type (str->str, &token_type);
     }
 
     return str;
@@ -1407,7 +1415,10 @@ get_is_dir (NemoFile *file)
 }
 
 gboolean
-nemo_action_get_visibility (NemoAction *action, GList *selection, NemoFile *parent)
+nemo_action_get_visibility (NemoAction *action,
+                            GList *selection,
+                            NemoFile *parent,
+                            gboolean for_places)
 {
 
     gboolean selection_type_show = FALSE;
@@ -1434,12 +1445,39 @@ nemo_action_get_visibility (NemoAction *action, GList *selection, NemoFile *pare
             } else if (g_strcmp0 (condition, "removable") == 0) {
                 gboolean is_removable = FALSE;
                 if (g_list_length (selection) > 0) {
-                    GMount *mount = nemo_file_get_mount (selection->data);
+                    NemoFile *file;
+                    GMount *mount = NULL;
+
+                    file = NEMO_FILE (selection->data);
+
+                    mount = nemo_file_get_mount (file);
+
+                    /* find_enclosing_mount can block, so only bother when activated
+                     * from the places sidebar (which is strictly done on-demand),
+                     * so we don't drag down any view loads. */
+                    if (!mount && for_places) {
+                        GFile *f;
+
+                        f = nemo_file_get_location (file);
+
+                        if (g_file_is_native (f)) {
+                            mount = g_file_find_enclosing_mount (f, NULL, NULL);
+                            nemo_file_set_mount (file, mount);
+                        }
+
+                        g_object_unref (f);
+                    }
+
                     if (mount) {
-                        GDrive *drive = g_mount_get_drive (mount);
+                        GDrive *drive;
+
+                        drive = g_mount_get_drive (mount);
+
                         if (drive) {
-                            if (g_drive_is_removable (drive))
+                            if (g_drive_is_removable (drive)) {
                                 is_removable = TRUE;
+                            }
+
                             g_object_unref (drive);
                         }
                     }

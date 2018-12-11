@@ -1,7 +1,9 @@
 
 nemo_extension_sources = [
+  gresources,
   'nemo-column-provider.c',
   'nemo-column.c',
+  'nemo-desktop-preferences.c',
   'nemo-extension-i18n.h',
   'nemo-extension-private.h',
   'nemo-file-info.c',
@@ -19,6 +21,7 @@ nemo_extension_sources = [
 nemo_extension_headers = [
   'nemo-column-provider.h',
   'nemo-column.h',
+  'nemo-desktop-preferences.h',
   'nemo-extension-types.h',
   'nemo-file-info.h',
   'nemo-info-provider.h',
@@ -34,7 +37,7 @@ nemo_extension_headers = [
 
 nemo_extension_incdir = include_directories('.')
 
-nemo_extension_deps = [ glib, gtk, eel ]
+nemo_extension_deps = [ glib, gtk ]
 
 nemo_extension_lib = shared_library('nemo-extension',
   nemo_extension_sources,
@@ -70,21 +73,10 @@ if meson.version().version_compare('>=0.41.0')
     name: 'libnemo-extension',
     description: 'A library to create Nemo view extensions',
     version: meson.project_version(),
-    requires: [
-      'gio-2.0',
-      'glib-2.0',
-      'gtk+-3.0',
-    ],
-    libraries: [
-      '-L${libdir}',
-      '-lnemo-extension',
-    ],
-    subdirs: [
-      'nemo',
-    ],
-    variables: [
-      'extensiondir=@0@'.format(nemoExtensionPath)
-    ],
+    requires: [ 'gio-2.0', 'glib-2.0', 'gtk+-3.0' ],
+    libraries: nemo_extension_lib,
+    subdirs: 'nemo',
+    variables: 'extensiondir=${libdir}/@0@/@1@'.format('nemo', 'extensions-3.0'),
   )
 else
   pc_conf = configuration_data()

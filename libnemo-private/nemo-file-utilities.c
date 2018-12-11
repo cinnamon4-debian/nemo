@@ -32,6 +32,7 @@
 #include "nemo-file-operations.h"
 #include "nemo-search-directory.h"
 #include "nemo-signaller.h"
+#include "nemo-statx.h"
 #include <eel/eel-glib-extensions.h>
 #include <eel/eel-stock-dialogs.h>
 #include <eel/eel-string.h>
@@ -1667,6 +1668,127 @@ nemo_get_drive_icon_name (GDrive *drive)
 
     return icon_name;
 }
+
+gchar *
+nemo_get_best_guess_file_mimetype (const gchar *filename,
+                                   GFileInfo   *info,
+                                   goffset      size)
+{
+    /* This is an attempt to do a better job at identifying file types than
+     * the current gio implementation.
+     *
+     * The current behavior for empty (0 size) size files, is to return
+     * "text/plain" so users can touch a file, or create an empty one in their
+     * file manager, and immediately edit it.
+     *
+     * This behavior currently applies regardless of whether or not a file has
+     * an extension.
+     *
+     * More discussion: https://bugzilla.gnome.org/show_bug.cgi?id=755795
+     *
+     * What we do here instead is take a file's extension into account if the file
+     * is zero-length.  If, by doing so, we have a high confidence that a file is
+     * a certain type, we go ahead and use that type.  We only fall back to Gio's
+     * zero-length implementation if the extension is unknown, or it has none.
+     *
+     * - Files that are NOT zero-length are treated the same as before.
+     * - Files that we are not certain about are treated the same as before.
+     *
+     * Again, this only has an effect on zero-length, known-extension files.  My
+     * argument for this differing from the standing implementation is that if I
+     * create a file with a particular extension, I did so for a reason, and I'm not
+     * going to do something silly like make foo.mp3 and attempt to open it with my
+     * media player.  I do, however, expect that if I touch a foo.h file and open it,
+     * it will open up in my source code editor, and *not* my general purpose plain-
+     * text handler.
+     */
+
+    g_return_val_if_fail (filename != NULL, g_strdup ("application/octet-stream"));
+    g_return_val_if_fail (info != NULL, g_strdup ("application/octet-stream"));
+
+    gchar *mime_type = NULL;
+
+    if (size > 0) {
+        /* Default behavior */
+        mime_type = eel_ref_str_get_unique (g_file_info_get_content_type (info));
+    } else {
+        gboolean uncertain;
+        gchar *guessed_type = NULL;
+
+        /* Only give the file basename, not the full path.  a) We may not have it yet, and
+         * b) we don't want g_content_type_guess to keep going and snoop the file.  This will
+         * keep the guess based entirely on the extension, if there is one.
+         */
+        guessed_type = g_content_type_guess (filename, NULL, 0, &uncertain);
+
+        /* Uncertain means, it's not a registered extension, so we fall back to our (gio's)
+         * normal behavior - text/plain (currently at least.) */
+        if (!uncertain) {
+            mime_type = eel_ref_str_get_unique (guessed_type);
+        } else {
+            mime_type = eel_ref_str_get_unique (g_file_info_get_content_type (info));
+        }
+
+        g_free (guessed_type);
+    }
+
+    return mime_type;
+}
+
+static void
+query_btime_async_thread (GTask         *task,
+                          gpointer       object,
+                          gpointer       task_data,
+                          GCancellable  *cancellable)
+{
+    gchar *path;
+    time_t btime;
+
+    btime = 0;
+
+    path = g_file_get_path (G_FILE (object));
+
+    if (path != NULL) {
+        btime = get_file_btime (path);
+        g_free (path);
+    }
+
+    if (btime > 0) {
+        /* Conveniently, gssize is the same as time_t */
+        g_task_return_int (task, (gssize) btime);
+    } else {
+        g_task_return_error (task,
+                             g_error_new (G_FILE_ERROR,
+                                          G_FILE_ERROR_FAILED,
+                                          "statx failed or not supported"));
+    }
+}
+
+void
+nemo_query_btime_async (GFile               *file,
+                        GCancellable        *cancellable,
+                        GAsyncReadyCallback  callback,
+                        gpointer             user_data)
+{
+  GTask *task;
+
+  task = g_task_new (file, cancellable, callback, user_data);
+  g_task_set_priority (task, G_PRIORITY_DEFAULT);
+  g_task_run_in_thread (task, query_btime_async_thread);
+  g_object_unref (task);
+}
+
+time_t
+nemo_query_btime_finish (GFile         *file,
+                             GAsyncResult  *res,
+                             GError       **error)
+{
+  g_return_val_if_fail (g_task_is_valid (res, file), -1);
+
+  return (time_t) g_task_propagate_int (G_TASK (res), error);
+}
+
+/* End copied section */
 
 #if !defined (NEMO_OMIT_SELF_CHECK)
 

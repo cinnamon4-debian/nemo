@@ -40,6 +40,8 @@
 #include <libnemo-private/nemo-global-preferences.h>
 #include <libnemo-private/nemo-module.h>
 
+#include "nemo-plugin-manager.h"
+
 /* string enum preferences */
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_DEFAULT_VIEW_WIDGET "default_view_combobox"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_ICON_VIEW_ZOOM_WIDGET "icon_view_zoom_combobox"
@@ -64,19 +66,20 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_OPEN_NEW_WINDOW_WIDGET "new_window_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TREE_VIEW_FOLDERS_WIDGET "treeview_folders_checkbutton"
 
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_PREVIOUS_ICON_TOOLBAR_WIDGET "show_previous_icon_toolbar_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_NEXT_ICON_TOOLBAR_WIDGET "show_next_icon_toolbar_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_UP_ICON_TOOLBAR_WIDGET "show_up_icon_toolbar_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_RELOAD_ICON_TOOLBAR_WIDGET "show_reload_icon_toolbar_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_EDIT_ICON_TOOLBAR_WIDGET "show_edit_icon_toolbar_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_HOME_ICON_TOOLBAR_WIDGET "show_home_icon_toolbar_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_COMPUTER_ICON_TOOLBAR_WIDGET "show_computer_icon_toolbar_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SEARCH_ICON_TOOLBAR_WIDGET "show_search_icon_toolbar_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_NEW_FOLDER_ICON_TOOLBAR_WIDGET "show_new_folder_icon_toolbar_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_OPEN_IN_TERMINAL_ICON_TOOLBAR_WIDGET "show_open_in_terminal_icon_toolbar_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_ICON_VIEW_ICON_TOOLBAR_WIDGET "show_icon_view_icon_toolbar_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_LIST_VIEW_ICON_TOOLBAR_WIDGET "show_list_view_icon_toolbar_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_COMPACT_VIEW_ICON_TOOLBAR_WIDGET "show_compact_view_icon_toolbar_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_PREVIOUS_ICON_TOOLBAR_WIDGET "show_previous_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_NEXT_ICON_TOOLBAR_WIDGET "show_next_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_UP_ICON_TOOLBAR_WIDGET "show_up_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_RELOAD_ICON_TOOLBAR_WIDGET "show_reload_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_EDIT_ICON_TOOLBAR_WIDGET "show_edit_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_HOME_ICON_TOOLBAR_WIDGET "show_home_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_COMPUTER_ICON_TOOLBAR_WIDGET "show_computer_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SEARCH_ICON_TOOLBAR_WIDGET "show_search_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_NEW_FOLDER_ICON_TOOLBAR_WIDGET "show_new_folder_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_OPEN_IN_TERMINAL_ICON_TOOLBAR_WIDGET "show_open_in_terminal_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_ICON_VIEW_ICON_TOOLBAR_WIDGET "show_icon_view_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_LIST_VIEW_ICON_TOOLBAR_WIDGET "show_list_view_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_COMPACT_VIEW_ICON_TOOLBAR_WIDGET "show_compact_view_icon_toolbar_togglebutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SHOW_THUMBNAILS_ICON_TOOLBAR_WIDGET "show_show_thumbnails_icon_toolbar_togglebutton"
 
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_FULL_PATH_IN_TITLE_BARS_WIDGET "show_full_path_in_title_bars_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_CLOSE_DEVICE_VIEW_ON_EJECT_WIDGET "close_device_view_on_eject_checkbutton"
@@ -96,7 +99,8 @@
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIPS_ON_DESKTOP_WIDGET "tooltips_on_desktop_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_FILE_TYPE_WIDGET "tt_show_file_type_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_MOD_DATE_WIDGET "tt_show_modified_date_checkbutton"
-#define NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_ACCESS_DATE_WIDGET "tt_show_created_date_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_ACCESS_DATE_WIDGET "tt_show_accessed_date_checkbutton"
+#define NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_CREATED_DATE_WIDGET "tt_show_created_date_checkbutton"
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_FULL_PATH_WIDGET "tt_show_full_path_checkbutton"
 
 #define NEMO_FILE_MANAGEMENT_PROPERTIES_NEMO_PREFERENCES_SKIP_FILE_OP_QUEUE_WIDGET "skip_file_op_queue_checkbutton"
@@ -145,7 +149,15 @@ static const char * const date_format_values[] = {
 	NULL
 };
 
-static const char * const preview_values[] = {
+static const char * const preview_image_values[] = {
+    "always",
+    "local-only",
+    "per-folder",
+    "never",
+    NULL
+};
+
+static const char * const preview_folder_values[] = {
 	"always",
 	"local-only",
 	"never",
@@ -230,16 +242,6 @@ nemo_file_management_properties_size_group_create (GtkBuilder *builder,
 		g_free (item_name);
 	}
 	g_object_unref (G_OBJECT (size_group));
-}
-
-static void
-nemo_file_management_properties_dialog_response_cb (GtkDialog *parent,
-							int response_id,
-							GtkBuilder *builder)
-{
-    if (response_id == GTK_RESPONSE_CLOSE) {
-        gtk_widget_destroy (GTK_WIDGET (parent));
-    }
 }
 
 static void
@@ -439,6 +441,18 @@ nemo_file_management_properties_dialog_setup_icon_caption_page (GtkBuilder *buil
 	nemo_column_list_free (columns);
 
 	update_icon_captions_from_settings (builder);
+}
+
+static void
+nemo_file_management_properties_dialog_setup_plugin_page (GtkBuilder *builder)
+{
+    GtkWidget *box;
+
+    box = GTK_WIDGET (gtk_builder_get_object (builder, "plugin_box"));
+
+    gtk_box_pack_start (GTK_BOX (box),
+                        GTK_WIDGET (nemo_plugin_manager_new ()),
+                        TRUE, TRUE, 0);
 }
 
 static void
@@ -720,6 +734,7 @@ setup_tooltip_items (GtkBuilder *builder)
 
     gtk_widget_set_sensitive (GTK_WIDGET (W (NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_FILE_TYPE_WIDGET)), enabled);
     gtk_widget_set_sensitive (GTK_WIDGET (W (NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_MOD_DATE_WIDGET)), enabled);
+    gtk_widget_set_sensitive (GTK_WIDGET (W (NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_CREATED_DATE_WIDGET)), enabled);
     gtk_widget_set_sensitive (GTK_WIDGET (W (NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_ACCESS_DATE_WIDGET)), enabled);
     gtk_widget_set_sensitive (GTK_WIDGET (W (NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_FULL_PATH_WIDGET)), enabled);
 }
@@ -763,11 +778,21 @@ connect_quick_renames (GtkBuilder *builder)
 		g_signal_connect_swapped (w, "toggled", G_CALLBACK (setup_quick_renames), builder);
 }
 
+static void
+on_dialog_destroy (GtkWidget *widget,
+                   gpointer   user_data)
+{
+    GtkBuilder *builder = GTK_BUILDER (user_data);
+
+    g_object_unref (builder);
+}
+
 static  void
-nemo_file_management_properties_dialog_setup (GtkBuilder *builder, GtkWindow *window)
+nemo_file_management_properties_dialog_setup (GtkBuilder  *builder,
+                                              GtkWindow   *window,
+                                              const gchar *initial_page)
 {
 	GtkWidget *dialog;
-    GtkWidget *stack_switcher;
 
 	/* setup UI */
 	nemo_file_management_properties_size_group_create (builder,
@@ -822,11 +847,11 @@ nemo_file_management_properties_dialog_setup (GtkBuilder *builder, GtkWindow *wi
     bind_builder_bool (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_COMPACT_VIEW_ICON_TOOLBAR_WIDGET,
 			   NEMO_PREFERENCES_SHOW_COMPACT_VIEW_ICON_TOOLBAR);
+    bind_builder_bool (builder, nemo_preferences,
+			   NEMO_FILE_MANAGEMENT_PROPERTIES_SHOW_SHOW_THUMBNAILS_ICON_TOOLBAR_WIDGET,
+			   NEMO_PREFERENCES_SHOW_SHOW_THUMBNAILS_TOOLBAR);
 
 	/* setup preferences */
-    bind_builder_bool (builder, nemo_icon_view_preferences,
-        NEMO_FILE_MANAGEMENT_PROPERTIES_COMPACT_LAYOUT_WIDGET,
-        NEMO_PREFERENCES_ICON_VIEW_DEFAULT_USE_TIGHTER_LAYOUT);
 	bind_builder_bool (builder, nemo_icon_view_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_LABELS_BESIDE_ICONS_WIDGET,
 			   NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS);
@@ -881,11 +906,11 @@ nemo_file_management_properties_dialog_setup (GtkBuilder *builder, GtkWindow *wi
 	bind_builder_enum (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_IMAGE_WIDGET,
 			   NEMO_PREFERENCES_SHOW_IMAGE_FILE_THUMBNAILS,
-			   (const char **) preview_values);
+			   (const char **) preview_image_values);
 	bind_builder_enum (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_PREVIEW_FOLDER_WIDGET,
 			   NEMO_PREFERENCES_SHOW_DIRECTORY_ITEM_COUNTS,
-			   (const char **) preview_values);
+			   (const char **) preview_folder_values);
 	bind_builder_enum (builder, nemo_preferences,
 			   NEMO_FILE_MANAGEMENT_PROPERTIES_SIZE_PREFIXES_WIDGET,
 			   NEMO_PREFERENCES_SIZE_PREFIXES,
@@ -976,6 +1001,10 @@ nemo_file_management_properties_dialog_setup (GtkBuilder *builder, GtkWindow *wi
                        NEMO_PREFERENCES_TOOLTIP_ACCESS_DATE);
 
     bind_builder_bool (builder, nemo_preferences,
+                       NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_CREATED_DATE_WIDGET,
+                       NEMO_PREFERENCES_TOOLTIP_CREATED_DATE);
+
+    bind_builder_bool (builder, nemo_preferences,
                        NEMO_FILE_MANAGEMENT_PROPERTIES_TOOLTIP_FULL_PATH_WIDGET,
                        NEMO_PREFERENCES_TOOLTIP_FULL_PATH);
 
@@ -996,42 +1025,39 @@ nemo_file_management_properties_dialog_setup (GtkBuilder *builder, GtkWindow *wi
 
 	nemo_file_management_properties_dialog_setup_icon_caption_page (builder);
 	nemo_file_management_properties_dialog_setup_list_column_page (builder);
+    nemo_file_management_properties_dialog_setup_plugin_page (builder);
 
-	/* UI callbacks */
-	dialog = GTK_WIDGET (gtk_builder_get_object (builder, "file_management_dialog"));
-	g_signal_connect_data (dialog, "response",
-			       G_CALLBACK (nemo_file_management_properties_dialog_response_cb),
-			       g_object_ref (builder),
-			       (GClosureNotify)g_object_unref,
-			       0);
+    dialog = GTK_WIDGET (gtk_builder_get_object (builder, "file_management_dialog"));
+
 	g_signal_connect (dialog, "delete-event",
 			  G_CALLBACK (gtk_widget_destroy), NULL);
+
+    g_signal_connect (dialog, "destroy",
+                      G_CALLBACK (on_dialog_destroy), builder);
 
 	gtk_window_set_icon_name (GTK_WINDOW (dialog), "folder");
 
 	if (window) {
-		gtk_window_set_screen (GTK_WINDOW (dialog), gtk_window_get_screen(window));
+		gtk_window_set_transient_for (GTK_WINDOW (dialog), window);
 	}
-
-    /* gets rid of a 2px internal border from a GtkContainer style property
-     * for some reason this manifests possibly because we're messing with internal
-     * widgets in the glade file.  Glade doesn't support this, and will delete
-     * border-width being set on this widget from the builder file. */
-    gtk_container_set_border_width (GTK_CONTAINER (gtk_builder_get_object (builder, "dialog-vbox1")), 0);
-
-    stack_switcher = GTK_WIDGET (gtk_builder_get_object (builder, "stack-switcher"));
-
-    gint min_width, nat_width;
-    gtk_widget_get_preferred_width (stack_switcher, &min_width, &nat_width);
-    gtk_widget_set_size_request (dialog, nat_width + TOOLBAR_PADDING, -1);
 
 	preferences_dialog = dialog;
 	g_object_add_weak_pointer (G_OBJECT (dialog), (gpointer *) &preferences_dialog);
+
+    if (initial_page != NULL) {
+        GtkStack *stack;
+
+        stack = GTK_STACK (gtk_builder_get_object (builder, "page_stack"));
+
+        gtk_stack_set_visible_child_name (stack, initial_page);
+    }
+
 	gtk_widget_show (dialog);
 }
 
 void
-nemo_file_management_properties_dialog_show (GtkWindow *window)
+nemo_file_management_properties_dialog_show (GtkWindow   *window,
+                                             const gchar *initial_page)
 {
 	GtkBuilder *builder;
 
@@ -1046,7 +1072,5 @@ nemo_file_management_properties_dialog_show (GtkWindow *window)
 				       "/org/nemo/nemo-file-management-properties.glade",
 				       NULL);
 
-	nemo_file_management_properties_dialog_setup (builder, window);
-
-	g_object_unref (builder);
+	nemo_file_management_properties_dialog_setup (builder, window, initial_page);
 }

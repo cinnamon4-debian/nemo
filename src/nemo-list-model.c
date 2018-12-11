@@ -264,21 +264,10 @@ static void
 nemo_list_model_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter, int column, GValue *value)
 {
 	NemoListModel *model;
+    NemoFile *parent_file;
 	FileEntry *file_entry;
 	NemoFile *file;
 	char *str;
-	GdkPixbuf *icon, *rendered_icon;
-	GIcon *gicon, *emblemed_icon, *emblem_icon;
-	NemoIconInfo *icon_info;
-	GEmblem *emblem;
-	GList *emblem_icons, *l;
-	int icon_size, icon_scale;
-	NemoZoomLevel zoom_level;
-	NemoFile *parent_file;
-	char *emblems_to_ignore[3];
-	int i;
-	NemoFileIconFlags flags;
-    cairo_surface_t *surface;
 
 	model = (NemoListModel *)tree_model;
 
@@ -287,6 +276,7 @@ nemo_list_model_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter, int colu
 
 	file_entry = g_sequence_get (iter->user_data);
 	file = file_entry->file;
+    parent_file = file_entry->parent ? file_entry->parent->file : NULL;
 
 	switch (column) {
 	case NEMO_LIST_MODEL_FILE_COLUMN:
@@ -309,6 +299,14 @@ nemo_list_model_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter, int colu
 		g_value_init (value, CAIRO_GOBJECT_TYPE_SURFACE);
 
 		if (file != NULL) {
+            NemoFileIconFlags flags;
+            cairo_surface_t *surface;
+            int icon_size, icon_scale;
+            NemoZoomLevel zoom_level;
+            GdkPixbuf *icon, *rendered_icon;
+            NemoIconInfo *icon_info;
+            GList *emblem_icons, *l;
+
 			zoom_level = nemo_list_model_get_zoom_level_from_column_id (column);
 			icon_size = nemo_get_list_icon_size_for_zoom_level (zoom_level);
             icon_scale = nemo_list_model_get_icon_scale (model);
@@ -334,57 +332,53 @@ nemo_list_model_get_value (GtkTreeModel *tree_model, GtkTreeIter *iter, int colu
 				}
 			}
 
-            GdkPixbuf *pixbuf = nemo_file_get_icon_pixbuf (file, icon_size, TRUE, icon_scale, flags);
+            icon_info = nemo_file_get_icon (file, icon_size, 0, icon_scale, flags);
+            emblem_icons = nemo_file_get_emblem_icons (file, parent_file);
 
-            gint w, h, s;
-            gboolean bad_ratio;
-            w = gdk_pixbuf_get_width (pixbuf);
-            h = gdk_pixbuf_get_height (pixbuf);
+            if (emblem_icons) {
+                GdkPixbuf *initial_pixbuf;
+                GIcon *gicon, *emblemed_icon, *emblem_icon;
+                GEmblem *emblem;
+                gint w, h, s;
+                gboolean bad_ratio;
 
-            s = MAX (w, h);
-            if (s < icon_size)
-                icon_size = s;
+                initial_pixbuf = nemo_icon_info_get_pixbuf_at_size (icon_info, icon_size);
 
-            bad_ratio = (int)(nemo_icon_get_emblem_size_for_icon_size (icon_size) * icon_scale) > w ||
-                        (int)(nemo_icon_get_emblem_size_for_icon_size (icon_size) * icon_scale) > h;
+                w = gdk_pixbuf_get_width (initial_pixbuf);
+                h = gdk_pixbuf_get_height (initial_pixbuf);
 
-			gicon = G_ICON (pixbuf);
+                s = MAX (w, h);
+                if (s < icon_size)
+                    icon_size = s;
 
-			/* render emblems with GEmblemedIcon */
-			parent_file = nemo_file_get_parent (file);
-			i = 0;
-			emblems_to_ignore[i++] = (char *)NEMO_FILE_EMBLEM_NAME_TRASH;
-			if (parent_file) {
-				if (!nemo_file_can_write (parent_file)) {
-					emblems_to_ignore[i++] = (char *)NEMO_FILE_EMBLEM_NAME_CANT_WRITE;
-				}
-				nemo_file_unref (parent_file);
-			}
-			emblems_to_ignore[i++] = NULL;
+                bad_ratio = (int)(nemo_icon_get_emblem_size_for_icon_size (icon_size) * icon_scale) > w ||
+                            (int)(nemo_icon_get_emblem_size_for_icon_size (icon_size) * icon_scale) > h;
 
-			emblem_icons = nemo_file_get_emblem_icons (file,
-								       emblems_to_ignore);
+                gicon = G_ICON (initial_pixbuf);
 
-			/* pick only the first emblem we can render for the list view */
-			for (l = emblem_icons; !bad_ratio && l != NULL; l = l->next) {
-				emblem_icon = l->data;
-				emblem = g_emblem_new (emblem_icon);
-				emblemed_icon = g_emblemed_icon_new (gicon, emblem);
+                /* pick only the first emblem we can render for the list view */
+                for (l = emblem_icons; !bad_ratio && l != NULL; l = l->next) {
+                    emblem_icon = l->data;
+                    emblem = g_emblem_new (emblem_icon);
+                    emblemed_icon = g_emblemed_icon_new (gicon, emblem);
 
-				g_object_unref (gicon);
-				g_object_unref (emblem);
-				gicon = emblemed_icon;
+                    g_object_unref (gicon);
+                    g_object_unref (emblem);
+                    gicon = emblemed_icon;
 
-				break;
-			}
+                    break;
+                }
 
-			g_list_free_full (emblem_icons, g_object_unref);
+                nemo_icon_info_clear (&icon_info);
+                icon_info = nemo_icon_info_lookup (gicon, icon_size, icon_scale);
 
-			icon_info = nemo_icon_info_lookup (gicon, icon_size, icon_scale);
+                g_list_free_full (emblem_icons, g_object_unref);
+                g_object_unref (gicon);
+            }
+
 			icon = nemo_icon_info_get_pixbuf_at_size (icon_info, icon_size);
 
-			g_object_unref (icon_info);
-			g_object_unref (gicon);
+			nemo_icon_info_unref (icon_info);
 
 			if (model->details->highlight_files != NULL &&
 			    g_list_find_custom (model->details->highlight_files,
@@ -1031,29 +1025,55 @@ nemo_list_model_add_file (NemoListModel *model, NemoFile *file,
 		gtk_tree_model_row_inserted (GTK_TREE_MODEL (model), path, &iter);
 	}
 
-    gboolean add_child = FALSE;
-
     if (nemo_file_is_directory (file)) {
         guint count;
-        if (nemo_file_get_directory_item_count (file, &count, NULL)) {
-            add_child = count > 0;
-        } else {
-            add_child = TRUE;
+        gboolean got_count, unreadable;
+
+        file_entry->files = g_sequence_new ((GDestroyNotify)file_entry_free);
+
+        got_count = nemo_file_get_directory_item_count (file, &count, &unreadable);
+
+        if ((!got_count && !unreadable) || count > 0) {
+            add_dummy_row (model, file_entry);
+            gtk_tree_model_row_has_child_toggled (GTK_TREE_MODEL (model),
+                                                  path, &iter);
         }
     }
 
-    if (add_child) {
-        file_entry->files = g_sequence_new ((GDestroyNotify)file_entry_free);
-
-        add_dummy_row (model, file_entry);
-
-        gtk_tree_model_row_has_child_toggled (GTK_TREE_MODEL (model),
-                                                      path, &iter);
-    }
-
-	gtk_tree_path_free (path);
+    gtk_tree_path_free (path);
 
 	return TRUE;
+}
+
+static gboolean
+update_dummy_row (NemoListModel *model,
+                  NemoFile      *file,
+                  FileEntry     *file_entry)
+{
+    GSequence *files;
+    gboolean changed;
+    guint count;
+    gboolean got_count, unreadable;
+
+    changed = FALSE;
+
+    got_count = nemo_file_get_directory_item_count (file, &count, &unreadable);
+
+    if ((got_count && count == 0) || (!got_count && unreadable)) {
+        files = file_entry->files;
+        if (g_sequence_get_length (files) == 1) {
+            GSequenceIter *dummy_ptr = g_sequence_get_iter_at_pos (files, 0);
+            FileEntry *dummy_entry = g_sequence_get (dummy_ptr);
+
+            if (dummy_entry->file == NULL) {
+                model->details->stamp++;
+                g_sequence_remove (dummy_ptr);
+                changed = TRUE;
+            }
+        }
+    }
+
+    return changed;
 }
 
 void
@@ -1119,8 +1139,17 @@ nemo_list_model_file_changed (NemoListModel *model, NemoFile *file,
 
 	nemo_list_model_ptr_to_iter (model, ptr, &iter);
 	path = gtk_tree_model_get_path (GTK_TREE_MODEL (model), &iter);
-	gtk_tree_model_row_changed (GTK_TREE_MODEL (model), path, &iter);
-	gtk_tree_path_free (path);
+
+    gtk_tree_model_row_changed (GTK_TREE_MODEL (model), path, &iter);
+
+    if (nemo_file_is_directory (file)) {
+        if (update_dummy_row (model, file, g_sequence_get (ptr))) {
+            gtk_tree_model_row_has_child_toggled (GTK_TREE_MODEL (model),
+                                                  path, &iter);
+        }
+    }
+
+    gtk_tree_path_free (path);
 }
 
 gboolean

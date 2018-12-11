@@ -192,6 +192,7 @@ enum {
 	ICON_ADDED,
 	ICON_REMOVED,
 	CLEARED,
+    GET_TOOLTIP_TEXT,
 	LAST_SIGNAL
 };
 
@@ -2838,6 +2839,14 @@ size_allocate (GtkWidget *widget,
 		need_layout_redone = FALSE;
 	}
 
+    if (is_renaming (container)) {
+        container->details->renaming_allocation_count++;
+
+        if (container->details->renaming_allocation_count == 1) {
+            need_layout_redone = FALSE;
+        }
+    }
+
 	GTK_WIDGET_CLASS (nemo_icon_container_parent_class)->size_allocate (widget, allocation);
 
 	container->details->has_been_allocated = TRUE;
@@ -4797,6 +4806,16 @@ nemo_icon_container_class_init (NemoIconContainerClass *class)
 		                g_cclosure_marshal_VOID__VOID,
 		                G_TYPE_NONE, 0);
 
+    signals[GET_TOOLTIP_TEXT]
+        = g_signal_new ("get-tooltip-text",
+                        G_TYPE_FROM_CLASS (class),
+                        G_SIGNAL_RUN_LAST,
+                        0,
+                        NULL, NULL,
+                        NULL,
+                        G_TYPE_STRING, 1,
+                        G_TYPE_POINTER);
+
 	/* GtkWidget class.  */
 
 	widget_class = GTK_WIDGET_CLASS (class);
@@ -4823,7 +4842,7 @@ nemo_icon_container_class_init (NemoIconContainerClass *class)
 						 g_param_spec_boolean ("activate_prelight_icon_label",
 								     "Activate Prelight Icon Label",
 								     "Whether icon labels should make use of its prelight color in prelight state",
-								     FALSE,
+								     TRUE,
 								     G_PARAM_READABLE));
 }
 
@@ -4924,8 +4943,12 @@ nemo_icon_container_init (NemoIconContainer *container)
     container->details->tooltip_flags = nemo_global_preferences_get_tooltip_flags ();
 
     details->skip_rename_on_release = FALSE;
-
     details->dnd_grid = NULL;
+    details->current_selection_count = -1;
+    details->renaming_allocation_count = 0;
+
+    details->h_adjust = 100;
+    details->v_adjust = 100;
 }
 
 typedef struct {
@@ -5154,7 +5177,6 @@ void
 nemo_icon_container_clear (NemoIconContainer *container)
 {
 	NemoIconContainerDetails *details;
-	NemoIcon *icon;
 	GList *p;
 
 	g_return_if_fail (NEMO_IS_ICON_CONTAINER (container));
@@ -5177,12 +5199,6 @@ nemo_icon_container_clear (NemoIconContainer *container)
 	details->drop_target = NULL;
 
 	for (p = details->icons; p != NULL; p = p->next) {
-		icon = p->data;
-		if (icon->is_monitored) {
-			nemo_icon_container_stop_monitor_top_left (container,
-								       icon->data,
-								       icon);
-		}
 		icon_free (p->data);
 	}
 	g_list_free (details->icons);
@@ -5423,11 +5439,6 @@ icon_destroy (NemoIconContainer *container,
 		details->stretch_icon = NULL;
 	}
 
-	if (icon->is_monitored) {
-		nemo_icon_container_stop_monitor_top_left (container,
-							       icon->data,
-							       icon);
-	}
 	icon_free (icon);
 
 	if (was_selected) {
@@ -5444,13 +5455,12 @@ activate_selected_items (NemoIconContainer *container)
 
 	g_return_if_fail (NEMO_IS_ICON_CONTAINER (container));
 
-	selection = nemo_icon_container_get_selection (container);
+	selection = nemo_icon_container_peek_selection (container);
 	if (selection != NULL) {
 	  	g_signal_emit (container,
 				 signals[ACTIVATE], 0,
 				 selection);
 	}
-	g_list_free (selection);
 }
 
 static void
@@ -5462,7 +5472,7 @@ preview_selected_items (NemoIconContainer *container)
 
 	g_return_if_fail (NEMO_IS_ICON_CONTAINER (container));
 
-	selection = nemo_icon_container_get_selection (container);
+	selection = nemo_icon_container_peek_selection (container);
 	locations = nemo_icon_container_get_selected_icon_locations (container);
 
 	for (idx = 0; idx < locations->len; idx++) {
@@ -5481,7 +5491,6 @@ preview_selected_items (NemoIconContainer *container)
 			       signals[ACTIVATE_PREVIEWER], 0,
 			       selection, locations);
 	}
-	g_list_free (selection);
 }
 
 static void
@@ -5507,20 +5516,17 @@ activate_selected_items_alternate (NemoIconContainer *container,
 
 NemoIconInfo *
 nemo_icon_container_get_icon_images (NemoIconContainer *container,
-					 NemoIconData      *data,
-					 int                    size,
-					 char                 **embedded_text,
-					 gboolean               for_drag_accept,
-					 gboolean               need_large_embeddded_text,
-					 gboolean              *embedded_text_needs_loading,
-					 gboolean              *has_open_window)
+                                     NemoIconData      *data,
+                                     int                size,
+                                     gboolean           for_drag_accept,
+                                     gboolean          *has_open_window)
 {
 	NemoIconContainerClass *klass;
 
 	klass = NEMO_ICON_CONTAINER_GET_CLASS (container);
 	g_assert (klass->get_icon_images != NULL);
 
-	return klass->get_icon_images (container, data, size, embedded_text, for_drag_accept, need_large_embeddded_text, embedded_text_needs_loading, has_open_window);
+	return klass->get_icon_images (container, data, size, for_drag_accept, has_open_window);
 }
 
 static void
@@ -5544,34 +5550,6 @@ nemo_icon_container_unfreeze_updates (NemoIconContainer *container)
 
 	klass->unfreeze_updates (container);
 }
-
-void
-nemo_icon_container_start_monitor_top_left (NemoIconContainer *container,
-						NemoIconData *data,
-						gconstpointer client,
-						gboolean large_text)
-{
-	NemoIconContainerClass *klass;
-
-	klass = NEMO_ICON_CONTAINER_GET_CLASS (container);
-	g_assert (klass->start_monitor_top_left != NULL);
-
-	klass->start_monitor_top_left (container, data, client, large_text);
-}
-
-void
-nemo_icon_container_stop_monitor_top_left (NemoIconContainer *container,
-					       NemoIconData *data,
-					       gconstpointer client)
-{
-	NemoIconContainerClass *klass;
-
-	klass = NEMO_ICON_CONTAINER_GET_CLASS (container);
-	g_return_if_fail (klass->stop_monitor_top_left != NULL);
-
-	klass->stop_monitor_top_left (container, data, client);
-}
-
 
 static void
 nemo_icon_container_prioritize_thumbnailing (NemoIconContainer *container,
@@ -5914,6 +5892,24 @@ nemo_icon_container_reveal (NemoIconContainer *container, NemoIconData *data)
 	}
 }
 
+GList *
+nemo_icon_container_get_real_selection (NemoIconContainer *container)
+{
+    GList *list, *p;
+
+    list = NULL;
+    for (p = container->details->icons; p != NULL; p = p->next) {
+        NemoIcon *icon;
+
+        icon = p->data;
+        if (icon->is_selected) {
+            list = g_list_prepend (list, icon->data);
+        }
+    }
+
+    return g_list_reverse (list);
+}
+
 /**
  * nemo_icon_container_get_selection:
  * @container: An icon container.
@@ -5927,21 +5923,45 @@ nemo_icon_container_reveal (NemoIconContainer *container, NemoIconData *data)
 GList *
 nemo_icon_container_get_selection (NemoIconContainer *container)
 {
-	GList *list, *p;
-
 	g_return_val_if_fail (NEMO_IS_ICON_CONTAINER (container), NULL);
 
-	list = NULL;
-	for (p = container->details->icons; p != NULL; p = p->next) {
-		NemoIcon *icon;
+    nemo_icon_container_update_selection (container);
 
-		icon = p->data;
-		if (icon->is_selected) {
-			list = g_list_prepend (list, icon->data);
-		}
-	}
+    return g_list_copy (container->details->current_selection);
+}
 
-	return g_list_reverse (list);
+/**
+ * nemo_icon_container_peek_selection:
+ * @container: An icon container.
+ *
+ * Get an exiting list of the icons currently selected in @container.
+ *
+ * Return value: A GList of the programmer-specified data associated to each
+ * selected icon, or NULL if no icon is selected.  This list belongs to the
+ * NemoIconContainer and should not be freed.
+ **/
+GList *
+nemo_icon_container_peek_selection (NemoIconContainer *container)
+{
+    g_return_val_if_fail (NEMO_IS_ICON_CONTAINER (container), NULL);
+
+    if (container->details->current_selection_count == -1) {
+        nemo_icon_container_update_selection (container);
+    }
+
+    return container->details->current_selection;
+}
+
+gint
+nemo_icon_container_get_selection_count (NemoIconContainer *container)
+{
+    g_return_val_if_fail (NEMO_IS_ICON_CONTAINER (container), 0);
+
+    if (container->details->current_selection_count == -1) {
+        nemo_icon_container_update_selection (container);
+    }
+
+    return container->details->current_selection_count;
 }
 
 static GList *
@@ -6438,6 +6458,33 @@ nemo_icon_container_get_icon_drop_target_uri (NemoIconContainer *container,
 	return uri;
 }
 
+void
+nemo_icon_container_update_tooltip_text (NemoIconContainer  *container,
+                                         NemoIconCanvasItem *item)
+{
+    NemoIcon *icon;
+    NemoFile *file;
+    char *text;
+
+    if (item == NULL) {
+        gtk_widget_set_tooltip_text (GTK_WIDGET (container), "");
+        return;
+    }
+
+    icon = item->user_data;
+    file = NEMO_FILE (icon->data);
+
+    text = NULL;
+    g_signal_emit (container,
+                   signals[GET_TOOLTIP_TEXT], 0,
+                   file,
+                   &text);
+
+    gtk_widget_set_tooltip_text (GTK_WIDGET (container), text);
+
+    g_free (text);
+}
+
 /* Call to reset the scroll region only if the container is not empty,
  * to avoid having the flag linger until the next file is added.
  */
@@ -6515,31 +6562,15 @@ nemo_icon_container_get_horizontal_layout (NemoIconContainer *container)
     return container->details->horizontal;
 }
 
-/* Toggle the tighter layout boolean. */
 void
-nemo_icon_container_set_tighter_layout (NemoIconContainer *container,
-                                        gboolean tighter_layout)
+nemo_icon_container_set_grid_adjusts (NemoIconContainer *container,
+                                      gint               h_adjust,
+                                      gint               v_adjust)
 {
-   g_return_if_fail (NEMO_IS_ICON_CONTAINER (container));
-   g_return_if_fail (tighter_layout == FALSE || tighter_layout == TRUE);
-   if (container->details->tighter_layout == tighter_layout) {
-       return;
-   }
+    g_return_if_fail (NEMO_IS_ICON_CONTAINER (container));
 
-   container->details->tighter_layout = tighter_layout;
-
-   if (container->details->auto_layout) {
-       invalidate_label_sizes (container);
-       nemo_icon_container_redo_layout (container);
-
-       g_signal_emit (container, signals[LAYOUT_CHANGED], 0);
-   } else {
-       /* in manual layout, label sizes still change, even though
-        * the icons don't move.
-        */
-       invalidate_label_sizes (container);
-       nemo_icon_container_request_update_all (container);
-   }
+    container->details->h_adjust = h_adjust;
+    container->details->v_adjust = v_adjust;
 }
 
 gboolean
@@ -6685,14 +6716,6 @@ nemo_icon_container_is_auto_layout (NemoIconContainer *container)
 	g_return_val_if_fail (NEMO_IS_ICON_CONTAINER (container), FALSE);
 
 	return container->details->auto_layout;
-}
-
-gboolean
-nemo_icon_container_is_tighter_layout (NemoIconContainer *container)
-{
-   g_return_val_if_fail (NEMO_IS_ICON_CONTAINER (container), FALSE);
-
-   return container->details->tighter_layout;
 }
 
 static void
@@ -6918,6 +6941,8 @@ nemo_icon_container_start_renaming_selected_item (NemoIconContainer *container,
 
 	nemo_icon_container_update_icon (container, icon);
 
+    details->renaming_allocation_count = 0;
+
 	/* We are in renaming mode */
 	details->renaming = TRUE;
 	nemo_icon_canvas_item_set_renaming (icon->item, TRUE);
@@ -6956,6 +6981,8 @@ nemo_icon_container_end_renaming_mode (NemoIconContainer *container, gboolean co
 	/* We are not in renaming mode */
 	container->details->renaming = FALSE;
 	nemo_icon_canvas_item_set_renaming (icon->item, FALSE);
+
+    container->details->renaming_allocation_count = 0;
 
 	nemo_icon_container_unfreeze_updates (container);
 
@@ -7262,11 +7289,10 @@ nemo_icon_container_accessible_do_action (AtkAction *accessible, int i)
 	container = NEMO_ICON_CONTAINER (widget);
 	switch (i) {
 	case ACTION_ACTIVATE :
-		selection = nemo_icon_container_get_selection (container);
+		selection = nemo_icon_container_peek_selection (container);
 
 		if (selection) {
 			g_signal_emit_by_name (container, "activate", selection);
-			g_list_free (selection);
 		}
 		break;
 	case ACTION_MENU :
@@ -8000,6 +8026,22 @@ nemo_icon_container_finish_adding_icon (NemoIconContainer *container,
                  G_CALLBACK (item_event_callback), container, 0);
 
     g_signal_emit (container, signals[ICON_ADDED], 0, icon->data);
+}
+
+void
+nemo_icon_container_update_selection (NemoIconContainer *container)
+{
+    g_return_if_fail (NEMO_IS_ICON_CONTAINER (container));
+
+    if (container->details->current_selection != NULL) {
+        g_list_free (container->details->current_selection);
+
+        container->details->current_selection = NULL;
+        container->details->current_selection_count = 0;
+    }
+
+    container->details->current_selection = nemo_icon_container_get_real_selection (container);
+    container->details->current_selection_count = g_list_length (container->details->current_selection);
 }
 
 void

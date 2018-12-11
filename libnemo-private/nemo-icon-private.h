@@ -95,7 +95,6 @@ typedef struct {
     gint snap_size_x;
     gint snap_size_y;
     gint max_text_width_standard;
-    gint max_text_width_tighter;
     gint max_text_width_beside;
     gint max_text_width_beside_top_to_bottom;
     gint icon_vertical_adjust;
@@ -223,7 +222,6 @@ struct NemoIconContainerDetails {
 	gboolean single_click_mode;
 	gboolean auto_layout;
         gboolean stored_auto_layout;
-	gboolean tighter_layout;
         gboolean click_to_rename;
 
 	/* Whether for the vertical layout, all columns are supposed to
@@ -247,6 +245,7 @@ struct NemoIconContainerDetails {
 
 	int size_allocation_count;
 	guint size_allocation_count_id;
+    int renaming_allocation_count;
 	
 	/* Is the container fixed or resizable */
 	gboolean is_fixed_size;
@@ -254,11 +253,13 @@ struct NemoIconContainerDetails {
 	/* Is the container for a desktop window */
 	gboolean is_desktop;
 
-        /* Used by desktop grid container only */
-        gboolean horizontal;
+    /* Used by desktop grid container only */
+    gboolean horizontal;
+    gint h_adjust;
+    gint v_adjust;
 
-        gboolean show_desktop_tooltips;
-        gboolean show_icon_view_tooltips;
+    gboolean show_desktop_tooltips;
+    gboolean show_icon_view_tooltips;
 
 	/* Ignore the visible area the next time the scroll region is recomputed */
 	gboolean reset_scroll_region_trigger;
@@ -298,6 +299,9 @@ struct NemoIconContainerDetails {
 
 	eel_boolean_bit store_layout_timestamps : 1;
 	eel_boolean_bit store_layout_timestamps_when_finishing_new_icons : 1;
+
+    GList *current_selection;
+    gint current_selection_count;
 };
 
 typedef struct {
@@ -373,20 +377,11 @@ void          nemo_icon_container_get_all_icon_bounds (NemoIconContainer *contai
                                                        NemoIconCanvasItemBoundsUsage usage);
 void          nemo_icon_container_store_layout_timestamps_now (NemoIconContainer *container);
 void          nemo_icon_container_redo_layout (NemoIconContainer *container);
-void          nemo_icon_container_start_monitor_top_left (NemoIconContainer *container,
-                                                          NemoIconData *data,
-                                                          gconstpointer client,
-                                                          gboolean large_text);
-void          nemo_icon_container_stop_monitor_top_left (NemoIconContainer *container,
-                                                         NemoIconData *data,
-                                                         gconstpointer client);
+
 NemoIconInfo *nemo_icon_container_get_icon_images (NemoIconContainer *container,
                                                    NemoIconData      *data,
                                                    int                    size,
-                                                   char                 **embedded_text,
                                                    gboolean               for_drag_accept,
-                                                   gboolean               need_large_embeddded_text,
-                                                   gboolean              *embedded_text_needs_loading,
                                                    gboolean              *has_open_window);
 void          nemo_icon_container_get_icon_text (NemoIconContainer *container,
                                                  NemoIconData      *data,

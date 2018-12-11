@@ -29,35 +29,55 @@ typedef enum {
  * be square. Since individual icons can be stretched,
  * each icon is not constrained to this nominal size.
  */
-#define NEMO_ICON_SIZE_SMALLEST	16
-#define NEMO_ICON_SIZE_SMALLER	24
-#define NEMO_ICON_SIZE_SMALL	32
-#define NEMO_ICON_SIZE_STANDARD	48
-#define NEMO_ICON_SIZE_LARGE	72
-#define NEMO_ICON_SIZE_LARGER	96
-#define NEMO_ICON_SIZE_LARGEST     192
 
+#define NEMO_COMPACT_FORCED_ICON_SIZE 16
+
+#define NEMO_LIST_ICON_SIZE_SMALLEST 16
+#define NEMO_LIST_ICON_SIZE_SMALLER  24
+#define NEMO_LIST_ICON_SIZE_SMALL    32
+#define NEMO_LIST_ICON_SIZE_STANDARD 48
+#define NEMO_LIST_ICON_SIZE_LARGE    72
+#define NEMO_LIST_ICON_SIZE_LARGER   96
+#define NEMO_LIST_ICON_SIZE_LARGEST  192
+
+#define NEMO_ICON_SIZE_SMALLEST 24
+#define NEMO_ICON_SIZE_SMALLER  32
+#define NEMO_ICON_SIZE_SMALL    48
+#define NEMO_ICON_SIZE_STANDARD 64
+#define NEMO_ICON_SIZE_LARGE    96
+#define NEMO_ICON_SIZE_LARGER   128
+#define NEMO_ICON_SIZE_LARGEST  256
+
+#define NEMO_DESKTOP_ICON_SIZE_SMALLER 24
 #define NEMO_DESKTOP_ICON_SIZE_SMALL 32
 #define NEMO_DESKTOP_ICON_SIZE_STANDARD 48
 #define NEMO_DESKTOP_ICON_SIZE_LARGE 64
+#define NEMO_DESKTOP_ICON_SIZE_LARGER 96
+
+#define NEMO_ICON_TEXT_WIDTH_SMALLEST  0
+#define NEMO_ICON_TEXT_WIDTH_SMALLER   64
+#define NEMO_ICON_TEXT_WIDTH_SMALL     84
+#define NEMO_ICON_TEXT_WIDTH_STANDARD  110
+#define NEMO_ICON_TEXT_WIDTH_LARGE     96
+#define NEMO_ICON_TEXT_WIDTH_LARGER    128
+#define NEMO_ICON_TEXT_WIDTH_LARGEST   256
 
 /* Maximum size of an icon that the icon factory will ever produce */
 #define NEMO_ICON_MAXIMUM_SIZE     320
 
-typedef struct _NemoIconInfo      NemoIconInfo;
-typedef struct _NemoIconInfoClass NemoIconInfoClass;
+typedef struct {
+    gint ref_count;
+    gboolean sole_owner;
+    gint64 last_use_time;
+    GdkPixbuf *pixbuf;
 
+    char *icon_name;
+    gint orig_scale;
+} NemoIconInfo;
 
-#define NEMO_TYPE_ICON_INFO                 (nemo_icon_info_get_type ())
-#define NEMO_ICON_INFO(obj)                 (G_TYPE_CHECK_INSTANCE_CAST ((obj), NEMO_TYPE_ICON_INFO, NemoIconInfo))
-#define NEMO_ICON_INFO_CLASS(klass)         (G_TYPE_CHECK_CLASS_CAST ((klass), NEMO_TYPE_ICON_INFO, NemoIconInfoClass))
-#define NEMO_IS_ICON_INFO(obj)              (G_TYPE_CHECK_INSTANCE_TYPE ((obj), NEMO_TYPE_ICON_INFO))
-#define NEMO_IS_ICON_INFO_CLASS(klass)      (G_TYPE_CHECK_CLASS_TYPE ((klass), NEMO_TYPE_ICON_INFO))
-#define NEMO_ICON_INFO_GET_CLASS(obj)       (G_TYPE_INSTANCE_GET_CLASS ((obj), NEMO_TYPE_ICON_INFO, NemoIconInfoClass))
-
-
-GType    nemo_icon_info_get_type (void) G_GNUC_CONST;
-
+NemoIconInfo *    nemo_icon_info_ref                          (NemoIconInfo      *icon);
+void              nemo_icon_info_unref                        (NemoIconInfo      *icon);
+void              nemo_icon_info_clear                        (NemoIconInfo     **info);
 NemoIconInfo *    nemo_icon_info_new_for_pixbuf               (GdkPixbuf         *pixbuf,
                                                                int                scale);
 NemoIconInfo *    nemo_icon_info_lookup                       (GIcon             *icon,
@@ -79,18 +99,14 @@ GdkPixbuf *           nemo_icon_info_get_pixbuf_at_size           (NemoIconInfo 
 GdkPixbuf *           nemo_icon_info_get_desktop_pixbuf_at_size (NemoIconInfo  *icon,
                                                                  gsize          max_height,
                                                                  gsize          max_width);
-gboolean              nemo_icon_info_get_embedded_rect            (NemoIconInfo  *icon,
-								       GdkRectangle      *rectangle);
-gboolean              nemo_icon_info_get_attach_points            (NemoIconInfo  *icon,
-								       GdkPoint         **points,
-								       gint              *n_points);
-const char *          nemo_icon_info_get_display_name             (NemoIconInfo  *icon);
 const char *          nemo_icon_info_get_used_name                (NemoIconInfo  *icon);
 
 void                  nemo_icon_info_clear_caches                 (void);
 
 /* Relationship between zoom levels and icons sizes. */
 guint nemo_get_icon_size_for_zoom_level          (NemoZoomLevel  zoom_level);
+guint nemo_get_icon_text_width_for_zoom_level    (NemoZoomLevel  zoom_level);
+
 guint nemo_get_list_icon_size_for_zoom_level     (NemoZoomLevel  zoom_level);
 
 guint nemo_get_desktop_icon_size_for_zoom_level  (NemoZoomLevel  zoom_level);
