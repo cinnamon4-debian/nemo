@@ -34,8 +34,7 @@ G_BEGIN_DECLS
 #define NEMO_TYPE_FILE_INFO           (nemo_file_info_get_type ())
 #define NEMO_FILE_INFO(obj)           (G_TYPE_CHECK_INSTANCE_CAST ((obj), NEMO_TYPE_FILE_INFO, NemoFileInfo))
 #define NEMO_IS_FILE_INFO(obj)        (G_TYPE_CHECK_INSTANCE_TYPE ((obj), NEMO_TYPE_FILE_INFO))
-#define NEMO_FILE_INFO_GET_IFACE(obj) (G_TYPE_INSTANCE_GET_INTERFACE ((obj), NEMO_TYPE_FILE_INFO, NemoFileInfoIface))
-
+#define NEMO_FILE_INFO_GET_IFACE(obj) (G_TYPE_INSTANCE_GET_INTERFACE ((obj), NEMO_TYPE_FILE_INFO, NemoFileInfoInterface))
 
 #ifndef NEMO_FILE_DEFINED
 #define NEMO_FILE_DEFINED
@@ -44,11 +43,10 @@ G_BEGIN_DECLS
 typedef struct NemoFile          NemoFile;
 #endif
 
-typedef NemoFile                  NemoFileInfo;
-typedef struct _NemoFileInfoIface NemoFileInfoIface;
+typedef NemoFile NemoFileInfo;
+typedef struct _NemoFileInfoInterface NemoFileInfoInterface;
 
-
-struct _NemoFileInfoIface 
+struct _NemoFileInfoInterface 
 {
 	GTypeInterface g_iface;
 

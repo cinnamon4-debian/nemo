@@ -3,6 +3,7 @@
     <value nick="always" value="0"/>
     <value nick="local-only" value="1"/>
     <value nick="never" value="2"/>
+    <value nick="per-folder" value="3"/>
   </enum>
 
   <enum id="org.nemo.ClickPolicy">
@@ -158,6 +159,11 @@
     <key type="b" name="show-compact-view-icon-toolbar">
       <default>true</default>
       <summary>Show Compact View button in nemo toolbar</summary>
+      <description>If set to true, then Nemo browser windows will show the button.</description>
+    </key>
+    <key type="b" name="show-show-thumbnails-toolbar">
+      <default>true</default>
+      <summary>Show Thumbnails button in nemo toolbar</summary>
       <description>If set to true, then Nemo browser windows will show the button.</description>
     </key>
     <key type="b" name="show-root-warning">
@@ -345,6 +351,11 @@
       <summary>Show file accessed date in tooltip</summary>
       <description>If true, tooltips will show their accessed date.</description>
     </key>
+    <key name="tooltips-show-birth-date" type="b">
+      <default>false</default>
+      <summary>Show file creation (birth) date in tooltip</summary>
+      <description>If true, tooltips will show their creation date.</description>
+    </key>
     <key name="tooltips-show-path" type="b">
       <default>false</default>
       <summary>Show full path in tooltip</summary>
@@ -371,6 +382,10 @@
       <default>[]</default>
       <summary>List of saved search strings</summary>
     </key>
+    <key name="enable-mime-actions-make-executable" type="b">
+      <default>false</default>
+      <summary>Display the 'Make executable and run' button in the mime-action dialog (open an unknown filetype)</summary>
+    </key>
   </schema>
 
   <schema id="org.nemo.icon-view" path="/org/nemo/icon-view/" gettext-domain="nemo">
@@ -385,8 +400,7 @@
     </key>
     <key name="default-use-tighter-layout" type="b">
       <default>false</default>
-      <summary>Use tighter layout in new windows</summary>
-      <description>If true, icons will be laid out tighter by default in new windows.</description>
+      <summary>deprecated - not used</summary>
     </key>
     <key name="labels-beside-icons" type="b">
       <default>false</default>

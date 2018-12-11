@@ -3,6 +3,8 @@
   <gresource prefix="/org/nemo">
     <file compressed="true">nemo-bookmarks-window.glade</file>
     <file compressed="true">nemo-file-management-properties.glade</file>
+    <file compressed="true">nemo-desktop-overlay.glade</file>
+    <file compressed="true">nemo-desktop-preferences.glade</file>
     <file>nemo-icon-view-ui.xml</file>
     <file>nemo-directory-view-ui.xml</file>
     <file>nemo-desktop-icon-view-ui.xml</file>
@@ -13,6 +15,7 @@
     <file alias="icons/thumbnail_frame.png">thumbnail_frame.png</file>
     <file alias="icons/knob.png">knob.png</file>
     <file>nemo-style-fallback.css</file>
+    <file>nemo-style-fallback-mandatory.css</file>
     <file>nemo-style-application.css</file>
   </gresource>
 </gresources>

@@ -92,6 +92,7 @@ typedef enum
 #define NEMO_PREFERENCES_SHOW_LIST_VIEW_ICON_TOOLBAR   "show-list-view-icon-toolbar"
 #define NEMO_PREFERENCES_SHOW_COMPACT_VIEW_ICON_TOOLBAR   "show-compact-view-icon-toolbar"
 #define NEMO_PREFERENCES_SHOW_ROOT_WARNING                "show-root-warning"
+#define NEMO_PREFERENCES_SHOW_SHOW_THUMBNAILS_TOOLBAR     "show-show-thumbnails-toolbar"
 
 /* Which views should be displayed for new windows */
 #define NEMO_WINDOW_STATE_START_WITH_STATUS_BAR		"start-with-status-bar"
@@ -147,7 +148,6 @@ enum
 
 /* Icon View */
 #define NEMO_PREFERENCES_ICON_VIEW_DEFAULT_ZOOM_LEVEL		"default-zoom-level"
-#define NEMO_PREFERENCES_ICON_VIEW_DEFAULT_USE_TIGHTER_LAYOUT   "default-use-tighter-layout"
 #define NEMO_PREFERENCES_ICON_VIEW_LABELS_BESIDE_ICONS		"labels-beside-icons"
 
 /* Which text attributes appear beneath icon names */
@@ -187,7 +187,8 @@ typedef enum
 {
 	NEMO_SPEED_TRADEOFF_ALWAYS,
 	NEMO_SPEED_TRADEOFF_LOCAL_ONLY,
-	NEMO_SPEED_TRADEOFF_NEVER
+    NEMO_SPEED_TRADEOFF_NEVER,
+    NEMO_SPEED_TRADEOFF_PER_FOLDER
 } NemoSpeedTradeoffValue;
 
 #define NEMO_PREFERENCES_SHOW_DIRECTORY_ITEM_COUNTS "show-directory-item-counts"
@@ -242,6 +243,7 @@ typedef enum
 #define NEMO_PREFERENCES_TOOLTIP_FILE_TYPE             "tooltips-show-file-type"
 #define NEMO_PREFERENCES_TOOLTIP_MOD_DATE              "tooltips-show-mod-date"
 #define NEMO_PREFERENCES_TOOLTIP_ACCESS_DATE           "tooltips-show-access-date"
+#define NEMO_PREFERENCES_TOOLTIP_CREATED_DATE          "tooltips-show-birth-date"
 #define NEMO_PREFERENCES_TOOLTIP_FULL_PATH             "tooltips-show-path"
 
 #define NEMO_PREFERENCES_DISABLE_MENU_WARNING          "disable-menu-warning"
@@ -260,6 +262,7 @@ typedef enum
 #define NEMO_PREFERENCES_CLICK_DOUBLE_PARENT_FOLDER    "click-double-parent-folder"
 
 #define NEMO_PREFERENCES_SAVED_SEARCHES                "saved-searches"
+#define NEMO_PREFERENCES_SHOW_MIME_MAKE_EXECUTABLE     "enable-mime-actions-make-executable"
 
 void nemo_global_preferences_init                      (void);
 void nemo_global_preferences_finalize                  (void);
@@ -268,6 +271,7 @@ char *nemo_global_preferences_get_desktop_iid (void);
 gboolean nemo_global_preferences_get_ignore_view_metadata (void);
 gint nemo_global_preferences_get_tooltip_flags (void);
 gboolean nemo_global_preferences_should_load_plugin (const gchar *name, const gchar *key);
+gchar **nemo_global_preferences_get_fileroller_mimetypes (void);
 
 GSettings *nemo_preferences;
 GSettings *nemo_icon_view_preferences;
@@ -284,9 +288,12 @@ GSettings *gnome_terminal_preferences;
 GSettings *cinnamon_privacy_preferences;
 GSettings *cinnamon_interface_preferences;
 
-GTimer    *nemo_startup_timer;
+/* Cached for fast access and used in nemo-file.c for constructing date/time strings */
+GTimeZone      *prefs_current_timezone;
+gboolean        prefs_current_24h_time_format;
+NemoDateFormat  prefs_current_date_format;
 
-gchar    **file_roller_mimetypes;
+GTimer    *nemo_startup_timer;
 
 G_END_DECLS
 

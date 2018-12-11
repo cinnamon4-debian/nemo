@@ -63,14 +63,10 @@ static NemoIconInfo *
 nemo_icon_view_grid_container_get_icon_images (NemoIconContainer *container,
 					      NemoIconData      *data,
 					      int                    size,
-					      char                 **embedded_text,
 					      gboolean               for_drag_accept,
-					      gboolean               need_large_embeddded_text,
-					      gboolean              *embedded_text_needs_loading,
 					      gboolean              *has_window_open)
 {
 	NemoIconView *icon_view;
-	char **emblems_to_ignore;
 	NemoFile *file;
 	NemoFileIconFlags flags;
 	NemoIconInfo *icon_info;
@@ -97,11 +93,8 @@ nemo_icon_view_grid_container_get_icon_images (NemoIconContainer *container,
 		flags |= NEMO_FILE_ICON_FLAGS_FOR_DRAG_ACCEPT;
 	}
 
-	emblems_to_ignore = nemo_view_get_emblem_names_to_exclude
-		(NEMO_VIEW (icon_view));
 	emblem_icons = nemo_file_get_emblem_icons (file,
-						       emblems_to_ignore);
-	g_strfreev (emblems_to_ignore);
+                                               nemo_view_get_directory_as_file (NEMO_VIEW (icon_view)));
 
     scale = gtk_widget_get_scale_factor (GTK_WIDGET (icon_view));
 	icon_info = nemo_file_get_icon (file, size, GET_VIEW_CONSTANT (container, max_text_width_standard), scale, flags);
@@ -143,7 +136,7 @@ nemo_icon_view_grid_container_get_icon_images (NemoIconContainer *container,
 			g_object_unref (emblem);
 		}
 
-		g_clear_object (&icon_info);
+		nemo_icon_info_clear (&icon_info);
 		icon_info = nemo_icon_info_lookup (emblemed_icon, size, scale);
         g_object_unref (emblemed_icon);
 
@@ -178,40 +171,6 @@ nemo_icon_view_grid_container_get_icon_description (NemoIconContainer *container
 	description = g_content_type_get_description (mime_type);
 	g_free (mime_type);
 	return g_strdup (description);
-}
-
-static void
-nemo_icon_view_grid_container_start_monitor_top_left (NemoIconContainer *container,
-						     NemoIconData      *data,
-						     gconstpointer          client,
-						     gboolean               large_text)
-{
-	NemoFile *file;
-	NemoFileAttributes attributes;
-
-	file = (NemoFile *) data;
-
-	g_assert (NEMO_IS_FILE (file));
-
-	attributes = NEMO_FILE_ATTRIBUTE_TOP_LEFT_TEXT;
-	if (large_text) {
-		attributes |= NEMO_FILE_ATTRIBUTE_LARGE_TOP_LEFT_TEXT;
-	}
-	nemo_file_monitor_add (file, client, attributes);
-}
-
-static void
-nemo_icon_view_grid_container_stop_monitor_top_left (NemoIconContainer *container,
-						    NemoIconData      *data,
-						    gconstpointer          client)
-{
-	NemoFile *file;
-
-	file = (NemoFile *) data;
-
-	g_assert (NEMO_IS_FILE (file));
-
-	nemo_file_monitor_remove (file, client);
 }
 
 static void
@@ -864,7 +823,6 @@ nemo_icon_view_grid_container_move_icon (NemoIconContainer *container,
             emit_signal = update_position;
         }
 
-        NEMO_ICON_VIEW_GRID_CONTAINER (container)->manual_sort_dirty = TRUE;
         nemo_icon_view_set_sort_reversed (get_icon_view (container), FALSE, TRUE);
 
         icon->saved_ltr_x = nemo_icon_container_is_layout_rtl (container) ? nemo_icon_container_get_mirror_x_position (container, icon, icon->x) : icon->x;
@@ -894,11 +852,8 @@ nemo_icon_view_grid_container_update_icon (NemoIconContainer *container,
     NemoIconContainerDetails *details;
     guint icon_size;
     NemoIconInfo *icon_info;
-    GdkPoint *attach_points;
-    int n_attach_points;
     GdkPixbuf *pixbuf;
     char *editable_text, *additional_text;
-    gboolean embedded_text_needs_loading;
     gboolean has_open_window;
     gint scale_factor;
     EelIRect old_size, new_size;
@@ -919,9 +874,7 @@ nemo_icon_view_grid_container_update_icon (NemoIconContainer *container,
 
     /* Get the icons. */
     icon_info = nemo_icon_container_get_icon_images (container, icon->data, icon_size,
-                                                     NULL,
                                                      icon == details->drop_target,
-                                                     FALSE, &embedded_text_needs_loading,
                                                      &has_open_window);
 
     scale_factor = gtk_widget_get_scale_factor (GTK_WIDGET (container));
@@ -929,27 +882,13 @@ nemo_icon_view_grid_container_update_icon (NemoIconContainer *container,
                                                         icon_size * scale_factor,
                                                         GET_VIEW_CONSTANT (container, max_text_width_standard));
 
-    nemo_icon_info_get_attach_points (icon_info, &attach_points, &n_attach_points);
-
-    g_object_unref (icon_info);
+    nemo_icon_info_unref (icon_info);
 
     nemo_icon_container_get_icon_text (container,
                            icon->data,
                            &editable_text,
                            &additional_text,
                            FALSE);
-
-    if (container->details->show_desktop_tooltips) {
-        NemoFile *file = NEMO_FILE (icon->data);
-        gchar *tooltip_text;
-
-        tooltip_text = nemo_file_construct_tooltip (file, container->details->tooltip_flags);
-
-        nemo_icon_canvas_item_set_tooltip_text (icon->item, tooltip_text);
-        g_free (tooltip_text);
-    } else {
-        nemo_icon_canvas_item_set_tooltip_text (icon->item, "");
-    }
 
     /* If name of icon being renamed was changed from elsewhere, end renaming mode.
      * Alternatively, we could replace the characters in the editable text widget
@@ -969,7 +908,6 @@ nemo_icon_view_grid_container_update_icon (NemoIconContainer *container,
                  NULL);
 
     nemo_icon_canvas_item_set_image (icon->item, pixbuf);
-    nemo_icon_canvas_item_set_attach_points (icon->item, attach_points, n_attach_points);
 
     nemo_icon_canvas_item_get_icon_canvas_rectangle (icon->item, &new_size);
 
@@ -1506,11 +1444,8 @@ update_layout_constants (NemoIconContainer *container)
 
     scale = (double) icon_size / NEMO_DESKTOP_ICON_SIZE_STANDARD;
 
-    h_adjust = g_settings_get_double (nemo_desktop_preferences,
-                                      NEMO_PREFERENCES_DESKTOP_HORIZONTAL_GRID_ADJUST);
-
-    v_adjust = g_settings_get_double (nemo_desktop_preferences,
-                                      NEMO_PREFERENCES_DESKTOP_VERTICAL_GRID_ADJUST);
+    h_adjust = container->details->h_adjust / 100.0;
+    v_adjust = container->details->v_adjust / 100.0;
 
     constants = container->details->view_constants;
 
@@ -1620,12 +1555,25 @@ captions_changed_callback (NemoIconContainer *container)
     nemo_icon_container_request_update_all (container);
 }
 
+static gchar *
+on_get_tooltip_text (NemoIconContainer *container,
+                     NemoFile          *file,
+                     gpointer           user_data)
+{
+    gchar *tooltip_text = NULL;
+
+    if (container->details->show_desktop_tooltips) {
+        tooltip_text = nemo_file_construct_tooltip (file, container->details->tooltip_flags);
+    }
+
+    return tooltip_text;
+}
+
 static void
 nemo_icon_view_grid_container_icon_added (NemoIconViewGridContainer *container,
                                           NemoIconData              *icon_data,
                                           gpointer                   data)
 {
-    container->manual_sort_dirty = TRUE;
 }
 
 static void
@@ -1633,7 +1581,6 @@ nemo_icon_view_grid_container_icon_removed (NemoIconViewGridContainer *container
                                             NemoIconData              *icon_data,
                                             gpointer                   data)
 {
-    container->manual_sort_dirty = TRUE;
 }
 
 NemoIconContainer *
@@ -1669,7 +1616,6 @@ nemo_icon_view_grid_container_construct (NemoIconViewGridContainer *icon_contain
     constants->snap_size_x = BASE_SNAP_SIZE_X;
     constants->snap_size_y = BASE_SNAP_SIZE_Y;
     constants->max_text_width_standard = BASE_MAX_TEXT_WIDTH;
-    constants->max_text_width_tighter = 80; // Not used
     constants->max_text_width_beside = 90; // Not used
     constants->max_text_width_beside_top_to_bottom = 150; // Not used
     constants->icon_vertical_adjust = 20;
@@ -1683,6 +1629,11 @@ nemo_icon_view_grid_container_construct (NemoIconViewGridContainer *icon_contain
                               "changed::" NEMO_PREFERENCES_ICON_VIEW_CAPTIONS,
                               G_CALLBACK (captions_changed_callback),
                               NEMO_ICON_CONTAINER (icon_container));
+
+    g_signal_connect (icon_container,
+                      "get-tooltip-text",
+                      G_CALLBACK (on_get_tooltip_text),
+                      NULL);
 
     return NEMO_ICON_CONTAINER (icon_container);
 }
@@ -1717,8 +1668,6 @@ nemo_icon_view_grid_container_class_init (NemoIconViewGridContainerClass *klass)
 	ic_class->get_icon_text = nemo_icon_view_grid_container_get_icon_text;
 	ic_class->get_icon_images = nemo_icon_view_grid_container_get_icon_images;
 	ic_class->get_icon_description = nemo_icon_view_grid_container_get_icon_description;
-	ic_class->start_monitor_top_left = nemo_icon_view_grid_container_start_monitor_top_left;
-	ic_class->stop_monitor_top_left = nemo_icon_view_grid_container_stop_monitor_top_left;
 	ic_class->prioritize_thumbnailing = nemo_icon_view_grid_container_prioritize_thumbnailing;
     ic_class->get_max_layout_lines_for_pango = nemo_icon_view_grid_container_get_max_layout_lines_for_pango;
     ic_class->get_max_layout_lines = nemo_icon_view_grid_container_get_max_layout_lines;

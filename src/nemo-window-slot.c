@@ -65,6 +65,10 @@ sync_search_directory (NemoWindowSlot *slot)
 	g_assert (NEMO_IS_SEARCH_DIRECTORY (directory));
 
 	query = nemo_query_editor_get_query (slot->query_editor);
+
+    nemo_query_set_show_hidden (query,
+                                g_settings_get_boolean (nemo_preferences,
+                                                        NEMO_PREFERENCES_SHOW_HIDDEN_FILES));
 	nemo_search_directory_set_query (NEMO_SEARCH_DIRECTORY (directory),
 					     query);
 
@@ -235,6 +239,7 @@ real_active (NemoWindowSlot *slot)
     nemo_window_sync_bookmark_action (window);
 	nemo_window_pane_sync_location_widgets (slot->pane);
 	nemo_window_pane_sync_search_widgets (slot->pane);
+	nemo_window_sync_thumbnail_action(window);
 
 	if (slot->viewed_file != NULL) {
 		nemo_window_sync_view_type (window);
@@ -277,7 +282,7 @@ nemo_window_slot_init (NemoWindowSlot *slot)
 
 	slot->query_editor = NEMO_QUERY_EDITOR (nemo_query_editor_new ());
 
-	nemo_window_slot_add_extra_location_widget (slot, slot->query_editor);
+	nemo_window_slot_add_extra_location_widget (slot, GTK_WIDGET (slot->query_editor));
 
 	slot->view_overlay = gtk_overlay_new ();
 	gtk_widget_add_events (slot->view_overlay,
@@ -542,9 +547,19 @@ nemo_window_slot_update_icon (NemoWindowSlot *slot)
 				g_object_unref (pixbuf);
 			} 
 		}
-		
-		g_object_unref (info);
+
+        nemo_icon_info_unref (info);
 	}
+}
+
+void
+nemo_window_slot_set_show_thumbnails (NemoWindowSlot *slot,
+                                      gboolean show_thumbnails)
+{
+  NemoDirectory *directory;
+  
+  directory = nemo_directory_get (slot->location);
+  nemo_directory_set_show_thumbnails(directory, show_thumbnails);
 }
 
 void

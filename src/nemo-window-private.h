@@ -90,9 +90,8 @@ struct NemoWindowDetails
         guint extensions_toolbar_merge_id;
         GtkActionGroup *extensions_toolbar_action_group;
 
-        /* focus widget before the location bar has been shown temporarily */
-        GtkWidget *last_focus_widget;
-        	
+        guint menu_hide_delay_id;
+
         /* split view */
         GtkWidget *split_view_hpane;
 
@@ -102,7 +101,8 @@ struct NemoWindowDetails
 
         guint menu_state_changed_id;
 
-        gboolean temporary_menu_bar;
+        gboolean menu_skip_release;
+        gboolean menu_show_queued;
 
         gchar *ignore_meta_view_id;
         gint ignore_meta_zoom_level;
@@ -110,7 +110,6 @@ struct NemoWindowDetails
         GList *ignore_meta_column_order;
         gchar *ignore_meta_sort_column;
         gint ignore_meta_sort_direction;
-        gint ignore_meta_tighter_layout;
 };
 
 /* window geometry */
@@ -161,6 +160,7 @@ void nemo_window_sync_zoom_widgets     (NemoWindow *window);
 void nemo_window_sync_up_button        (NemoWindow *window);
 void nemo_window_sync_menu_bar         (NemoWindow *window);
 void nemo_window_sync_bookmark_action  (NemoWindow *window);
+void nemo_window_sync_thumbnail_action (NemoWindow *window);
 
 /* window menus */
 GtkActionGroup *nemo_window_create_toolbar_action_group (NemoWindow *window);

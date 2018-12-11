@@ -72,6 +72,7 @@ struct NemoFileDetails
 	time_t atime; /* 0 is unknown */
 	time_t mtime; /* 0 is unknown */
 	time_t ctime; /* 0 is unknown */
+    time_t btime; /* 0 is unknown */
 	
 	char *symlink_name;
 	
@@ -98,9 +99,6 @@ struct NemoFileDetails
 	time_t thumbnail_mtime;
     gint thumbnail_throttle_count;
     time_t last_thumbnail_try_mtime;
-
-    GdkPixbuf *scaled_thumbnail;
-    double thumbnail_scale;
 
 	GList *mime_list; /* If this is a directory, the list of MIME types in it. */
 
@@ -154,6 +152,10 @@ struct NemoFileDetails
 	eel_boolean_bit get_info_failed               : 1;
 	eel_boolean_bit file_info_is_up_to_date       : 1;
 	
+    eel_boolean_bit got_btime                     : 1;
+    eel_boolean_bit get_btime_failed              : 1;
+    eel_boolean_bit btime_is_up_to_date           : 1;
+
 	eel_boolean_bit got_directory_count           : 1;
 	eel_boolean_bit directory_count_failed        : 1;
 	eel_boolean_bit directory_count_is_up_to_date : 1;
@@ -269,8 +271,6 @@ gboolean      nemo_file_set_display_name               (NemoFile           *file
 							    const char             *display_name,
 							    const char             *edit_name,
 							    gboolean                custom);
-void          nemo_file_set_mount                      (NemoFile           *file,
-							    GMount                 *mount);
 
 /* Mark specified attributes for this file out of date without canceling current
  * I/O or kicking off new I/O.

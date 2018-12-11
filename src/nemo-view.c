@@ -39,6 +39,7 @@
 #include "nemo-previewer.h"
 #include "nemo-properties-window.h"
 #include "nemo-bookmark-list.h"
+#include "nemo-directory-private.h"
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -96,9 +97,9 @@
 #include <libnemo-private/nemo-debug.h>
 
 /* Minimum starting update inverval */
-#define UPDATE_INTERVAL_MIN 200
+#define UPDATE_INTERVAL_MIN 50
 /* Maximum update interval */
-#define UPDATE_INTERVAL_MAX 2000
+#define UPDATE_INTERVAL_MAX 2050
 /* Amount of miliseconds the update interval is increased */
 #define UPDATE_INTERVAL_INC 250
 /* Interval at which the update interval is increased */
@@ -113,6 +114,7 @@
 
 #define MAX_QUEUED_UPDATES 500
 
+#define NEMO_VIEW_MENU_PATH_OPEN_PLACEHOLDER                  "/MenuBar/File/Open Placeholder"
 #define NEMO_VIEW_MENU_PATH_APPLICATIONS_SUBMENU_PLACEHOLDER  "/MenuBar/File/Open Placeholder/Open With/Applications Placeholder"
 #define NEMO_VIEW_MENU_PATH_APPLICATIONS_PLACEHOLDER    	  "/MenuBar/File/Open Placeholder/Applications Placeholder"
 #define NEMO_VIEW_MENU_PATH_SCRIPTS_PLACEHOLDER               "/MenuBar/File/Open Placeholder/Scripts/Scripts Placeholder"
@@ -121,7 +123,8 @@
 #define NEMO_VIEW_MENU_PATH_NEW_DOCUMENTS_PLACEHOLDER  	  "/MenuBar/File/New Items Placeholder/New Documents/New Documents Placeholder"
 #define NEMO_VIEW_MENU_PATH_OPEN				  "/MenuBar/File/Open Placeholder/Open"
 
-#define NEMO_VIEW_POPUP_PATH_SELECTION			  "/selection"
+#define NEMO_VIEW_POPUP_PATH_SELECTION            "/selection"
+#define NEMO_VIEW_POPUP_PATH_OPEN_PLACEHOLDER	  "/selection/Open Placeholder"
 #define NEMO_VIEW_POPUP_PATH_APPLICATIONS_SUBMENU_PLACEHOLDER "/selection/Open Placeholder/Open With/Applications Placeholder"
 #define NEMO_VIEW_POPUP_PATH_APPLICATIONS_PLACEHOLDER    	  "/selection/Open Placeholder/Applications Placeholder"
 #define NEMO_VIEW_POPUP_PATH_SCRIPTS_PLACEHOLDER    	  "/selection/Open Placeholder/Scripts/Scripts Placeholder"
@@ -501,6 +504,7 @@ nemo_view_reveal_selection (NemoView *view)
 static void
 nemo_view_reset_to_defaults (NemoView *view)
 {
+    NemoFile *file;
     g_return_if_fail (NEMO_IS_VIEW (view));
 
     NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->reset_to_defaults (view);
@@ -512,6 +516,10 @@ nemo_view_reset_to_defaults (NemoView *view)
     } else {
         nemo_window_set_hidden_files_mode (view->details->window, NEMO_WINDOW_SHOW_HIDDEN_FILES_DISABLE);
     }
+
+    file = view->details->slot->viewed_file;
+    nemo_file_set_metadata(file, NEMO_METADATA_KEY_SHOW_THUMBNAILS, NULL, NULL);
+    emit_change_signals_for_all_files_in_all_directories ();
 }
 
 static gboolean
@@ -746,28 +754,6 @@ nemo_view_scroll_to_file (NemoView *view,
 	NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->scroll_to_file (view, uri);
 }
 
-char **
-nemo_view_get_emblem_names_to_exclude (NemoView *view)
-{
-	char **excludes;
-	int i;
-
-	g_assert (NEMO_IS_VIEW (view));
-
-	excludes = g_new (char *, 3);
-
-	i = 0;
-	excludes[i++] = g_strdup (NEMO_FILE_EMBLEM_NAME_TRASH);
-
-	if (!nemo_file_can_write (view->details->directory_as_file)) {
-		excludes[i++] = g_strdup (NEMO_FILE_EMBLEM_NAME_CANT_WRITE);
-	}
-
-	excludes[i++] = NULL;
-
-	return excludes;
-}
-
 /**
  * nemo_view_get_selection:
  *
@@ -786,6 +772,34 @@ nemo_view_get_selection (NemoView *view)
 	g_return_val_if_fail (NEMO_IS_VIEW (view), NULL);
 
 	return NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->get_selection (view);
+}
+
+/**
+ * nemo_view_peek_selection:
+ *
+ * Get a list of NemoFile pointers that represents the
+ * currently-selected items in this view. Subclasses must override
+ * the signal handler for the 'peek_selection' signal. The returned list
+ * is owned by the view's icon container and should not be freed.
+ * @view: NemoView whose selected items are of interest.
+ *
+ * Return value: GList of NemoFile pointers representing the selection.
+ *
+ **/
+GList *
+nemo_view_peek_selection (NemoView *view)
+{
+    g_return_val_if_fail (NEMO_IS_VIEW (view), NULL);
+
+    return NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->peek_selection (view);
+}
+
+int
+nemo_view_get_selection_count (NemoView *view)
+{
+    g_return_val_if_fail (NEMO_IS_VIEW (view), 0);
+
+    return NEMO_VIEW_CLASS (G_OBJECT_GET_CLASS (view))->get_selection_count (view);
 }
 
 /**
@@ -2243,18 +2257,16 @@ all_files_in_trash (GList *files)
 }
 
 static gboolean
-all_selected_items_in_trash (NemoView *view)
+all_selected_items_in_trash (NemoView *view, GList *selection)
 {
-	GList *selection;
 	gboolean result;
 
 	/* If the contents share a parent directory, we need only
 	 * check that parent directory. Otherwise we have to inspect
 	 * each selected item.
 	 */
-	selection = nemo_view_get_selection (view);
+
 	result = (selection == NULL) ? FALSE : all_files_in_trash (selection);
-	nemo_file_list_free (selection);
 
 	return result;
 }
@@ -2545,20 +2557,6 @@ nemo_view_grab_focus (NemoView *view)
 	if (child) {
 		gtk_widget_grab_focus (GTK_WIDGET (child));
 	}
-}
-
-int
-nemo_view_get_selection_count (NemoView *view)
-{
-	/* FIXME: This could be faster if we special cased it in subclasses */
-	GList *files;
-	int len;
-
-	files = nemo_view_get_selection (NEMO_VIEW (view));
-	len = g_list_length (files);
-	nemo_file_list_free (files);
-
-	return len;
 }
 
 static void
@@ -3030,7 +3028,7 @@ nemo_view_display_selection_info (NemoView *view)
 
 	g_return_if_fail (NEMO_IS_VIEW (view));
 
-	selection = nemo_view_get_selection (view);
+	selection = nemo_file_list_ref (nemo_view_peek_selection (view));
 
 	folder_item_count_known = TRUE;
 	folder_count = 0;
@@ -3069,7 +3067,7 @@ nemo_view_display_selection_info (NemoView *view)
 		}
 	}
 
-	nemo_file_list_free (selection);
+	nemo_file_list_unref (selection);
 
 	/* Break out cases for localization's sake. But note that there are still pieces
 	 * being assembled in a particular order, which may be a problem for some localizers.
@@ -3746,12 +3744,12 @@ process_old_files (NemoView *view)
 		g_signal_emit (view, signals[END_FILE_CHANGES], 0);
 
 		if (files_changed != NULL) {
-			selection = nemo_view_get_selection (view);
+			selection = nemo_file_list_ref (nemo_view_peek_selection (view));
 			files = file_and_directory_list_to_files (files_changed);
 			send_selection_change = eel_g_lists_sort_and_check_for_intersection
 				(&files, &selection);
 			nemo_file_list_free (files);
-			nemo_file_list_free (selection);
+			nemo_file_list_unref (selection);
 		}
 
 		file_and_directory_list_free (view->details->old_added_files);
@@ -4347,17 +4345,15 @@ nemo_view_duplicate_selection (NemoView *view, GList *files,
  */
 
 static gboolean
-special_link_in_selection (NemoView *view)
+special_link_in_selection (NemoView *view, GList *selection)
 {
 	gboolean saw_link;
-	GList *selection, *node;
+	GList *node;
 	NemoFile *file;
 
 	g_return_val_if_fail (NEMO_IS_VIEW (view), FALSE);
 
 	saw_link = FALSE;
-
-	selection = nemo_view_get_selection (NEMO_VIEW (view));
 
 	for (node = selection; node != NULL; node = node->next) {
 		file = NEMO_FILE (node->data);
@@ -4369,8 +4365,6 @@ special_link_in_selection (NemoView *view)
 		}
 	}
 
-	nemo_file_list_free (selection);
-
 	return saw_link;
 }
 
@@ -4380,17 +4374,15 @@ special_link_in_selection (NemoView *view)
  */
 
 static gboolean
-desktop_or_home_dir_in_selection (NemoView *view)
+desktop_or_home_dir_in_selection (NemoView *view, GList *selection)
 {
 	gboolean saw_desktop_or_home_dir;
-	GList *selection, *node;
+	GList *node;
 	NemoFile *file;
 
 	g_return_val_if_fail (NEMO_IS_VIEW (view), FALSE);
 
 	saw_desktop_or_home_dir = FALSE;
-
-	selection = nemo_view_get_selection (NEMO_VIEW (view));
 
 	for (node = selection; node != NULL; node = node->next) {
 		file = NEMO_FILE (node->data);
@@ -4404,8 +4396,6 @@ desktop_or_home_dir_in_selection (NemoView *view)
 		}
 	}
 
-	nemo_file_list_free (selection);
-
 	return saw_desktop_or_home_dir;
 }
 
@@ -4415,17 +4405,15 @@ desktop_or_home_dir_in_selection (NemoView *view)
  */
 
 static gboolean
-directory_in_selection (NemoView *view)
+directory_in_selection (NemoView *view, GList *selection)
 {
     gboolean has_dir;
-    GList *selection, *node;
+    GList *node;
     NemoFile *file;
 
     g_return_val_if_fail (NEMO_IS_VIEW (view), FALSE);
 
     has_dir = FALSE;
-
-    selection = nemo_view_get_selection (NEMO_VIEW (view));
 
     for (node = selection; node != NULL; node = node->next) {
         file = NEMO_FILE (node->data);
@@ -4435,7 +4423,6 @@ directory_in_selection (NemoView *view)
             break;
         }
     }
-    nemo_file_list_free (selection);
 
     return has_dir;
 }
@@ -4679,26 +4666,26 @@ menu_item_show_image (GtkUIManager *ui_manager,
 		      const char   *action_name,
                 gboolean    ignore_gtk_pref)
 {
-	char *path;
-	GtkWidget *menuitem;
+    GtkImageMenuItem *menuitem;
+    char *path;
+    gboolean show = TRUE;
+
+    path = g_strdup_printf ("%s/%s", parent_path, action_name);
+    menuitem = GTK_IMAGE_MENU_ITEM (gtk_ui_manager_get_widget (ui_manager,
+                                                               path));
+    g_free (path);
 
     if (!ignore_gtk_pref) {
-        gboolean show;
-
         g_object_get (gtk_settings_get_default (), "gtk-menu-images", &show, NULL);
 
-        if (!show)
+        if (!show && !gtk_image_menu_item_get_always_show_image (menuitem)) {
             return;
+        }
     }
 
-	path = g_strdup_printf ("%s/%s", parent_path, action_name);
-	menuitem = gtk_ui_manager_get_widget (ui_manager,
-					      path);
-	if (menuitem != NULL) {
-		gtk_image_menu_item_set_always_show_image (GTK_IMAGE_MENU_ITEM (menuitem),
-							   TRUE);
-	}
-	g_free (path);
+    if (menuitem != NULL) {
+        gtk_image_menu_item_set_always_show_image (menuitem, show);
+    }
 }
 
 static void
@@ -5602,7 +5589,7 @@ get_menu_icon_for_file (NemoFile *file,
 
 	info = nemo_file_get_icon (file, size, 0, scale, 0);
 	pixbuf = nemo_icon_info_get_pixbuf_nodefault_at_size (info, size);
-	g_object_unref (info);
+	nemo_icon_info_unref (info);
 
 	return pixbuf;
 }
@@ -6324,20 +6311,29 @@ run_action_callback (NemoAction *action, gpointer callback_data)
     nemo_file_list_free (selected_files);
 }
 
+typedef struct {
+    NemoView *view;
+    GList    *selection;
+} ActionVisibilityData;
+
 static void
 determine_visibility (gpointer data, gpointer callback_data)
 {
     NemoAction *action = NEMO_ACTION (data);
-    NemoView *view = NEMO_VIEW (callback_data);
+    ActionVisibilityData *av_data = (ActionVisibilityData *) callback_data;
+    GList *selection;
+    NemoView *view;
 
-    GList *selected_files = nemo_view_get_selection (view);
+    view = av_data->view;
+    selection = av_data->selection;
+
     NemoFile *parent = nemo_view_get_directory_as_file (view);
 
-    if (nemo_action_get_visibility (action, selected_files, parent)) {
+    if (nemo_action_get_visibility (action, selection, parent, FALSE)) {
         gchar *label, *tt;
 
-        label = nemo_action_get_label (action, selected_files, parent);
-        tt = nemo_action_get_tt (action, selected_files, parent);
+        label = nemo_action_get_label (action, selection, parent);
+        tt = nemo_action_get_tt (action, selection, parent);
 
         gtk_action_set_label (GTK_ACTION (action), label);
         gtk_action_set_tooltip (GTK_ACTION (action), tt);
@@ -6349,15 +6345,22 @@ determine_visibility (gpointer data, gpointer callback_data)
     } else {
         gtk_action_set_visible (GTK_ACTION (action), FALSE);
     }
-
-    nemo_file_list_free (selected_files);
 }
 
 static void
-update_actions_visibility (NemoView *view)
+update_actions_visibility (NemoView *view, GList *selection)
 {
     GList *actions = gtk_action_group_list_actions (view->details->actions_action_group);
-    g_list_foreach (actions, determine_visibility, view);
+    ActionVisibilityData *data;
+
+    data = g_slice_new0 (ActionVisibilityData);
+
+    data->view = view;
+    data->selection = selection;
+
+    g_list_foreach (actions, determine_visibility, data);
+
+    g_slice_free (ActionVisibilityData, data);
     g_list_free (actions);
 }
 
@@ -8006,7 +8009,7 @@ action_connect_to_server_link_callback (GtkAction *action,
 	}
 
 	g_free (uri);
-	g_object_unref (icon);
+	nemo_icon_info_unref (icon);
 	g_free (name);
 }
 
@@ -8667,8 +8670,8 @@ clipboard_targets_received (GtkClipboard     *clipboard,
 	}
 
 
-	selection = nemo_view_get_selection (view);
-	count = g_list_length (selection);
+	selection = nemo_file_list_ref (nemo_view_peek_selection (view));
+	count = nemo_view_get_selection_count (view);
 
 	action = gtk_action_group_get_action (view->details->dir_action_group,
 					      NEMO_ACTION_PASTE);
@@ -8692,7 +8695,7 @@ clipboard_targets_received (GtkClipboard     *clipboard,
 				  GPOINTER_TO_INT (g_object_get_data (G_OBJECT (action),
 								      "can-paste-according-to-destination")));
 
-	nemo_file_list_free (selection);
+	nemo_file_list_unref (selection);
 
 	g_object_unref (view);
 }
@@ -9519,12 +9522,12 @@ clipboard_changed_callback (NemoClipboardMonitor *monitor, NemoView *view)
 		return;
 	}
 
-	selection = nemo_view_get_selection (view);
-	selection_count = g_list_length (selection);
+	selection = nemo_file_list_ref (nemo_view_peek_selection (view));
+	selection_count = nemo_view_get_selection_count (view);
 
 	real_update_paste_menu (view, selection, selection_count);
 
-	nemo_file_list_free (selection);
+	nemo_file_list_unref (selection);
 
 }
 
@@ -9586,7 +9589,6 @@ update_complex_popup_items (NemoView *view)
 static void
 real_update_menus (NemoView *view)
 {
-    GtkWidget *menuitem;
 	GList *selection, *l;
 	gint selection_count;
 	const char *tip, *label;
@@ -9613,17 +9615,16 @@ real_update_menus (NemoView *view)
 	GtkAction *action;
 	GAppInfo *app;
 	GIcon *app_icon;
-	// GtkWidget *menuitem;
 	gboolean next_pane_is_writable;
 	gboolean show_properties;
 
-	selection = nemo_view_get_selection (view);
-	selection_count = g_list_length (selection);
+	selection = nemo_file_list_ref (nemo_view_peek_selection (view));
+	selection_count = nemo_view_get_selection_count (view);
 
-	selection_contains_special_link = special_link_in_selection (view);
-	selection_contains_desktop_or_home_dir = desktop_or_home_dir_in_selection (view);
+	selection_contains_special_link = special_link_in_selection (view, selection);
+	selection_contains_desktop_or_home_dir = desktop_or_home_dir_in_selection (view, selection);
     selection_contains_recent = showing_recent_directory (view);
-    selection_contains_directory = directory_in_selection (view);
+    selection_contains_directory = directory_in_selection (view, selection);
 	can_create_files = nemo_view_supports_creating_files (view);
 	can_delete_files =
 		can_delete_all (selection) &&
@@ -9738,21 +9739,15 @@ real_update_menus (NemoView *view)
     g_object_unref (app_icon);
     g_free (label_with_underscore);
 
-    menuitem = gtk_ui_manager_get_widget (
-                          nemo_window_get_ui_manager (view->details->window),
-                          NEMO_VIEW_MENU_PATH_OPEN);
+    menu_item_show_image (nemo_window_get_ui_manager (view->details->window),
+                          NEMO_VIEW_MENU_PATH_OPEN_PLACEHOLDER,
+                          NEMO_ACTION_OPEN,
+                          FALSE);
 
-    /* Only force displaying the icon if it is an application icon */
-    gtk_image_menu_item_set_always_show_image (
-                           GTK_IMAGE_MENU_ITEM (menuitem), app_icon != NULL);
-
-    menuitem = gtk_ui_manager_get_widget (
-                          nemo_window_get_ui_manager (view->details->window),
-                          NEMO_VIEW_POPUP_PATH_OPEN);
-
-    /* Only force displaying the icon if it is an application icon */
-    gtk_image_menu_item_set_always_show_image (
-                           GTK_IMAGE_MENU_ITEM (menuitem), app_icon != NULL);
+    menu_item_show_image (nemo_window_get_ui_manager (view->details->window),
+                          NEMO_VIEW_POPUP_PATH_OPEN_PLACEHOLDER,
+                          NEMO_ACTION_OPEN_TOGGLE,
+                          FALSE);
 
 	show_open_alternate = file_list_all_are_folders (selection) &&
 		selection_count > 0 &&
@@ -9804,7 +9799,7 @@ real_update_menus (NemoView *view)
 	reset_extension_actions_menu (view, selection);
     reset_move_copy_to_menu (view);
 
-	if (all_selected_items_in_trash (view)) {
+	if (all_selected_items_in_trash (view, selection)) {
 		label = _("_Delete Permanently");
 		tip = _("Delete all selected items permanently");
 		show_separate_delete_command = FALSE;
@@ -9819,7 +9814,7 @@ real_update_menus (NemoView *view)
 	g_object_set (action,
 		      "label", label,
 		      "tooltip", tip,
-		      "icon-name", all_selected_items_in_trash (view) ?
+		      "icon-name", all_selected_items_in_trash (view, selection) ?
 		      NEMO_ICON_DELETE : NEMO_ICON_SYMBOLIC_TRASH_FULL,
 		      NULL);
 	gtk_action_set_sensitive (action, can_delete_files);
@@ -9960,7 +9955,7 @@ real_update_menus (NemoView *view)
         update_actions_menu (view);
     }
 
-    update_actions_visibility (view);
+    update_actions_visibility (view, selection);
 
 	next_pane_is_writable = has_writable_extra_pane (view);
 
@@ -10021,7 +10016,7 @@ real_update_menus (NemoView *view)
 
     update_complex_popup_items (view);
 
-    nemo_file_list_free (selection);
+    nemo_file_list_unref (selection);
 }
 
 /**
@@ -10263,10 +10258,9 @@ nemo_view_notify_selection_changed (NemoView *view)
 
 	g_return_if_fail (NEMO_IS_VIEW (view));
 
-	selection = nemo_view_get_selection (view);
+	selection = nemo_view_peek_selection (view);
 	window = nemo_view_get_containing_window (view);
 	DEBUG_FILES (selection, "Selection changed in window %p", window);
-	nemo_file_list_free (selection);
 
 	view->details->selection_was_removed = FALSE;
 
@@ -10442,7 +10436,8 @@ finish_loading (NemoView *view)
 		NEMO_FILE_ATTRIBUTE_INFO |
 		NEMO_FILE_ATTRIBUTE_LINK_INFO |
 		NEMO_FILE_ATTRIBUTE_MOUNT |
-		NEMO_FILE_ATTRIBUTE_EXTENSION_INFO;
+		NEMO_FILE_ATTRIBUTE_EXTENSION_INFO |
+        NEMO_FILE_ATTRIBUTE_BTIME;
 
 	nemo_directory_file_monitor_add (view->details->model,
 					     &view->details->model,
