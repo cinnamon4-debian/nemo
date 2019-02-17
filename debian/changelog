@@ -1,8 +1,8 @@
-nemo (4.0.4-1~) UNRELEASED; urgency=medium
+nemo (4.0.6-1~1) UNRELEASED; urgency=medium
 
-  * New upstream release (4.0.4).
+  * New upstream release (4.0.{4,6}).
 
- -- Norbert Preining <preining@debian.org>  Tue, 11 Dec 2018 20:20:25 +0900
+ -- Norbert Preining <norbert@preining.info>  Sun, 17 Feb 2019 19:30:42 +0900
 
 nemo (3.8.5-1) unstable; urgency=medium
 
